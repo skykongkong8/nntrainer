@@ -14,6 +14,7 @@
 
 #include <fstream>
 #include <type_traits>
+#include<iostream>
 
 #include <base_properties.h>
 #include <layer_context.h>
@@ -243,16 +244,27 @@ static void compareRunContext(RunLayerContext &rc, std::ifstream &file,
       for (unsigned int idx = 0; idx < total; idx++) {
         auto d1 = t1.getValue<_FP16>(idx);
         auto d2 = t2.getValue<_FP16>(idx);
-        auto float_eq = [skip_cos_sim](_FP16 a, _FP16 b) {
-          constexpr auto eps = 1e-1;
+        auto float_eq = [&](_FP16 a, _FP16 b) {
+          constexpr auto eps = 1e-2;
+          constexpr auto min_fp16 = 6.104e-5;
           if (a < b)
             std::swap(a, b);
-          return (a - b) < eps;
+          if ((b > 0 && b < min_fp16) || (b < 0 && b < -min_fp16)) b = 0;
+          if (a-b < 1e-2) return a-b < 1e-2;
+          if (b != 0){
+            double relative_error = (a - b) / b;
+            return (relative_error >= 0) ? relative_error < eps : -relative_error < eps;
+          } else return (a-b) < eps * eps;
         };
         /** either both the values must be equal or 1 must be zero */
         weak_match += std::min(float_eq(d1, d2) + (float_eq(d1, 0) && d2 != 0) +
                                  (d1 != 0 && float_eq(d2, 0)),
                                1);
+        if ( std::min(float_eq(d1, d2) + (float_eq(d1, 0) && d2 != 0) +
+                                 (d1 != 0 && float_eq(d2, 0)),
+                               1) == 0){
+                                std::cout << "d1 : " << float(d1) << " d2 : " << float(d2) << std::endl;
+                               }
       }
 
       return (weak_match == total);
