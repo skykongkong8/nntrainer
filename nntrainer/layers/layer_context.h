@@ -406,7 +406,8 @@ public:
         output.setDataType(nntrainer::Tdatatype::FP16);
       }
 
-      return weights[idx]->getVariableRef().dequantize<T>(output);
+      return weights[idx]->getVariableRef().dequantize<T>(
+        output, weights[idx]->getOutputAxis());
     }
     return weights[idx]->getVariableRef();
   }
