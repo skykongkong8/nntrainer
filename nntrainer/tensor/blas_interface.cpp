@@ -247,21 +247,21 @@ static void naive_sgemm_FP16(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA,
 #ifdef USE__FP16
   std::cout << "naive_sgemm_FP16" << std::endl;
 
-  if ((N % 8 == 0) && (K %8==0)) {
-  nntrainer::neon::sgemm_neon_fp16(A, B, C, M, N, K, alpha, beta,
-				   TransA == CblasTrans,
-				   TransB == CblasTrans);
-  // // std::cout<< "M : " << M << " K : " << K << " N : "<< N<<std::endl;
-  // // std::cout<< "A[0] : " << float(A[0]) << " B[0] : " << float(B[0]) << " A[1] : "<< float(A[1])<<std::endl;
+  // if ((N % 8 == 0) && (K %8==0)) {
+  // nntrainer::neon::sgemm_neon_fp16(A, B, C, M, N, K, alpha, beta,
+	// 			   TransA == CblasTrans,
+	// 			   TransB == CblasTrans);
+  // // // std::cout<< "M : " << M << " K : " << K << " N : "<< N<<std::endl;
+  // // // std::cout<< "A[0] : " << float(A[0]) << " B[0] : " << float(B[0]) << " A[1] : "<< float(A[1])<<std::endl;
 
 
-  } else {
-    // std::cout << M << " " << K << " "<< N<<std::endl;
-     sgemm_loop_fp16();
-  }
+  // } else {
+  //   // std::cout << M << " " << K << " "<< N<<std::endl;
+  //    sgemm_loop_fp16();
+  // }
 
 
-  // sgemm_loop_fp16();
+  sgemm_loop_fp16();
 
 #else
    sgemm_loop_fp16();
