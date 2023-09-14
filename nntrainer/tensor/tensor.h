@@ -987,6 +987,9 @@ public:
    */
   Tensor dot(Tensor const &m, bool trans = false, bool trans_m = false) const;
 
+  Tensor naive_dot(Tensor const &m, bool trans = false,
+                   bool trans_m = false) const;
+
   /**
    * @brief     Dot Product of Tensor ( equal MxM )
    * @details   This applies dot of the last dimension of this and second-last
@@ -999,6 +1002,9 @@ public:
    * @retval    Calculated Tensor
    */
   Tensor &dot(Tensor const &m, Tensor &output, bool trans = false,
+              bool trans_m = false, float beta = 0.0f) const;
+
+  Tensor &naive_dot(Tensor const &m, Tensor &output, bool trans = false,
               bool trans_m = false, float beta = 0.0f) const;
 
   /**
@@ -2011,8 +2017,7 @@ public:
    * @param[out] output Tensor to store the result
    * @retval     Dequantized Tensor
    */
-  template <typename T>
-  Tensor &dequantize(Tensor &output) const {
+  template <typename T> Tensor &dequantize(Tensor &output) const {
     if (getDataType() == Tdatatype::FP32 || getDataType() == Tdatatype::FP16) {
       throw std::invalid_argument("Error: Tensor cannot be dequantized");
     }

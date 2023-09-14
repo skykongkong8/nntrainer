@@ -45,7 +45,7 @@ _FP16 snrm2(const int N, const _FP16 *X, const int incX);
 void scopy(const unsigned int N, const _FP16 *X, const int incX, _FP16 *Y,
            const int intY);
 _FP16 sdot(const unsigned int N, const _FP16 *X, const unsigned int incX,
-            const _FP16 *Y, const unsigned int incY);
+           const _FP16 *Y, const unsigned int incY);
 void saxpy(const unsigned int N, const float alpha, const _FP16 *X,
            const int incX, _FP16 *Y, const int incY);
 void sgemm(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA, CBLAS_TRANSPOSE TransB,
@@ -53,6 +53,12 @@ void sgemm(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA, CBLAS_TRANSPOSE TransB,
            const float alpha, const _FP16 *A, const unsigned int lda,
            const _FP16 *B, const unsigned int ldb, const float beta, _FP16 *C,
            const unsigned int ldc);
+void naive_sgemm(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA,
+                 CBLAS_TRANSPOSE TransB, const unsigned int M,
+                 const unsigned int N, const unsigned int K, const float alpha,
+                 const _FP16 *A, const unsigned int lda, const _FP16 *B,
+                 const unsigned int ldb, const float beta, _FP16 *C,
+                 const unsigned int ldc);
 void sgemv(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA, const unsigned int M,
            const unsigned int N, const float alpha, const _FP16 *A,
            const unsigned int lda, const _FP16 *X, const int incX,
