@@ -217,7 +217,7 @@ static void sgemm_FP16(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA,
 #ifdef USE__FP16
   std::cout << "sgemm_FP16" << std::endl;
 
-  // if ((N % 8 == 0) && (K %8==0)) {
+  // if ((MN % 8 == 0) &&(N % 8 == 0) && (K %8==0)) {
   nntrainer::neon::sgemm_neon_fp16(A, B, C, M, N, K, alpha, beta,
 				   TransA == CblasTrans,
 				   TransB == CblasTrans);

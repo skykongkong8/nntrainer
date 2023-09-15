@@ -946,92 +946,89 @@ void sgemm_neon_fp16(const __fp16 *A, const __fp16 *B, __fp16 *C, uint32_t M,
   __fp16 r[4];
 
   if (!TransA && TransB) {
-    std::cout << "TransB with K : "<< M <<" " << K<<" " << N << std::endl;
     __fp16 valsB[8];
     __fp16 valsA[8];
     float16x8_t sum;
-    float32x4_t sum0, sum1;
+    float32x4_t sum0_3_32, sum4_7_32;
+    float16_t upscale_factor = 10;
+    float16_t downscale_factor = 0.01;
 
     for (unsigned int m = 0; m < M; m++) {
       for (unsigned int n = 0; n < N; n++) {
-        sum = vmovq_n_f16(0);
-        sum0 = vdupq_n_f32(0);
-        sum1 = vdupq_n_f32(0);
+        sum = vdupq_n_f16(0);
+        sum0_3_32 = vdupq_n_f32(0);
+        sum4_7_32 = vdupq_n_f32(0);
 
         unsigned int k = 0;
         for (; (K - k) >= 8; k += 8) {
-          float16x8_t a = vld1q_f16(&A[m * K + k]);
-          float16x8_t b = vld1q_f16(&B[n * K + k]);
+          float16x8_t a0_7 = vld1q_f16(&A[m * K + k]);
+          float16x8_t b0_7 = vld1q_f16(&B[n * K + k]);
 
-          // float16x4_t a0 = vget_high_f16(a);
-          // float16x4_t b0 = vget_high_f16(b);
+          a0_7 = vmulq_f16(a0_7, vdupq_n_f16(upscale_factor));
+          b0_7 = vmulq_f16(b0_7, vdupq_n_f16(upscale_factor));
 
-          // float16x4_t a1 = vget_low_f16(a);
-          // float16x4_t b1 = vget_low_f16(b);
+          float16x4_t a0_3 = vget_low_f16(a0_7);
+          float16x4_t a4_7 = vget_high_f16(a0_7);
 
-          // float32x4_t a0_32 = vcvt_f32_f16(a0);
-          // float32x4_t b0_32 = vcvt_f32_f16(b0);
+          float16x4_t b0_3 = vget_low_f16(b0_7);
+          float16x4_t b4_7 = vget_high_f16(b0_7);
 
-          // float32x4_t a1_32 = vcvt_f32_f16(a1);
-          // float32x4_t b1_32 = vcvt_f32_f16(b1);
+          float32x4_t a0_3_32 = vcvt_f32_f16(a0_3);
+          float32x4_t a4_7_32 = vcvt_f32_f16(a4_7);
 
-          // // float32x4_t sum0, sum1;
-          // sum0 = vmlaq_f32(sum0, a0_32, b0_32);
-          // sum1 = vmlaq_f32(sum1, a1_32, b1_32);
+          float32x4_t b0_3_32 = vcvt_f32_f16(b0_3);
+          float32x4_t b4_7_32 = vcvt_f32_f16(b4_7);
 
-          // float16x4_t s0 = vcvt_f16_f32(sum0);
-          // float16x4_t s1 = vcvt_f16_f32(sum1);
-          // sum = vcombine_f16(s0, s1);
+          sum0_3_32 = vfmaq_f32(sum0_3_32, a0_3_32, b0_3_32);
+          sum4_7_32 = vfmaq_f32(sum4_7_32, a4_7_32, b4_7_32);
 
-          sum = vfmaq_f16(sum, a, b);
+          float16x4_t sum0_3 = vcvt_f16_f32(sum0_3_32);
+          float16x4_t sum4_7 = vcvt_f16_f32(sum4_7_32);
+
+          // sum = vfmaq_f16(sum, a, b);
+          sum = vcombine_f16(sum0_3, sum4_7);
+          sum = vmulq_f16(sum, vdupq_n_f16(downscale_factor));
         }
 
         // remaining K values
         if (k < K) {
-          // std::cout << "left k : " << k << " while K : " << K <<std::endl;
           unsigned int idx;
           for (idx = k; idx < K; idx++) {
-            // std::cout << "idx : " << idx << std::endl;
-            // std::cout << "idx - k : " << idx - k << std::endl;
-            valsA[idx - k] = A[m * K + idx];
-            valsB[idx - k] = B[n * K + idx];
+            valsA[idx - k] = upscale_factor*A[m * K + idx];
+            valsB[idx - k] = upscale_factor*B[n * K + idx];
+            
           }
           // to cover entire 128 bits (reset unused bits)
           while (idx < (k + 8)) {
-            // std::cout << "zero-initing idx - k : " << idx - k << std::endl;
             valsA[idx - k] = 0.0f;
             valsB[idx - k] = 0.0f;
             idx++;
           }
           // updating sum
-          float16x8_t a = vld1q_f16(valsA);
-          float16x8_t b = vld1q_f16(valsB);
+          float16x8_t a0_7 = vld1q_f16(valsA);
+          float16x8_t b0_7 = vld1q_f16(valsB);
 
-          // std::cout << "a0_8"<<std::endl;
-          // for (int l = 0; l < 8; ++l){
-          //   std::cout << a[l] << "\t";
-          // }
-          // std::cout << "\n";
+          float16x4_t a0_3 = vget_low_f16(a0_7);
+          float16x4_t a4_7 = vget_high_f16(a0_7);
 
-          // std::cout << "b0_8"<<std::endl;
-          // for (int l = 0; l < 8; ++l){
-          //   std::cout << b[l] << "\t";
-          // }
-          // std::cout << "\n";
+          float16x4_t b0_3 = vget_low_f16(b0_7);
+          float16x4_t b4_7 = vget_high_f16(b0_7);
 
-          // std::cout << "sum before"<<std::endl;
-          // for (int l = 0; l < 8; ++l){
-          //   std::cout << sum[l] << "\t";
-          // }
-          // std::cout << "\n";
+          float32x4_t a0_3_32 = vcvt_f32_f16(a0_3);
+          float32x4_t a4_7_32 = vcvt_f32_f16(a4_7);
 
-          sum = vfmaq_f16(sum, a, b);
+          float32x4_t b0_3_32 = vcvt_f32_f16(b0_3);
+          float32x4_t b4_7_32 = vcvt_f32_f16(b4_7);
 
-          // std::cout << "sum after"<<std::endl;
-          // for (int l = 0; l < 8; ++l){
-          //   std::cout << sum[l] << "\t";
-          // }
-          // std::cout << "\n";
+          sum0_3_32 = vmlaq_f32(sum0_3_32, a0_3_32, b0_3_32);
+          sum4_7_32 = vmlaq_f32(sum4_7_32, a4_7_32, b4_7_32);
+
+          float16x4_t sum0_3 = vcvt_f16_f32(sum0_3_32);
+          float16x4_t sum4_7 = vcvt_f16_f32(sum4_7_32);
+
+          // sum = vfmaq_f16(sum, a, b);
+          sum = vcombine_f16(sum0_3, sum4_7);
+          sum = vmulq_f16(sum, vdupq_n_f16(downscale_factor));
         }
 
         sum = vmulq_f16(v_alpha, sum);
@@ -1043,11 +1040,14 @@ void sgemm_neon_fp16(const __fp16 *A, const __fp16 *B, __fp16 *C, uint32_t M,
         float32x4_t sum_low_32 = vcvt_f32_f16(sum_low);
 
         double res_32 = 0;
-        for (int z = 0; z < 4; ++z){
-          res_32 += std::ceil((static_cast<double>(sum_high_32[z]) + static_cast<double>(sum_low_32[z]))*10000)/10000;
+        for (int z = 0; z < 4; ++z) {
+          res_32 += (static_cast<double>(sum_high_32[z])*upscale_factor +
+                               static_cast<double>(sum_low_32[z])*upscale_factor);
         }
-
-        // sum_low_32 = vadd_f32(sum_high_32,sum_low_32);
+        res_32 = std::ceil(res_32)/upscale_factor;
+        // for (int z = 0; z < 4; ++z){
+        //   res_32 += sum_high_32[z] + sum_low_32[z];
+        // }
 
         sum_low = vadd_f16(sum_high, sum_low);
         vst1_f16(r, sum_low);
@@ -1055,30 +1055,117 @@ void sgemm_neon_fp16(const __fp16 *A, const __fp16 *B, __fp16 *C, uint32_t M,
         __fp16 dr[8];
         vst1q_f16(dr, sum);
 
-        __fp16 res;
-        res = vget_lane_f16(sum_low,0) + vget_lane_f16(sum_low,1)+ vget_lane_f16(sum_low,2)+ vget_lane_f16(sum_low,3);
-
-        // C[m * N + n] += (r[0] + r[1] + r[2] + r[3]);
-        // C[m * N + n] += (__fp16)(static_cast<double>(dr[0]) + static_cast<double>(dr[1]) + static_cast<double>(dr[2]) + static_cast<double>(dr[3]) + static_cast<double>(dr[4]) + static_cast<double>(dr[5]) +static_cast<double>(dr[6]) + static_cast<double>(dr[7]));
-        // C[m * N + n] = (dr[0] + dr[1] + dr[2] + dr[3] + dr[4] + dr[5] + dr[6] + dr[7]);
-        // for (int z = 0; z < 8; ++z){
-        //   C[m*N+n] += (dr[z]);
-        //   // std::cout << "dr : " << dr[z] << "\t";
-        // }
-        // std::cout << std::endl;
-        // std::cout << "res_32: " << res_32 << std::endl;
-        // std::cout << "casted res_32: " << float(static_cast<__fp16>(std::ceil(res_32*1000000)/1000000)) << std::endl;
-        // for (int z = 0; z < 4; ++z){
-        //   C[m*N+n] += static_cast<__fp16>(sum_low_32[z]+sum_high_32[z]);
-        //   // C[m*N+n] = C[m*N+n] + sum_low[z];
-        // }
-        C[m*N+n] += (res_32);
+        C[m * N + n] += (res_32);
       }
     }
-  } 
-  else if (TransA && !TransB) {
-    std::cout << "TransA "  << std::endl;
+    // // chatgpt
+    // for (int m = 0; m < M; m++) {
+    //   for (int n = 0; n < N; n++) {
+    //     float16x8_t sum_vec = vdupq_n_f16(0.0f);
 
+    //     for (int k = 0; k < K; k += 8) {
+    //       float16x8_t a_vec = vld1q_f16(&A[m * K + k]);
+    //       float16x8_t b_vec = vld1q_f16(&B[n * K + k]);
+    //       sum_vec = vfmaq_f16(sum_vec, a_vec, b_vec);
+    //     }
+
+    //     if (K % 8 != 0) {
+    //       int remaining = K % 8;
+    //       for (int k = K - remaining; k < K; k++) {
+    //         sum_vec =
+    //           vfmaq_n_f16(sum_vec, vld1q_f16(&A[m * K + k]), B[n * K + k]);
+    //       }
+    //     }
+
+    //     float16x4_t sum_vec_low =
+    //       vpadd_f16(vget_low_f16(sum_vec), vget_high_f16(sum_vec));
+    //     float16x4_t sum_vec_high =
+    //       vext_f16(sum_vec_low, sum_vec_low, 2);
+    //     sum_vec_low = vpadd_f16(sum_vec_low, sum_vec_low);
+    //     sum_vec_high = vpadd_f16(sum_vec_high, sum_vec_high);
+    //     float16x4_t sum_vec_result = vadd_f16(sum_vec_low, sum_vec_high);
+    //     float16_t sum = vget_lane_f16(sum_vec_result, 0);
+
+    //     C[m * N + n] = sum;
+    //   }
+    // }
+    // // chatgpt
+  }
+
+  // if (!TransA && TransB) {
+  //   __fp16 valsB[8];
+  //   __fp16 valsA[8];
+  //   float16x8_t sum;
+  //   float32x4_t sum0, sum1;
+
+  //   for (unsigned int m = 0; m < M; m++) {
+  //     for (unsigned int n = 0; n < N; n++) {
+  //       sum = vdupq_n_f16(0.0f);
+  //       sum0 = vdupq_n_f32(0);
+  //       sum1 = vdupq_n_f32(0);
+
+  //       unsigned int k = 0;
+  //       for (; (K - k) >= 8; k += 8) {
+  //         float16x8_t a = vld1q_f16(&A[m * K + k]);
+  //         float16x8_t b = vld1q_f16(&B[n * K + k]);
+
+  //         sum = vfmaq_f16(sum, a, b);
+  //       }
+
+  //       // remaining K values
+  //       if (k < K) {
+  //         unsigned int idx;
+  //         for (idx = k; idx < K; idx++) {
+  //           valsA[idx - k] = A[m * K + idx];
+  //           valsB[idx - k] = B[n * K + idx];
+  //         }
+  //         // to cover entire 128 bits (reset unused bits)
+  //         while (idx < (k + 8)) {
+  //           valsA[idx - k] = 0.0f;
+  //           valsB[idx - k] = 0.0f;
+  //           idx++;
+  //         }
+  //         // updating sum
+  //         float16x8_t a = vld1q_f16(valsA);
+  //         float16x8_t b = vld1q_f16(valsB);
+
+  //         sum = vfmaq_f16(sum, a, b);
+  //       }
+
+  //       sum = vmulq_f16(v_alpha, sum);
+
+  //       float16x4_t sum_high = vget_high_f16(sum);
+  //       float16x4_t sum_low = vget_low_f16(sum);
+
+  //       float32x4_t sum_high_32 = vcvt_f32_f16(sum_high);
+  //       float32x4_t sum_low_32 = vcvt_f32_f16(sum_low);
+
+  //       double res_32 = 0;
+  //       for (int z = 0; z < 4; ++z) {
+  //         res_32 += std::ceil((static_cast<double>(sum_high_32[z]) +
+  //                              static_cast<double>(sum_low_32[z])) *
+  //                             10000) /
+  //                   10000;
+  //       }
+  //       // for (int z = 0; z < 4; ++z){
+  //       //   res_32 += sum_high_32[z] + sum_low_32[z];
+  //       // }
+
+  //       sum_low = vadd_f16(sum_high, sum_low);
+  //       vst1_f16(r, sum_low);
+
+  //       __fp16 dr[8];
+  //       vst1q_f16(dr, sum);
+
+  //       __fp16 res;
+  //       res = vget_lane_f16(sum_low, 0) + vget_lane_f16(sum_low, 1) +
+  //             vget_lane_f16(sum_low, 2) + vget_lane_f16(sum_low, 3);
+
+  //       C[m * N + n] += (res_32);
+  //     }
+  //   }
+  // } 
+  else if (TransA && !TransB) {
     __fp16 valsB[8];
     __fp16 valsC[8];
     for (unsigned int k = 0; k < K; k++) {
@@ -1114,45 +1201,8 @@ void sgemm_neon_fp16(const __fp16 *A, const __fp16 *B, __fp16 *C, uint32_t M,
       }
     }
   } else if (!TransA && !TransB) {
-    std::cout << "noTrans with K : " << K << std::endl;
-
     sgemm_neon_fp16_noTrans(A, B, C, M, N, K, alpha, beta);
-    // __fp16 valsB[8];
-    // __fp16 valsC[8];
-    // for (unsigned int k = 0; k < K; k++) {
-    //   for (unsigned int m = 0; m < M; m++) {
-    //     __fp16 a = alpha * A[m * K + k];
-    //     unsigned int n = 0;
-    //     for (; (N - n) >= 8; n += 8) {
-    //       float16x8_t b = vld1q_f16(&B[k * N + n]);
-
-    //       // load previously calculated C
-    //       float16x8_t c = vld1q_f16(&C[m * N + n]);
-    //       c = vfmaq_n_f16(c, b, a);
-    //       vst1q_f16(&C[m * N + n], c);
-    //     }
-
-    //     // remaining N values
-    //     if (n < N) {
-    //       for (unsigned int idx = n; idx < N; idx++) {
-    //         valsB[idx - n] = B[k * N + idx];
-
-    //         // load previously calculated C
-    //         valsC[idx - n] = C[m * N + idx];
-    //       }
-    //       float16x8_t b = vld1q_f16(valsB);
-    //       float16x8_t c = vld1q_f16(valsC);
-    //       c = vfmaq_n_f16(c, b, a);
-    //       vst1q_f16(valsC, c);
-
-    //       for (unsigned int idx = n; idx < N; idx++) {
-    //         C[m * N + idx] = valsC[idx - n];
-    //       }
-    //     }
-    //   }
-    // }
   } else { // TransA && TransB
-    std::cout << "TransAB" << std::endl;
 
     __fp16 vals[8];
     for (unsigned int n = 0; n < N; n++) {
