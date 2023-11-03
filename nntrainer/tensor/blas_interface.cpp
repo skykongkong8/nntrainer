@@ -20,8 +20,6 @@
 #endif
 
 #include <cmath>
-#include <iostream>
-
 
 #define sgemv_loop(ci, cj, cM, cN)           \
   do {                                       \
