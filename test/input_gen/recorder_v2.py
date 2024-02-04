@@ -27,7 +27,6 @@ torch.manual_seed(SEED)
 
 __all__ = ["record_v2", "inspect_file"]
 
-
 def _get_writer(file):
     def write_fn(items):
         if not isinstance(items, (list, tuple)):
@@ -35,6 +34,35 @@ def _get_writer(file):
 
         for item in items:
             np.array([item.numel()], dtype="int32").tofile(file)
+            item.detach().cpu().numpy().tofile(file)
+
+        return items
+
+    return write_fn
+
+# (TRIVIAL) ERASE THIS BLOCK
+# def write_tensor_fp16(tensors):
+#             if not isinstance(tensors, list):
+#                 tensors = [tensors]
+#             for tensor in tensors:
+#                 tensor = tf.cast(tensor, tf.float16)
+#                 writer(tf.size(tensor,out_type=tf.int16), tensor)
+
+
+#         ## @todo inputs outputs derivatives can be more than one
+#         ## @note please update genLayerTests.py comments when updating below
+#         write_tensor_fp16(initial_weights)
+#         write_tensor_fp16(inputs)
+# ###
+
+def _get_writer_fp16(file):
+    def write_fn(items):
+        if not isinstance(items, (list, tuple)):
+            items = [items]
+
+        for item in items:
+            item = item.half()
+            np.array([item.numel()], dtype="int16").tofile(file)
             item.detach().cpu().numpy().tofile(file)
 
         return items
@@ -105,6 +133,50 @@ def record_v2(model, iteration, input_dims, label_dims, name, clip=False,
             record_iteration(write_fn)
 
 
+def record_fp16_v2(model, iteration, input_dims, label_dims, name, clip=False,
+              input_dtype=None, input_label_reader=None, optimizer=None):
+    ## file format is as below
+    # [<number of iteration(int)> <Iteration> <Iteration>...<Iteration>]
+    # Each iteration contains
+    # [<input(Tensors)><Label(Tensors)><Parameters(Tensors)><Output(Tensors)>]
+    # Each tensor contains
+    # [<num_elements(int32)><data_point(float32)>...<data_point(float32)>]
+
+    file_name = name + "_16.nnmodelgolden"
+    if os.path.isfile(file_name):
+        print("Warning: the file %s is being truncated and overwritten" % file_name)
+
+    if optimizer == None:
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+
+    def record_iteration(write_fn):
+        if input_label_reader != None:
+            inputs, labels = input_label_reader(input_dims, label_dims, input_dtype)
+        else:
+            inputs = _rand_like(input_dims, dtype=input_dtype if input_dtype is not None else float)
+            labels = _rand_like(label_dims, dtype=float)
+        write_fn(inputs)
+        write_fn(labels)
+        write_fn(list(t for _, t in params_translated(model)))
+        output, *losses = model(inputs, labels)
+        write_fn(output)
+
+        optimizer.zero_grad()
+        for loss in losses:
+            loss.backward()
+        if clip:
+            norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 0.0001)
+        optimizer.step()
+
+    with open(file_name, "wb") as f:
+        # write number of iterations
+        np.array([iteration], dtype="int16").tofile(f)
+
+        write_fn = _get_writer_fp16(f)
+        for _ in range(iteration):
+            record_iteration(write_fn)
+
+
 ##
 # @brief inpsect if file is created correctly
 # @note this just checks if offset is corretly set, The result have to inspected
@@ -121,6 +193,21 @@ def inspect_file(file_name, show_content=True):
                 break
             print("size: ", sz)
             t = np.fromfile(f, dtype="float32", count=sz)
+            if show_content:
+                print(t)
+
+def inspect_file_fp16(file_name, show_content=True):
+    with open(file_name, "rb") as f:
+        sz = int.from_bytes(f.read(2), byteorder="little")
+        if not sz:
+            return
+        print("num_iter: ", sz)
+        while True:
+            sz = int.from_bytes(f.read(2), byteorder="little")
+            if not sz:
+                break
+            print("size: ", sz)
+            t = np.fromfile(f, dtype="float16", count=sz)
             if show_content:
                 print(t)
 

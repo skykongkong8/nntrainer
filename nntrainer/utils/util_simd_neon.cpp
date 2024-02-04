@@ -56,6 +56,18 @@ void swish_neon(const unsigned int N, float *X, float *Y, float *Z) {
   }
 }
 
+void softmax(const unsigned int N, float *X) {
+  unsigned int i = 0;
+  unsigned int sum = 0;
+
+  // step 1 : get Sum
+  for (; N - i >= VL_FP32; i += VL_FP32) {
+    float32x4_t x0_3 = vld1q_f32(&X[i]);
+    float32x4_t exp0_3 = exp_ps(x0_3);
+  }
+}
+
+
 #ifdef ENABLE_FP16
 void compute_rotary_embedding_value_neon(unsigned int dim, unsigned int half_,
                                          unsigned int w, __fp16 *in,

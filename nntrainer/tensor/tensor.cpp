@@ -3098,6 +3098,8 @@ void Tensor::copyData(const Tensor &from) {
       } else if (from.getDataType() == ml::train::TensorDim::DataType::QINT4) {
         scopy_int4_to_float16((from.size() + 1) / 2, from.getData<uint8_t>(), 1,
                               getData<_FP16>(), 1);
+      } else if ( from.getDataType() == ml::train::TensorDim::DataType::FP32) {
+        scopy(size(), from.getData<float>(), 1, getData<_FP16>(), 1);
       }
 #else
       throw std::invalid_argument("Error: enable-fp16 is not enabled");
@@ -3479,7 +3481,7 @@ void Tensor::inv_sqrt_i() {
 #ifdef ENABLE_FP16
     if (!contiguous) {
       apply_i<_FP16>([](_FP16 val) -> _FP16 {
-        return 1 / std::sqrt(static_cast<float>(val));
+        return static_cast<_FP16>(1 / std::sqrt(static_cast<float>(val)));
       });
     } else {
       inv_sqrt_inplace(this->size(), getData<_FP16>());
@@ -3535,6 +3537,25 @@ float Tensor::max_abs() const {
   }
   return ret;
 }
+
+void Tensor::abs_i() {
+  if(!contiguous){
+    NNTR_THROW_IF(!contiguous, std::invalid_argument)
+    << getName() << " abs_i for non-contiguous is NYI";
+  }
+  if (getDataType() == ml::train::TensorDim::DataType::FP32) {
+    abs_inplace(size(), getData<float>());
+  } else if (getDataType() == ml::train::TensorDim::DataType::FP16) {
+#ifdef ENABLE_FP16
+    abs_inplace(size(), getData<_FP16>());
+#else
+    throw std::invalid_argument("Error: enable-fp16 is not enabled");
+#endif
+  }
+
+
+}
+
 
 Tensor &Tensor::normalization(Tensor &output) const {
   if (output.empty())

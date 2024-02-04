@@ -1706,6 +1706,11 @@ public:
   float max_abs() const;
 
   /**
+   * @brief     make Tensor value to its absolute value
+   */
+  void abs_i();
+
+  /**
    * @brief     return a copy of the Tensor Dim
    * @retval    TensorDim
    */

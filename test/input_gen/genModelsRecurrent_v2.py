@@ -8,7 +8,7 @@
 # @brief Generate recurrent model tcs
 # @author Jihoon lee <jhoon.it.lee@samsung.com>
 
-from recorder_v2 import record_v2, inspect_file
+from recorder_v2 import record_v2, inspect_file, record_fp16_v2, inspect_file_fp16
 from zoneout import Zoneout
 import torch
 
@@ -486,4 +486,27 @@ if __name__ == "__main__":
         name = "grucell_fc",
     )
 
-    # inspect_file("lstm_single.nnmodelgolden")
+    ## HALF-PRECISION MODEL TEST
+    unroll_for, num_lstm, state_num, batch_size, unit, feature_size, iteration, hidden_state_zoneout_rate, cell_state_zoneout_rate = [2, 1, 2, 1, 2, 2, 2, 1.0, 1.0]
+    record_fp16_v2(
+        ZoneoutLSTMStacked(batch_size = batch_size, unroll_for = unroll_for, num_lstm = num_lstm, hidden_state_zoneout_rate = hidden_state_zoneout_rate, cell_state_zoneout_rate = cell_state_zoneout_rate),
+        iteration = iteration,
+        input_dims = [(batch_size, feature_size)] + [(batch_size, unit) for _ in range(state_num * num_lstm)],
+        label_dims = [(batch_size, unroll_for, unit)],
+        name = "zoneout_lstm_single_100_100",
+    )
+
+    unroll_for, num_lstm, batch_size, unit, feature_size, iteration, bidirectional = [2, 1, 3, 2, 2, 2, False]
+    record_fp16_v2(
+        LSTMStacked(num_lstm = num_lstm, bidirectional = bidirectional),
+        iteration = iteration,
+        input_dims = [(batch_size, unroll_for, feature_size)],
+        label_dims = [(batch_size, unroll_for, unit)],
+        name = "lstm_single",
+    )
+
+    # inspect_file_fp16("lstm_single_16.nnmodelgolden")
+    inspect_file("lstm_single.nnmodelgolden")
+    # inspect_file_fp16("zoneout_lstm_single_100_100_16.nnmodelgolden")
+    # inspect_file("zoneout_lstm_single_100_100.nnmodelgolden")
+

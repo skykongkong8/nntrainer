@@ -415,6 +415,21 @@ void inv_sqrt_inplace(const unsigned int N, _FP16 *X) {
   }
 #endif
 }
+
+void abs_inplace(const unsigned int N, _FP16 *X) {
+#ifdef USE_NEON
+  nntrainer::neon::inv_sqrt_inplace_neon(N, X);
+#else
+  constexpr auto eps = 6.104e-5;
+  for (unsigned int i = 0; i < N; ++i) {
+    if (std::abs(static_cast<float>(X[i])) < eps) {
+      X[i] = 0;
+    } else
+      X[i] = (X[i] > 0) ? X[i] : -X[i];
+  }
+#endif
+}
+
 #endif
 
 #ifndef USE_BLAS
@@ -879,6 +894,20 @@ void inv_sqrt_inplace(const unsigned int N, float *X) {
 #else
   for (unsigned int i = 0; i < N; ++i) {
     X[i] = 1 / std::sqrt(static_cast<float>(X[i]));
+  }
+#endif
+}
+
+void abs_inplace(const unsigned int N, float *X) {
+#ifdef USE_NEON
+  nntrainer::neon::inv_sqrt_inplace_neon(N, X);
+#else
+  constexpr auto eps = 1e-7;
+  for (unsigned int i = 0; i < N; ++i) {
+    if (std::abs(X[i]) < eps) {
+      X[i] = 0.f;
+    } else
+      X[i] = (X[i] > 0) ? X[i] : -X[i];
   }
 #endif
 }

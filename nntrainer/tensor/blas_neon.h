@@ -102,6 +102,13 @@ void cosine_neon(const unsigned int N, float *X, float *Y,
  */
 void inv_sqrt_inplace_neon(const unsigned int N, float *X);
 
+/**
+ * @brief abs inplace function X = abs(X)
+ * @param N size of X
+ * @param X float * for Vector X
+ */
+void abs_inplace(const unsigned int N, float *X);
+
 #ifdef ENABLE_FP16
 /**
  * @brief     sgemv computation with neon : Y = alpha*A*X + beta*Y
@@ -321,6 +328,13 @@ void sgemm_neon_fp16_transAB(const __fp16 *A, const __fp16 *B, float *C,
  * @param X __fp16 * for Vector X
  */
 void inv_sqrt_inplace_neon(const unsigned int N, __fp16 *X);
+
+/**
+ * @brief abs inplace function X = abs(X)
+ * @param N size of X
+ * @param X __fp16 * for Vector X
+ */
+void abs_inplace(const unsigned int N, __fp16 *X);
 #endif
 
 } // namespace nntrainer::neon

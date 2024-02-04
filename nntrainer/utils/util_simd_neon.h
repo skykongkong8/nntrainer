@@ -41,6 +41,15 @@ void calc_trigonometric_vals_dup_neon(unsigned int N_half, float *angle,
  * @param Z float * for Vector Z
  */
 void swish_neon(const unsigned int N, float *X, float *Y, float *Z);
+
+/**
+ * @brief 
+ * 
+ * @param N 
+ * @param X 
+ */
+void softmax(const unsigned int N, float *X);
+
 #ifdef ENABLE_FP16
 /**
  * @brief Accelerating function for rotary embedding layer forwarding
@@ -65,6 +74,14 @@ void compute_rotary_embedding_value_neon(unsigned int dim, unsigned int half_,
  * @param Z __fp16 * for Vector Z
  */
 void swish_neon(const unsigned int N, __fp16 *X, __fp16 *Y, __fp16 *Z);
+
+/**
+ * @brief 
+ * 
+ * @param N 
+ * @param X 
+ */
+void softmax(const unsigned int N, __fp16 *X);
 #endif
 
 } // namespace nntrainer::neon

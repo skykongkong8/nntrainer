@@ -40,6 +40,16 @@ void swish(const unsigned int N, float *X, float *Y, float *Z) {
 #endif
 }
 
+void softmax(const unsigned int N, float *X) {
+#ifdef USE_NEON
+#else
+  throw std::invalid_argument(
+    "Error: No implementation of softmax "
+    "with SIMD acceleration except for NEON!");
+#endif
+}
+
+
 #ifdef ENABLE_FP16
 
 void compute_rotary_embedding_value(unsigned int dim, unsigned int half_,

@@ -614,3 +614,8 @@ if __name__ == "__main__":
     positional_encoding = PositionalEncoding(10, 6)
     record_single_fp16(positional_encoding, [(3, 1, 7, 6)], "positional_encoding_partial_w16a16")
     record_single_fp16(positional_encoding, [(3, 1, 10, 6)], "positional_encoding_w16a16")
+
+    added = K.layers.Add()
+    record_single_fp16(added, [(2,3,3,3), (2, 3, 3, 3)], "added_w16a16")
+
+    

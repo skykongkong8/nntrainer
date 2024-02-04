@@ -439,6 +439,21 @@ void inv_sqrt_inplace_neon(const unsigned int N, float *X) {
   }
 }
 
+void abs_inplace(const unsigned int N, float *X) {
+  unsigned int i = 0;
+  for (; N - i >= 4; i += 4) {
+    float16x8_t x0_3 = vld1q_f32(&X[i]);
+    vst1q_f32(&X[i], vabsq_f32(x0_3));
+  }
+  constexpr auto eps = 1e-7;
+  while (i < N) {
+    if (std::abs(X[i]) < eps) {
+      X[i] = 0;
+    } else
+      X[i] = (X[i] > 0) ? X[i] : -X[i];
+  }
+}
+
 #ifdef ENABLE_FP16
 
 void sgemv_neon_fp16(const __fp16 *A, const __fp16 *X, __fp16 *Y, uint32_t rows,
@@ -2071,6 +2086,21 @@ void inv_sqrt_inplace_neon(const unsigned int N, __fp16 *X) {
   while (i < N) {
     X[i] = (1 / std::sqrt(static_cast<float>(X[i])));
     ++i;
+  }
+}
+
+void abs_inplace(const unsigned int N, __fp16 *X) {
+  unsigned int i = 0;
+  for (; N - i >= 8; i += 8) {
+    float16x8_t x0_7 = vld1q_f16(&X[i]);
+    vst1q_f16(&X[i], vabsq_f16(x0_7));
+  }
+  constexpr auto eps = 6.104e-5;
+  while (i < N) {
+    if (std::abs(static_cast<float>(X[i])) < eps) {
+      X[i] = 0;
+    } else
+      X[i] = (X[i] > 0) ? X[i] : -X[i];
   }
 }
 
