@@ -8,6 +8,7 @@
 #include <blas_neon_gemm_kernelv9.h>
 #include <blas_neon_gemm_kernelv9_2.h>
 #include <blas_neon_gemm_kernelv10.h>
+#include <blas_neon_gemm_kernelv11.h>
 
 
 inline void matrix_kernel8_6(const float *A, const float *B, float *C,
