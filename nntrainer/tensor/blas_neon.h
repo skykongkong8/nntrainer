@@ -229,7 +229,11 @@ void copy_fp16_to_fp32(const unsigned int N, const __fp16 *X, float *Y);
  * @param[in] X __fp16 * for Vector X
  */
 unsigned int isamax(const unsigned int N, const __fp16 *X);
-
+void uhgemm_noTrans(const uint16_t *A, const uint16_t *B, uint16_t *C,
+                    uint32_t M, uint32_t N, uint32_t K, float alpha,
+                    float beta);
+void hgemm_noTrans_kernel(const __fp16 *A, const __fp16 *B, float *C32, uint32_t M,
+                   uint32_t N, uint32_t K, float alpha, float beta);
 /**
  * @brief     hgemm computation with neon : Y = alpha*op(A)*op(B) + beta*C,
  * where op(X) is one of X or X**T
