@@ -13,6 +13,7 @@
  */
 
 #include <blas_neon.h>
+#include <blas_neon_gemm_kernal.h>
 #include <memory>
 #include <nntrainer_error.h>
 namespace nntrainer::neon {
@@ -1542,6 +1543,25 @@ unsigned int isamax(const unsigned int N, const __fp16 *X) {
   return retIdx;
 }
 
+void hgemm_noTrans_kernel(const __fp16 *A, const __fp16 *B, float *C32, uint32_t M,
+                   uint32_t N, uint32_t K, float alpha, float beta) {
+  for (unsigned int m = 0; m < M; m += 6) {
+    for (unsigned int n = 0; n < N; n += 16) {
+      matrix_kernel16_6(A, B, C32, M, N, K, m, n);
+    }
+  }
+}
+
+void uhgemm_noTrans(const uint16_t *A, const uint16_t *B, uint16_t *C,
+                    uint32_t M, uint32_t N, uint32_t K, float alpha,
+                    float beta) {
+  for (unsigned int m = 0; m < M; m += 6) {
+    for (unsigned int n = 0; n < N; n += 16) {
+      matrix_kernel16_6(A, B, C, M, N, K, m, n);
+    }
+  }
+}
+
 void hgemm(const __fp16 *A, const __fp16 *B, __fp16 *C, uint32_t M, uint32_t N,
            uint32_t K, float alpha, float beta, bool TransA, bool TransB) {
 
@@ -1568,18 +1588,29 @@ void hgemm(const __fp16 *A, const __fp16 *B, __fp16 *C, uint32_t M, uint32_t N,
   for (; idx < size; idx++) {
     C32[idx] = C[idx] * beta;
   }
+    // Temporal patch to avoid const __fp16 
+  __fp16 *A_cp = (__fp16 *)malloc(M * K * sizeof(__fp16));
+  __fp16 *B_cp = (__fp16 *)malloc(K * N * sizeof(__fp16));
+  hcopy(M*K, A, A_cp);
+  hcopy(K*N, B, B_cp);
 
   if (!TransA && TransB) {
     hgemm_transB(A, B, C32, M, N, K, alpha, beta);
   } else if (TransA && !TransB) {
     hgemm_transA(A, B, C32, M, N, K, alpha, beta);
   } else if (!TransA && !TransB) {
-    hgemm_noTrans(A, B, C32, M, N, K, alpha, beta);
+    // FULL FP16
+    hgemmv10(M, N, K, alpha, A_cp, M, B_cp, K, beta, C, M);
+
+    // PARTIAL FP32
+    // hgemm_noTrans_kernel(A, B, C32, M, N, K, alpha, beta);
+    // hgemm_noTrans(A, B, C32, M, N, K, alpha, beta);
   } else { // TransA && TransB
     hgemm_transAB(A, B, C32, M, N, K, alpha, beta, idx);
   }
 
-  copy_fp32_to_fp16(M * N, C32, C);
+  // ONLY WHEN PARTIAL FP32
+  // copy_fp32_to_fp16(M * N, C32, C);
   free(C32);
 }
 
