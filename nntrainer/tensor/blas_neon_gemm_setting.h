@@ -141,17 +141,18 @@
 
 #define KERNEL_8x4_HGEMM_packing_v2()               \
   a0 = vmulq_f16(valpha, vld1q_f16(ptr_packing_a)); \
-  b0 = vmovq_n_f16(*ptr_packing_b);                 \
-  b1 = vmovq_n_f16(*(ptr_packing_b + 1));           \
-  b2 = vmovq_n_f16(*(ptr_packing_b + 2));           \
-  b3 = vmovq_n_f16(*(ptr_packing_b + 3));           \
+  b0 = vmovq_n_f16(*ptr_packing_b0);                 \
+  b1 = vmovq_n_f16(*(ptr_packing_b0 + 1));           \
   c00 = vfmaq_f16(c00, b0, a0);                     \
   c10 = vfmaq_f16(c10, b1, a0);                     \
+  b2 = vmovq_n_f16(*(ptr_packing_b1));           \
+  b3 = vmovq_n_f16(*(ptr_packing_b1 + 1));           \
   c20 = vfmaq_f16(c20, b2, a0);                     \
   c30 = vfmaq_f16(c30, b3, a0);                     \
   k++;                                              \
   ptr_packing_a += VL_FP16;                         \
-  ptr_packing_b += 4;
+  ptr_packing_b0 += 2;\
+  ptr_packing_b1 += 2;\
 
 #define macro_KERNEL_8xkx4_HGEMM_packing_v2()                       \
   c00 = vdupq_n_f16(0.f);                                           \
@@ -212,36 +213,36 @@
   ptr_packing_b += VL_FP16;                                          \
   k++;
 
-#define KERNEL_24x8_HGEMM_packing_v2()                                  \
+#define KERNEL_24x8_HGEMM_packing_v2()                               \
   a0 = vmulq_f16(valpha, vld1q_f16(ptr_packing_a));                  \
   a1 = vmulq_f16(valpha, vld1q_f16(ptr_packing_a + VL_FP16));        \
   a2 = vmulq_f16(valpha, vld1q_f16(ptr_packing_a + VL_FP16_DOUBLE)); \
-  b0 = vmovq_n_f16(*ptr_packing_b0);                                  \
-  b1 = vmovq_n_f16(*(ptr_packing_b0 + 1));                            \
+  b0 = vmovq_n_f16(*ptr_packing_b0);                                 \
+  b1 = vmovq_n_f16(*(ptr_packing_b0 + 1));                           \
   c00 = vfmaq_f16(c00, b0, a0);                                      \
   c01 = vfmaq_f16(c01, b0, a1);                                      \
   c02 = vfmaq_f16(c02, b0, a2);                                      \
   c10 = vfmaq_f16(c10, b1, a0);                                      \
   c11 = vfmaq_f16(c11, b1, a1);                                      \
   c12 = vfmaq_f16(c12, b1, a2);                                      \
-  b0 = vmovq_n_f16(*ptr_packing_b1);                            \
-  b1 = vmovq_n_f16(*(ptr_packing_b1 + 1));                            \
+  b0 = vmovq_n_f16(*ptr_packing_b1);                                 \
+  b1 = vmovq_n_f16(*(ptr_packing_b1 + 1));                           \
   c20 = vfmaq_f16(c20, b0, a0);                                      \
   c21 = vfmaq_f16(c21, b0, a1);                                      \
   c22 = vfmaq_f16(c22, b0, a2);                                      \
   c30 = vfmaq_f16(c30, b1, a0);                                      \
   c31 = vfmaq_f16(c31, b1, a1);                                      \
   c32 = vfmaq_f16(c32, b1, a2);                                      \
-  b0 = vmovq_n_f16(*ptr_packing_b2);                            \
-  b1 = vmovq_n_f16(*(ptr_packing_b2 + 1));                            \
+  b0 = vmovq_n_f16(*ptr_packing_b2);                                 \
+  b1 = vmovq_n_f16(*(ptr_packing_b2 + 1));                           \
   c40 = vfmaq_f16(c40, b0, a0);                                      \
   c41 = vfmaq_f16(c41, b0, a1);                                      \
   c42 = vfmaq_f16(c42, b0, a2);                                      \
   c50 = vfmaq_f16(c50, b1, a0);                                      \
   c51 = vfmaq_f16(c51, b1, a1);                                      \
   c52 = vfmaq_f16(c52, b1, a2);                                      \
-  b0 = vmovq_n_f16(*ptr_packing_b3);                            \
-  b1 = vmovq_n_f16(*(ptr_packing_b3 + 1));                            \
+  b0 = vmovq_n_f16(*ptr_packing_b3);                                 \
+  b1 = vmovq_n_f16(*(ptr_packing_b3 + 1));                           \
   c60 = vfmaq_f16(c60, b0, a0);                                      \
   c61 = vfmaq_f16(c61, b0, a1);                                      \
   c62 = vfmaq_f16(c62, b0, a2);                                      \
@@ -249,10 +250,10 @@
   c71 = vfmaq_f16(c71, b1, a1);                                      \
   c72 = vfmaq_f16(c72, b1, a2);                                      \
   ptr_packing_a += VL_FP16_TRIPLE;                                   \
-  ptr_packing_b0 += 2;                                          \
-  ptr_packing_b1 += 2;                                          \
-  ptr_packing_b2 += 2;                                          \
-  ptr_packing_b3 += 2;                                          \
+  ptr_packing_b0 += 2;                                               \
+  ptr_packing_b1 += 2;                                               \
+  ptr_packing_b2 += 2;                                               \
+  ptr_packing_b3 += 2;                                               \
   k++;
 
 #define macro_KERNEL_24xkx8_packing()                                  \
@@ -330,8 +331,7 @@
   vst1q_f16(&C(i + VL_FP16_DOUBLE, j + 7),                             \
             vaddq_f16(c72, vld1q_f16(&C(i + VL_FP16_DOUBLE, j + 7))));
 
-
-#define macro_KERNEL_24xkx8_packing_v2()                                  \
+#define macro_KERNEL_24xkx8_packing_v2()                               \
   c00 = vdupq_n_f16(0.f);                                              \
   c01 = vdupq_n_f16(0.f);                                              \
   c02 = vdupq_n_f16(0.f);                                              \
@@ -357,13 +357,13 @@
   c71 = vdupq_n_f16(0.f);                                              \
   c72 = vdupq_n_f16(0.f);                                              \
   for (k = k_start; k < K_;) {                                         \
-    KERNEL_24x8_HGEMM_packing_v2();                                       \
-    KERNEL_24x8_HGEMM_packing_v2();                                       \
-    KERNEL_24x8_HGEMM_packing_v2();                                       \
-    KERNEL_24x8_HGEMM_packing_v2();                                       \
+    KERNEL_24x8_HGEMM_packing_v2();                                    \
+    KERNEL_24x8_HGEMM_packing_v2();                                    \
+    KERNEL_24x8_HGEMM_packing_v2();                                    \
+    KERNEL_24x8_HGEMM_packing_v2();                                    \
   }                                                                    \
   for (k = K_; k < k_end;) {                                           \
-    KERNEL_24x8_HGEMM_packing_v2();                                       \
+    KERNEL_24x8_HGEMM_packing_v2();                                    \
   }                                                                    \
   vst1q_f16(&C(i, j), vaddq_f16(c00, vld1q_f16(&C(i, j))));            \
   vst1q_f16(&C(i + VL_FP16, j),                                        \
@@ -406,7 +406,6 @@
   vst1q_f16(&C(i + VL_FP16_DOUBLE, j + 7),                             \
             vaddq_f16(c72, vld1q_f16(&C(i + VL_FP16_DOUBLE, j + 7))));
 
-
 #define KERNEL_8x8_HGEMM_packing()                  \
   a0 = vmulq_f16(valpha, vld1q_f16(ptr_packing_a)); \
   b0 = vmovq_n_f16(*ptr_packing_b);                 \
@@ -429,29 +428,29 @@
   ptr_packing_b += VL_FP16;                         \
   k++;
 
-#define KERNEL_8x8_HGEMM_packing_v2()                  \
+#define KERNEL_8x8_HGEMM_packing_v2()               \
   a0 = vmulq_f16(valpha, vld1q_f16(ptr_packing_a)); \
-  b0 = vmovq_n_f16(*ptr_packing_b0);                 \
-  b1 = vmovq_n_f16(*(ptr_packing_b0 + 1));           \
+  b0 = vmovq_n_f16(*ptr_packing_b0);                \
+  b1 = vmovq_n_f16(*(ptr_packing_b0 + 1));          \
   c00 = vfmaq_f16(c00, b0, a0);                     \
   c10 = vfmaq_f16(c10, b1, a0);                     \
-  b0 = vmovq_n_f16(*ptr_packing_b1);           \
-  b1 = vmovq_n_f16(*(ptr_packing_b1 + 1));           \
+  b0 = vmovq_n_f16(*ptr_packing_b1);                \
+  b1 = vmovq_n_f16(*(ptr_packing_b1 + 1));          \
   c20 = vfmaq_f16(c20, b0, a0);                     \
   c30 = vfmaq_f16(c30, b1, a0);                     \
-  b0 = vmovq_n_f16(*ptr_packing_b2);           \
-  b1 = vmovq_n_f16(*(ptr_packing_b2 + 1));           \
+  b0 = vmovq_n_f16(*ptr_packing_b2);                \
+  b1 = vmovq_n_f16(*(ptr_packing_b2 + 1));          \
   c40 = vfmaq_f16(c40, b0, a0);                     \
   c50 = vfmaq_f16(c50, b1, a0);                     \
-  b0 = vmovq_n_f16(*ptr_packing_b3);           \
-  b1 = vmovq_n_f16(*(ptr_packing_b3 + 1));           \
+  b0 = vmovq_n_f16(*ptr_packing_b3);                \
+  b1 = vmovq_n_f16(*(ptr_packing_b3 + 1));          \
   c60 = vfmaq_f16(c60, b0, a0);                     \
   c70 = vfmaq_f16(c70, b1, a0);                     \
   ptr_packing_a += VL_FP16;                         \
-  ptr_packing_b0 += 2;                         \
-  ptr_packing_b1 += 2;                         \
-  ptr_packing_b2 += 2;                         \
-  ptr_packing_b3 += 2;                         \
+  ptr_packing_b0 += 2;                              \
+  ptr_packing_b1 += 2;                              \
+  ptr_packing_b2 += 2;                              \
+  ptr_packing_b3 += 2;                              \
   k++;
 
 #define macro_KERNEL_8xkx8_packing()                                \
@@ -481,7 +480,7 @@
   vst1q_f16(&C(i, j + 6), vaddq_f16(c60, vld1q_f16(&C(i, j + 6)))); \
   vst1q_f16(&C(i, j + 7), vaddq_f16(c70, vld1q_f16(&C(i, j + 7))));
 
-#define macro_KERNEL_8xkx8_packing_v2()                                \
+#define macro_KERNEL_8xkx8_packing_v2()                             \
   c00 = vdupq_n_f16(0.f);                                           \
   c10 = vdupq_n_f16(0.f);                                           \
   c20 = vdupq_n_f16(0.f);                                           \
@@ -491,13 +490,13 @@
   c60 = vdupq_n_f16(0.f);                                           \
   c70 = vdupq_n_f16(0.f);                                           \
   for (k = k_start; k < K_;) {                                      \
-    KERNEL_8x8_HGEMM_packing_v2();                                     \
-    KERNEL_8x8_HGEMM_packing_v2();                                     \
-    KERNEL_8x8_HGEMM_packing_v2();                                     \
-    KERNEL_8x8_HGEMM_packing_v2();                                     \
+    KERNEL_8x8_HGEMM_packing_v2();                                  \
+    KERNEL_8x8_HGEMM_packing_v2();                                  \
+    KERNEL_8x8_HGEMM_packing_v2();                                  \
+    KERNEL_8x8_HGEMM_packing_v2();                                  \
   }                                                                 \
   for (k = K_; k < k_end;) {                                        \
-    KERNEL_8x8_HGEMM_packing_v2();                                     \
+    KERNEL_8x8_HGEMM_packing_v2();                                  \
   }                                                                 \
   vst1q_f16(&C(i, j), vaddq_f16(c00, vld1q_f16(&C(i, j))));         \
   vst1q_f16(&C(i, j + 1), vaddq_f16(c10, vld1q_f16(&C(i, j + 1)))); \
@@ -530,29 +529,29 @@
   ptr_packing_b += VL_FP16;                         \
   k++;
 
-#define KERNEL_4x8_HGEMM_packing_v2()                  \
+#define KERNEL_4x8_HGEMM_packing_v2()               \
   da0 = vmul_f16(dvalpha, vld1_f16(ptr_packing_a)); \
-  db0 = vmov_n_f16(*ptr_packing_b0);                 \
-  db1 = vmov_n_f16(*(ptr_packing_b0 + 1));           \
+  db0 = vmov_n_f16(*ptr_packing_b0);                \
+  db1 = vmov_n_f16(*(ptr_packing_b0 + 1));          \
   dc00 = vfma_f16(dc00, db0, da0);                  \
   dc10 = vfma_f16(dc10, db1, da0);                  \
-  db0 = vmov_n_f16(*ptr_packing_b1);           \
-  db1 = vmov_n_f16(*(ptr_packing_b1 + 1));           \
+  db0 = vmov_n_f16(*ptr_packing_b1);                \
+  db1 = vmov_n_f16(*(ptr_packing_b1 + 1));          \
   dc20 = vfma_f16(dc20, db0, da0);                  \
   dc30 = vfma_f16(dc30, db1, da0);                  \
-  db0 = vmov_n_f16(*ptr_packing_b2);           \
-  db1 = vmov_n_f16(*(ptr_packing_b2 + 1));           \
+  db0 = vmov_n_f16(*ptr_packing_b2);                \
+  db1 = vmov_n_f16(*(ptr_packing_b2 + 1));          \
   dc40 = vfma_f16(dc40, db0, da0);                  \
   dc50 = vfma_f16(dc50, db1, da0);                  \
-  db0 = vmov_n_f16(*ptr_packing_b3);           \
-  db1 = vmov_n_f16(*(ptr_packing_b3 + 1));           \
+  db0 = vmov_n_f16(*ptr_packing_b3);                \
+  db1 = vmov_n_f16(*(ptr_packing_b3 + 1));          \
   dc60 = vfma_f16(dc60, db0, da0);                  \
   dc70 = vfma_f16(dc70, db1, da0);                  \
   ptr_packing_a += VL_FP16_HALF;                    \
-  ptr_packing_b0 += 2;                         \
-  ptr_packing_b1 += 2;                         \
-  ptr_packing_b2 += 2;                         \
-  ptr_packing_b3 += 2;                         \
+  ptr_packing_b0 += 2;                              \
+  ptr_packing_b1 += 2;                              \
+  ptr_packing_b2 += 2;                              \
+  ptr_packing_b3 += 2;                              \
   k++;
 
 #define macro_KERNEL_4xkx8_packing()                              \
@@ -582,8 +581,7 @@
   vst1_f16(&C(i, j + 6), vadd_f16(dc60, vld1_f16(&C(i, j + 6)))); \
   vst1_f16(&C(i, j + 7), vadd_f16(dc70, vld1_f16(&C(i, j + 7))));
 
-
-#define macro_KERNEL_4xkx8_packing_v2()                              \
+#define macro_KERNEL_4xkx8_packing_v2()                           \
   dc00 = vdup_n_f16(0.f);                                         \
   dc10 = vdup_n_f16(0.f);                                         \
   dc20 = vdup_n_f16(0.f);                                         \
@@ -593,13 +591,13 @@
   dc60 = vdup_n_f16(0.f);                                         \
   dc70 = vdup_n_f16(0.f);                                         \
   for (k = k_start; k < K_;) {                                    \
-    KERNEL_4x8_HGEMM_packing_v2();                                   \
-    KERNEL_4x8_HGEMM_packing_v2();                                   \
-    KERNEL_4x8_HGEMM_packing_v2();                                   \
-    KERNEL_4x8_HGEMM_packing_v2();                                   \
+    KERNEL_4x8_HGEMM_packing_v2();                                \
+    KERNEL_4x8_HGEMM_packing_v2();                                \
+    KERNEL_4x8_HGEMM_packing_v2();                                \
+    KERNEL_4x8_HGEMM_packing_v2();                                \
   }                                                               \
   for (k = K_; k < k_end;) {                                      \
-    KERNEL_4x8_HGEMM_packing_v2();                                   \
+    KERNEL_4x8_HGEMM_packing_v2();                                \
   }                                                               \
   vst1_f16(&C(i, j), vadd_f16(dc00, vld1_f16(&C(i, j))));         \
   vst1_f16(&C(i, j + 1), vadd_f16(dc10, vld1_f16(&C(i, j + 1)))); \
@@ -609,7 +607,6 @@
   vst1_f16(&C(i, j + 5), vadd_f16(dc50, vld1_f16(&C(i, j + 5)))); \
   vst1_f16(&C(i, j + 6), vadd_f16(dc60, vld1_f16(&C(i, j + 6)))); \
   vst1_f16(&C(i, j + 7), vadd_f16(dc70, vld1_f16(&C(i, j + 7))));
-
 
 #define macro_KERNEL_1xkx8_packing()                  \
   sc0 = sc1 = sc2 = sc3 = sc4 = sc5 = sc6 = sc7 = 0.; \
@@ -643,19 +640,40 @@
   C(i, j + 6) += sc6;                                 \
   C(i, j + 7) += sc7;
 
-#define macro_KERNEL_1xkx8_packing_v2\
-    sc0=sc1=sc2=sc3=sc4=sc5=sc6=sc7=0.;\
-    for (k=k_start;k<k_end;k++){\
-        sa=alpha*(*ptr_packing_a);\
-        sb0=*(ptr_packing_b0);sb1=*(ptr_packing_b0+1);sb2=*(ptr_packing_b1);sb3=*(ptr_packing_b1+1);\
-        sb4=*(ptr_packing_b2);sb5=*(ptr_packing_b2+1);sb6=*(ptr_packing_b3);sb7=*(ptr_packing_b3+1);\
-        sc0+=sa*sb0;sc1+=sa*sb1;sc2+=sa*sb2;sc3+=sa*sb3;\
-        sc4+=sa*sb4;sc5+=sa*sb5;sc6+=sa*sb6;sc7+=sa*sb7;\
-        ptr_packing_a++;ptr_packing_b0+=2;\
-        ptr_packing_b1+=2;ptr_packing_b2+=2;ptr_packing_b3+=2;\
-    }\
-    C(i,j)+=sc0;C(i,j+1)+=sc1;C(i,j+2)+=sc2;C(i,j+3)+=sc3;\
-    C(i,j+4)+=sc4;C(i,j+5)+=sc5;C(i,j+6)+=sc6;C(i,j+7)+=sc7;
+#define macro_KERNEL_1xkx8_packing_v2()                 \
+  sc0 = sc1 = sc2 = sc3 = sc4 = sc5 = sc6 = sc7 = 0.; \
+  for (k = k_start; k < k_end; k++) {                 \
+    sa = alpha * (*ptr_packing_a);                    \
+    sb0 = *(ptr_packing_b0);                          \
+    sb1 = *(ptr_packing_b0 + 1);                      \
+    sb2 = *(ptr_packing_b1);                          \
+    sb3 = *(ptr_packing_b1 + 1);                      \
+    sb4 = *(ptr_packing_b2);                          \
+    sb5 = *(ptr_packing_b2 + 1);                      \
+    sb6 = *(ptr_packing_b3);                          \
+    sb7 = *(ptr_packing_b3 + 1);                      \
+    sc0 += sa * sb0;                                  \
+    sc1 += sa * sb1;                                  \
+    sc2 += sa * sb2;                                  \
+    sc3 += sa * sb3;                                  \
+    sc4 += sa * sb4;                                  \
+    sc5 += sa * sb5;                                  \
+    sc6 += sa * sb6;                                  \
+    sc7 += sa * sb7;                                  \
+    ptr_packing_a++;                                  \
+    ptr_packing_b0 += 2;                              \
+    ptr_packing_b1 += 2;                              \
+    ptr_packing_b2 += 2;                              \
+    ptr_packing_b3 += 2;                              \
+  }                                                   \
+  C(i, j) += sc0;                                     \
+  C(i, j + 1) += sc1;                                 \
+  C(i, j + 2) += sc2;                                 \
+  C(i, j + 3) += sc3;                                 \
+  C(i, j + 4) += sc4;                                 \
+  C(i, j + 5) += sc5;                                 \
+  C(i, j + 6) += sc6;                                 \
+  C(i, j + 7) += sc7;
 
 #define macro_KERNEL_1xkx4_packing()  \
   sc0 = sc1 = sc2 = sc3 == 0.;        \
@@ -677,16 +695,26 @@
   C(i, j + 2) += sc2;                 \
   C(i, j + 3) += sc3;
 
-#define macro_KERNEL_1xkx4_packing_v2\
-    sc0=sc1=sc2=sc3=0.;\
-    for (k=k_start;k<k_end;k++){\
-        sa=alpha*(*ptr_packing_a);\
-        sb0=*(ptr_packing_b0);sb1=*(ptr_packing_b0+1);sb2=*(ptr_packing_b1);sb3=*(ptr_packing_b1+1);\
-        sc0+=sa*sb0;sc1+=sa*sb1;sc2+=sa*sb2;sc3+=sa*sb3;\
-        ptr_packing_a++;ptr_packing_b0+=2;\
-        ptr_packing_b1+=2;\
-    }\
-    C(i,j)+=sc0;C(i,j+1)+=sc1;C(i,j+2)+=sc2;C(i,j+3)+=sc3;\
+#define macro_KERNEL_1xkx4_packing_v2 \
+  sc0 = sc1 = sc2 = sc3 = 0.;         \
+  for (k = k_start; k < k_end; k++) { \
+    sa = alpha * (*ptr_packing_a);    \
+    sb0 = *(ptr_packing_b0);          \
+    sb1 = *(ptr_packing_b0 + 1);      \
+    sb2 = *(ptr_packing_b1);          \
+    sb3 = *(ptr_packing_b1 + 1);      \
+    sc0 += sa * sb0;                  \
+    sc1 += sa * sb1;                  \
+    sc2 += sa * sb2;                  \
+    sc3 += sa * sb3;                  \
+    ptr_packing_a++;                  \
+    ptr_packing_b0 += 2;              \
+    ptr_packing_b1 += 2;              \
+  }                                   \
+  C(i, j) += sc0;                     \
+  C(i, j + 1) += sc1;                 \
+  C(i, j + 2) += sc2;                 \
+  C(i, j + 3) += sc3;
 
 #define KERNEL_24x4_HGEMM_packing()                                  \
   a0 = vmulq_f16(valpha, vld1q_f16(ptr_packing_a));                  \
@@ -712,20 +740,20 @@
   ptr_packing_b += VL_FP16_HALF;                                     \
   k++;
 
-#define KERNEL_24x4_HGEMM_packing_v2()                                  \
+#define KERNEL_24x4_HGEMM_packing_v2()                               \
   a0 = vmulq_f16(valpha, vld1q_f16(ptr_packing_a));                  \
   a1 = vmulq_f16(valpha, vld1q_f16(ptr_packing_a + VL_FP16));        \
   a2 = vmulq_f16(valpha, vld1q_f16(ptr_packing_a + VL_FP16_DOUBLE)); \
-  b0 = vmovq_n_f16(*ptr_packing_b0);                                  \
-  b1 = vmovq_n_f16(*(ptr_packing_b0 + 1));                            \
+  b0 = vmovq_n_f16(*ptr_packing_b0);                                 \
+  b1 = vmovq_n_f16(*(ptr_packing_b0 + 1));                           \
   c00 = vfmaq_f16(c00, b0, a0);                                      \
   c01 = vfmaq_f16(c01, b0, a1);                                      \
   c02 = vfmaq_f16(c02, b0, a2);                                      \
   c10 = vfmaq_f16(c10, b1, a0);                                      \
   c11 = vfmaq_f16(c11, b1, a1);                                      \
   c12 = vfmaq_f16(c12, b1, a2);                                      \
-  b0 = vmovq_n_f16(*ptr_packing_b1);                            \
-  b1 = vmovq_n_f16(*(ptr_packing_b1 + 1));                            \
+  b0 = vmovq_n_f16(*ptr_packing_b1);                                 \
+  b1 = vmovq_n_f16(*(ptr_packing_b1 + 1));                           \
   c20 = vfmaq_f16(c20, b0, a0);                                      \
   c21 = vfmaq_f16(c21, b0, a1);                                      \
   c22 = vfmaq_f16(c22, b0, a2);                                      \
@@ -733,8 +761,8 @@
   c31 = vfmaq_f16(c31, b1, a1);                                      \
   c32 = vfmaq_f16(c32, b1, a2);                                      \
   ptr_packing_a += VL_FP16_TRIPLE;                                   \
-  ptr_packing_b0 += 2;                                     \
-  ptr_packing_b1 += 2;                                     \
+  ptr_packing_b0 += 2;                                               \
+  ptr_packing_b1 += 2;                                               \
   k++;
 
 #define macro_KERNEL_24xkx4_packing()                                  \
@@ -758,6 +786,49 @@
   }                                                                    \
   for (k = K_; k < k_end;) {                                           \
     KERNEL_24x4_HGEMM_packing();                                       \
+  }                                                                    \
+  vst1q_f16(&C(i, j), vaddq_f16(c00, vld1q_f16(&C(i, j))));            \
+  vst1q_f16(&C(i + VL_FP16, j),                                        \
+            vaddq_f16(c01, vld1q_f16(&C(i + VL_FP16, j))));            \
+  vst1q_f16(&C(i + VL_FP16_DOUBLE, j),                                 \
+            vaddq_f16(c02, vld1q_f16(&C(i + VL_FP16_DOUBLE, j))));     \
+  vst1q_f16(&C(i, j + 1), vaddq_f16(c10, vld1q_f16(&C(i, j + 1))));    \
+  vst1q_f16(&C(i + VL_FP16, j + 1),                                    \
+            vaddq_f16(c11, vld1q_f16(&C(i + VL_FP16, j + 1))));        \
+  vst1q_f16(&C(i + VL_FP16_DOUBLE, j + 1),                             \
+            vaddq_f16(c12, vld1q_f16(&C(i + VL_FP16_DOUBLE, j + 1)))); \
+  vst1q_f16(&C(i, j + 2), vaddq_f16(c20, vld1q_f16(&C(i, j + 2))));    \
+  vst1q_f16(&C(i + VL_FP16, j + 2),                                    \
+            vaddq_f16(c21, vld1q_f16(&C(i + VL_FP16, j + 2))));        \
+  vst1q_f16(&C(i + VL_FP16_DOUBLE, j + 2),                             \
+            vaddq_f16(c22, vld1q_f16(&C(i + VL_FP16_DOUBLE, j + 2)))); \
+  vst1q_f16(&C(i, j + 3), vaddq_f16(c30, vld1q_f16(&C(i, j + 3))));    \
+  vst1q_f16(&C(i + VL_FP16, j + 3),                                    \
+            vaddq_f16(c31, vld1q_f16(&C(i + VL_FP16, j + 3))));        \
+  vst1q_f16(&C(i + VL_FP16_DOUBLE, j + 3),                             \
+            vaddq_f16(c32, vld1q_f16(&C(i + VL_FP16_DOUBLE, j + 3))));
+
+#define macro_KERNEL_24xkx4_packing_v2()                               \
+  c00 = vdupq_n_f16(0.f);                                              \
+  c01 = vdupq_n_f16(0.f);                                              \
+  c02 = vdupq_n_f16(0.f);                                              \
+  c10 = vdupq_n_f16(0.f);                                              \
+  c11 = vdupq_n_f16(0.f);                                              \
+  c12 = vdupq_n_f16(0.f);                                              \
+  c20 = vdupq_n_f16(0.f);                                              \
+  c21 = vdupq_n_f16(0.f);                                              \
+  c22 = vdupq_n_f16(0.f);                                              \
+  c30 = vdupq_n_f16(0.f);                                              \
+  c31 = vdupq_n_f16(0.f);                                              \
+  c32 = vdupq_n_f16(0.f);                                              \
+  for (k = k_start; k < K_;) {                                         \
+    KERNEL_24x4_HGEMM_packing_v2();                                    \
+    KERNEL_24x4_HGEMM_packing_v2();                                    \
+    KERNEL_24x4_HGEMM_packing_v2();                                    \
+    KERNEL_24x4_HGEMM_packing_v2();                                    \
+  }                                                                    \
+  for (k = K_; k < k_end;) {                                           \
+    KERNEL_24x4_HGEMM_packing_v2();                                    \
   }                                                                    \
   vst1q_f16(&C(i, j), vaddq_f16(c00, vld1q_f16(&C(i, j))));            \
   vst1q_f16(&C(i + VL_FP16, j),                                        \
