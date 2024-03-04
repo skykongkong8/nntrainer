@@ -198,10 +198,8 @@ void hgemmv10_kernel_n_4(__fp16 *a_buffer, __fp16 *b_buffer, __fp16 *c_ptr,
     sb5, sb6, sb7;
   float16x4_t da, da0, da1, da2, db0, db1, db2, db3;
   float16x4_t dc00, dc10, dc20, dc30, dc40, dc50, dc60, dc70;
-  float16x8_t valpha = vdupq_n_f16(alpha); // broadcast alpha to a 512-bit
-                                           // vector
-  float16x4_t dvalpha = vdup_n_f16(alpha); // broadcast alpha to a 128-bit
-                                           // vector
+  float16x8_t valpha = vdupq_n_f16(alpha); 
+  float16x4_t dvalpha = vdup_n_f16(alpha);
   float16x8_t a, a0, a1, a2, b0, b1, b2, b3;
   float16x8_t c00, c01, c02, c10, c11, c12, c20, c21, c22, c30, c31, c32, c40,
     c41, c42, c50, c51, c52, c60, c61, c62, c70, c71, c72;
@@ -238,6 +236,51 @@ void hgemmv10_kernel_n_4(__fp16 *a_buffer, __fp16 *b_buffer, __fp16 *c_ptr,
   }
 }
 
+void hgemmv10_kernel_n_1(__fp16 *a_buffer, __fp16 *b_buffer, __fp16 *c_ptr,
+                         unsigned int m, unsigned int K, unsigned int LDC,
+                         float alpha) {
+  unsigned int m_count, m_count_sub;
+  unsigned int i, j, k;
+  __fp16 *C = c_ptr;
+  __fp16 sc0, sc1, sc2, sc3, sc4, sc5, sc6, sc7, sa, sb0, sb1, sb2, sb3, sb4,
+    sb5, sb6, sb7;
+  float16x8_t valpha = vdupq_n_f16(alpha);
+  float16x8_t a, a0, a1, a2, b0, b1, b2, b3;
+  float16x8_t c00, c01, c02;
+  float16x8_t c0, c1, c2, c3;
+  __fp16 *ptr_packing_a, *ptr_packing_b;
+  unsigned int k_start, k_end, K_;
+  K_ = K & -4;
+  k_end = K;
+  k_start = 0;
+  for (m_count_sub = m, m_count = 0; m_count_sub > (VL_FP16_TRIPLE - 1);
+       m_count_sub -= VL_FP16_TRIPLE, m_count += VL_FP16_TRIPLE) {
+    // call the micro kernel: m24n1;
+    i = m_count;
+    j = 0;
+    ptr_packing_a = a_buffer + m_count * K;
+    ptr_packing_b = b_buffer;
+    macro_KERNEL_24xkx1_packing();
+  }
+  for (; m_count_sub > (VL_FP16 - 1);
+       m_count_sub -= VL_FP16, m_count += VL_FP16) {
+    // call the micro kernel: m8n1;
+    i = m_count;
+    j = 0;
+    ptr_packing_a = a_buffer + m_count * K;
+    ptr_packing_b = b_buffer;
+    macro_KERNEL_8xkx1_HGEMM_packing();
+  }
+  for (; m_count_sub > 0; m_count_sub -= 1, m_count += 1) {
+    i = m_count;
+    j = 0;
+    ptr_packing_a = a_buffer + m_count * K;
+    ptr_packing_b = b_buffer;
+    macro_KERNEL_1xkx1_packing()
+  }
+}
+
+
 void hgemmv10_macro_kernel(__fp16 *a_buffer, __fp16 *b_buffer, unsigned int m,
                            unsigned int n, unsigned int k, __fp16 *C,
                            unsigned int LDC, float alpha) {
@@ -252,11 +295,9 @@ void hgemmv10_macro_kernel(__fp16 *a_buffer, __fp16 *b_buffer, unsigned int m,
     hgemmv10_kernel_n_4(a_buffer, b_buffer + n_count * k, C + n_count * LDC, m,
                         k, LDC, alpha);
   }
-  for (; n_count_sub > 1; n_count_sub -= 2, n_count += 2) {
-    std::cout << "[ NYI ] Call the m layer with n=2\n";
-  }
   for (; n_count_sub > 0; n_count_sub -= 1, n_count += 1) {
-    std::cout << "[ NYI ] Call the m layer with n=1\n";
+   hgemmv10_kernel_n_1(a_buffer, b_buffer + n_count * k, C + n_count * LDC, m,
+                        k, LDC, alpha);
   }
 }
 
