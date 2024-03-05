@@ -606,6 +606,8 @@ TEST(nntrainer_Tensor, dot_gemm_777_777_777) {
     C.getData<__fp16>(), C_raw.getData<__fp16>(), C.size());
 
   const float epsilon = 1e-3 * width;
+    std::cout << "mseErrorNeon : " << mseErrorNeon << "\n";
+  std::cout << "cosSimNeon : " << cosSimNeon << "\n";
 
   EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
   EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
@@ -694,6 +696,9 @@ TEST(nntrainer_Tensor, dot_gemm_1024_1024_1024) {
   double cosSimNeon = cosine_similarity<__fp16>(
     C.getData<__fp16>(), C_raw.getData<__fp16>(), C.size());
 
+  std::cout << "mseErrorNeon : " << mseErrorNeon << "\n";
+  std::cout << "cosSimNeon : " << cosSimNeon << "\n";
+
   const float epsilon = 1e-3 * width;
 
   EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
@@ -779,11 +784,13 @@ TEST(nntrainer_Tensor, dot_gemm_2048_2048_2048) {
   C_raw.print(std::cout);
   float mseErrorNeon =
     mse<__fp16>(C.getData<__fp16>(), C_raw.getData<__fp16>(), C.size());
-
   double cosSimNeon = cosine_similarity<__fp16>(
     C.getData<__fp16>(), C_raw.getData<__fp16>(), C.size());
 
   const float epsilon = 1e-3 * width;
+
+  std::cout << "mseErrorNeon : " << mseErrorNeon << "\n";
+  std::cout << "cosSimNeon : " << cosSimNeon << "\n";
 
   EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
   EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
@@ -861,18 +868,38 @@ TEST(nntrainer_Tensor, dot_gemm_4096_4096_4096) {
   dt = duration_cast<microseconds>(t2 - t1);
   std::cout << "fp32 : " << dt.count() << " microseconds " << std::endl;
 
-  // hgemm_raw_noTrans(height, width_b, width, A_raw.getData<__fp16>(), B_raw.getData<__fp16>(), C_raw.getData<__fp16>());
-
   C.print(std::cout);
   C_fp32.print(std::cout);
   // C_raw.print(std::cout);
   float mseErrorNeon =
     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
   double cosSimNeon = cosine_similarity<__fp16>(
     C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
 
   const float epsilon = 1e-3 * width;
+  const float valEps = 1e-0;
+
+  for (int b = 0; b < batch; b++) {
+    for (int c = 0; c < channel; c++) {
+      for (int h = 0; h < height; h++) {
+        for (int w = 0; w < width; w++) {
+          auto valfp16 = C.getValue<__fp16>(
+            b, c, h, w);
+            auto valfp32 = C_fp32.getValue<float>(b,c,h,w);
+            if (std::abs(static_cast<float>(valfp16) - valfp32) > valEps){
+              std::cout << static_cast<float>(valfp16) << " VS " << valfp32 << " at " << b << " , " << c << " , " << h << " , " << w << "\n";
+            }
+           
+        }
+      }
+    }
+  }
+
+
+  std::cout << "mseErrorNeon : " << mseErrorNeon << "\n";
+  std::cout << "cosSimNeon : " << cosSimNeon << "\n";
+
+  
 
   EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
   EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
@@ -950,17 +977,32 @@ TEST(nntrainer_Tensor, dot_gemm_4444_4444_4444) {
   dt = duration_cast<microseconds>(t2 - t1);
   std::cout << "dot_gemm_4444_4444_4444 fp32 : " << dt.count() << " microseconds " << std::endl;
 
-  // hgemm_raw_noTrans(height, width_b, width, A_raw.getData<__fp16>(), B_raw.getData<__fp16>(), C_raw.getData<__fp16>());
-
   C.print(std::cout);
   C_fp32.print(std::cout);
-  // C_raw.print(std::cout);
   float mseErrorNeon =
     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
 
   double cosSimNeon = cosine_similarity<__fp16>(
     C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+  std::cout << "mseErrorNeon : " << mseErrorNeon << "\n";
+  std::cout << "cosSimNeon : " << cosSimNeon << "\n";
+  const float valEps = 1e-0;
 
+  for (int b = 0; b < batch; b++) {
+    for (int c = 0; c < channel; c++) {
+      for (int h = 0; h < height; h++) {
+        for (int w = 0; w < width; w++) {
+          auto valfp16 = C.getValue<__fp16>(
+            b, c, h, w);
+            auto valfp32 = C_fp32.getValue<float>(b,c,h,w);
+            if (std::abs(static_cast<float>(valfp16) - valfp32) > valEps){
+              std::cout << static_cast<float>(valfp16) << " VS " << valfp32 << " at " << b << " , " << c << " , " << h << " , " << w << "\n";
+            }
+           
+        }
+      }
+    }
+  }
   const float epsilon = 1e-3 * width;
 
   EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
