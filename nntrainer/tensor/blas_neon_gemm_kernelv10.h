@@ -19,7 +19,7 @@ void packing_a_v10(__fp16 *src, __fp16 *dst, unsigned int leading_dim,
       todst += VL_FP16_TRIPLE;
     }
   }
-  // adaptive loops
+  // adaptive loops sizes should be MATCHED with kernel sizes
   for (; count_sub > (VL_FP16-1); count_first += VL_FP16, count_sub -= VL_FP16) {
     tosrc = src + count_first;
     for (count_second = 0; count_second < dim_second; count_second++) {
@@ -46,49 +46,85 @@ void packing_a_v10(__fp16 *src, __fp16 *dst, unsigned int leading_dim,
   }
 }
 
+// void packing_b_v10(__fp16 *src, __fp16 *dst, unsigned int leading_dim,
+//                    unsigned int dim_first, unsigned int dim_second) {
+//   __fp16 *tosrc1, *tosrc2, *tosrc3, *tosrc4, *tosrc5, *tosrc6, *tosrc7, *tosrc8,
+//     *todst;
+//   todst = dst;
+//   unsigned int count_first, count_second, count_sub = dim_second;
+//   for (count_second = 0; count_sub > 7; count_second += 8, count_sub -= 8) {
+//     tosrc1 = src + count_second * leading_dim;
+//     tosrc2 = tosrc1 + leading_dim;
+//     tosrc3 = tosrc2 + leading_dim;
+//     tosrc4 = tosrc3 + leading_dim;
+//     tosrc5 = tosrc4 + leading_dim;
+//     tosrc6 = tosrc5 + leading_dim;
+//     tosrc7 = tosrc6 + leading_dim;
+//     tosrc8 = tosrc7 + leading_dim;
+//     for (count_first = 0; count_first < dim_first; count_first++) {
+//       *todst = *tosrc1;
+//       tosrc1++;
+//       todst++;
+//       *todst = *tosrc2;
+//       tosrc2++;
+//       todst++;
+//       *todst = *tosrc3;
+//       tosrc3++;
+//       todst++;
+//       *todst = *tosrc4;
+//       tosrc4++;
+//       todst++;
+//       *todst = *tosrc5;
+//       tosrc5++;
+//       todst++;
+//       *todst = *tosrc6;
+//       tosrc6++;
+//       todst++;
+//       *todst = *tosrc7;
+//       tosrc7++;
+//       todst++;
+//       *todst = *tosrc8;
+//       tosrc8++;
+//       todst++;
+//     }
+//   }
+//   for (; count_sub > 3; count_second += 4, count_sub -= 4) {
+//     tosrc1 = src + count_second * leading_dim;
+//     tosrc2 = tosrc1 + leading_dim;
+//     tosrc3 = tosrc2 + leading_dim;
+//     tosrc4 = tosrc3 + leading_dim;
+//     for (count_first = 0; count_first < dim_first; count_first++) {
+//       *todst = *tosrc1;
+//       tosrc1++;
+//       todst++;
+//       *todst = *tosrc2;
+//       tosrc2++;
+//       todst++;
+//       *todst = *tosrc3;
+//       tosrc3++;
+//       todst++;
+//       *todst = *tosrc4;
+//       tosrc4++;
+//       todst++;
+//     }
+//   }
+//   for (; count_sub > 0; count_second++, count_sub -= 1) {
+//     tosrc1 = src + count_second * leading_dim;
+//     for (count_first = 0; count_first < dim_first; count_first++) {
+//       *todst = *tosrc1;
+//       tosrc1++;
+//       todst++;
+//     }
+//   }
+// }
+
 void packing_b_v10(__fp16 *src, __fp16 *dst, unsigned int leading_dim,
                    unsigned int dim_first, unsigned int dim_second) {
   __fp16 *tosrc1, *tosrc2, *tosrc3, *tosrc4, *tosrc5, *tosrc6, *tosrc7, *tosrc8,
     *todst;
   todst = dst;
   unsigned int count_first, count_second, count_sub = dim_second;
-  for (count_second = 0; count_sub > 7; count_second += 8, count_sub -= 8) {
-    tosrc1 = src + count_second * leading_dim;
-    tosrc2 = tosrc1 + leading_dim;
-    tosrc3 = tosrc2 + leading_dim;
-    tosrc4 = tosrc3 + leading_dim;
-    tosrc5 = tosrc4 + leading_dim;
-    tosrc6 = tosrc5 + leading_dim;
-    tosrc7 = tosrc6 + leading_dim;
-    tosrc8 = tosrc7 + leading_dim;
-    for (count_first = 0; count_first < dim_first; count_first++) {
-      *todst = *tosrc1;
-      tosrc1++;
-      todst++;
-      *todst = *tosrc2;
-      tosrc2++;
-      todst++;
-      *todst = *tosrc3;
-      tosrc3++;
-      todst++;
-      *todst = *tosrc4;
-      tosrc4++;
-      todst++;
-      *todst = *tosrc5;
-      tosrc5++;
-      todst++;
-      *todst = *tosrc6;
-      tosrc6++;
-      todst++;
-      *todst = *tosrc7;
-      tosrc7++;
-      todst++;
-      *todst = *tosrc8;
-      tosrc8++;
-      todst++;
-    }
-  }
-  for (; count_sub > 3; count_second += 4, count_sub -= 4) {
+  for (count_second = 0; count_sub > 3; count_second += 4, count_sub -= 4) {
     tosrc1 = src + count_second * leading_dim;
     tosrc2 = tosrc1 + leading_dim;
     tosrc3 = tosrc2 + leading_dim;
@@ -141,7 +177,6 @@ void hgemmv10_kernel_n_8(__fp16 *a_buffer, __fp16 *b_buffer, __fp16 *c_ptr,
   k_start = 0;
   for (m_count_sub = m, m_count = 0; m_count_sub > (VL_FP16_TRIPLE - 1);
        m_count_sub -= VL_FP16_TRIPLE, m_count += VL_FP16_TRIPLE) {
-    // call the micro kernel: m24n8;
     i = m_count;
     j = 0;
     ptr_packing_a = a_buffer + m_count * K;
@@ -150,7 +185,6 @@ void hgemmv10_kernel_n_8(__fp16 *a_buffer, __fp16 *b_buffer, __fp16 *c_ptr,
   }
   for (; m_count_sub > (VL_FP16 - 1);
        m_count_sub -= VL_FP16, m_count += VL_FP16) {
-    // call the micro kernel: m8n8;
     i = m_count;
     j = 0;
     ptr_packing_a = a_buffer + m_count * K;
@@ -159,7 +193,6 @@ void hgemmv10_kernel_n_8(__fp16 *a_buffer, __fp16 *b_buffer, __fp16 *c_ptr,
   }
   for (; m_count_sub > (VL_FP16_HALF - 1);
        m_count_sub -= VL_FP16_HALF, m_count += VL_FP16_HALF) {
-    // call the micro kernel: m2n8;
     i = m_count;
     j = 0;
     ptr_packing_a = a_buffer + m_count * K;
@@ -167,7 +200,6 @@ void hgemmv10_kernel_n_8(__fp16 *a_buffer, __fp16 *b_buffer, __fp16 *c_ptr,
     macro_KERNEL_4xkx8_packing();
   }
   for (; m_count_sub > 0; m_count_sub -= 1, m_count += 1) {
-    // call the micro kernel: m1n8;
     i = m_count;
     j = 0;
     ptr_packing_a = a_buffer + m_count * K;
@@ -199,7 +231,6 @@ void hgemmv10_kernel_n_4(__fp16 *a_buffer, __fp16 *b_buffer, __fp16 *c_ptr,
   k_start = 0;
   for (m_count_sub = m, m_count = 0; m_count_sub > (VL_FP16_TRIPLE - 1);
        m_count_sub -= VL_FP16_TRIPLE, m_count += VL_FP16_TRIPLE) {
-    // call the micro kernel: m24n4;
     i = m_count;
     j = 0;
     ptr_packing_a = a_buffer + m_count * K;
@@ -208,7 +239,6 @@ void hgemmv10_kernel_n_4(__fp16 *a_buffer, __fp16 *b_buffer, __fp16 *c_ptr,
   }
   for (; m_count_sub > (VL_FP16 - 1);
        m_count_sub -= VL_FP16, m_count += VL_FP16) {
-    // call the micro kernel: m8n4;
     i = m_count;
     j = 0;
     ptr_packing_a = a_buffer + m_count * K;
@@ -217,7 +247,6 @@ void hgemmv10_kernel_n_4(__fp16 *a_buffer, __fp16 *b_buffer, __fp16 *c_ptr,
   }
   for (; m_count_sub > (VL_FP16_HALF - 1);
        m_count_sub -= VL_FP16_HALF, m_count += VL_FP16_HALF) {
-    // call the micro kernel: m8n4;
     i = m_count;
     j = 0;
     ptr_packing_a = a_buffer + m_count * K;
@@ -241,7 +270,10 @@ void hgemmv10_kernel_n_1(__fp16 *a_buffer, __fp16 *b_buffer, __fp16 *c_ptr,
   __fp16 *C = c_ptr;
   __fp16 sc0, sc1, sc2, sc3, sc4, sc5, sc6, sc7, sa, sb0, sb1, sb2, sb3, sb4,
     sb5, sb6, sb7;
+  float16x4_t da, da0, da1, da2, db0, db1, db2, db3;
+  float16x4_t dc00, dc10, dc20, dc30, dc40, dc50, dc60, dc70;
   float16x8_t valpha = vdupq_n_f16(alpha);
+  float16x4_t dvalpha = vdup_n_f16(alpha);
   float16x8_t a, a0, a1, a2, b0, b1, b2, b3;
   float16x8_t c00, c01, c02;
   float16x8_t c0, c1, c2, c3;
@@ -252,7 +284,6 @@ void hgemmv10_kernel_n_1(__fp16 *a_buffer, __fp16 *b_buffer, __fp16 *c_ptr,
   k_start = 0;
   for (m_count_sub = m, m_count = 0; m_count_sub > (VL_FP16_TRIPLE - 1);
        m_count_sub -= VL_FP16_TRIPLE, m_count += VL_FP16_TRIPLE) {
-    // call the micro kernel: m24n1;
     i = m_count;
     j = 0;
     ptr_packing_a = a_buffer + m_count * K;
@@ -261,12 +292,19 @@ void hgemmv10_kernel_n_1(__fp16 *a_buffer, __fp16 *b_buffer, __fp16 *c_ptr,
   }
   for (; m_count_sub > (VL_FP16 - 1);
        m_count_sub -= VL_FP16, m_count += VL_FP16) {
-    // call the micro kernel: m8n1;
     i = m_count;
     j = 0;
     ptr_packing_a = a_buffer + m_count * K;
     ptr_packing_b = b_buffer;
     macro_KERNEL_8xkx1_HGEMM_packing();
+  }
+  for (; m_count_sub > (VL_FP16_HALF - 1);
+       m_count_sub -= VL_FP16_HALF, m_count += VL_FP16_HALF) {
+    i = m_count;
+    j = 0;
+    ptr_packing_a = a_buffer + m_count * K;
+    ptr_packing_b = b_buffer;
+    macro_KERNEL_4xkx1_packing();
   }
   for (; m_count_sub > 0; m_count_sub -= 1, m_count += 1) {
     i = m_count;
@@ -282,12 +320,23 @@ void hgemmv10_macro_kernel(__fp16 *a_buffer, __fp16 *b_buffer, unsigned int m,
                            unsigned int n, unsigned int k, __fp16 *C,
                            unsigned int LDC, float alpha) {
   unsigned int m_count, n_count, m_count_sub, n_count_sub;
-  for (n_count_sub = n, n_count = 0; n_count_sub > (VL_FP16 - 1);
-       n_count_sub -= VL_FP16, n_count += VL_FP16) {
-    hgemmv10_kernel_n_8(a_buffer, b_buffer + n_count * k, C + n_count * LDC, m,
-                        k, LDC, alpha);
-  }
-  for (; n_count_sub > (VL_FP16_HALF - 1);
+  // for (n_count_sub = n, n_count = 0; n_count_sub > (VL_FP16 - 1);
+  //      n_count_sub -= VL_FP16, n_count += VL_FP16) {
+  //   hgemmv10_kernel_n_8(a_buffer, b_buffer + n_count * k, C + n_count * LDC, m,
+  //                       k, LDC, alpha);
+  // }
+  // for (; n_count_sub > (VL_FP16_HALF - 1);
+  //      n_count_sub -= VL_FP16_HALF, n_count += VL_FP16_HALF) {
+  //   hgemmv10_kernel_n_4(a_buffer, b_buffer + n_count * k, C + n_count * LDC, m,
+  //                       k, LDC, alpha);
+  // }
+  // for (; n_count_sub > 0; n_count_sub -= 1, n_count += 1) {
+  //  hgemmv10_kernel_n_1(a_buffer, b_buffer + n_count * k, C + n_count * LDC, m,
+  //                       k, LDC, alpha);
+  // }
+
+
+  for (n_count_sub = n, n_count = 0; n_count_sub > (VL_FP16_HALF - 1);
        n_count_sub -= VL_FP16_HALF, n_count += VL_FP16_HALF) {
     hgemmv10_kernel_n_4(a_buffer, b_buffer + n_count * k, C + n_count * LDC, m,
                         k, LDC, alpha);

@@ -910,37 +910,6 @@
   vst1q_f16(&C(i + VL_FP16_DOUBLE, j + 3),                             \
             vaddq_f16(c32, vld1q_f16(&C(i + VL_FP16_DOUBLE, j + 3))));
 
-#define KERNEL_8x1_HGEMM_packing()                 \
-  a = vmulq_f16(valpha, vld1q_f16(ptr_packing_a)); \
-  b0 = vmovq_n_f16(*ptr_packing_b);                \
-  c0 = vfmaq_f16(c0, b0, a);                       \
-  k++;                                             \
-  ptr_packing_a += VL_FP16;                        \
-  ptr_packing_b++;
-
-#define macro_KERNEL_8xkx1_HGEMM_packing() \
-  c0 = vdupq_n_f16(0.f);                   \
-  for (k = 0; k < K_;) {                   \
-    KERNEL_8x1_HGEMM_packing();            \
-    KERNEL_8x1_HGEMM_packing();            \
-    KERNEL_8x1_HGEMM_packing();            \
-    KERNEL_8x1_HGEMM_packing();            \
-  }                                        \
-  for (k = K_; k < K;) {                   \
-    KERNEL_8x1_HGEMM_packing();            \
-  }                                        \
-  vst1q_f16(&C(i, j), vaddq_f16(c0, vld1q_f16(&C(i, j))));
-
-#define macro_KERNEL_1xkx1_packing()  \
-  sc0 == 0.;                          \
-  for (k = k_start; k < k_end; k++) { \
-    sa = alpha * (*ptr_packing_a);    \
-    sb0 = *(ptr_packing_b);           \
-    sc0 += sa * sb0;                  \
-    ptr_packing_a++;                  \
-    ptr_packing_b++;                  \
-  }                                   \
-  C(i, j) += sc0;
 
 #define KERNEL_24x1_HGEMM_packing()                                  \
   a0 = vmulq_f16(valpha, vld1q_f16(ptr_packing_a));                  \
@@ -971,4 +940,61 @@
   vst1q_f16(&C(i + VL_FP16, j),                             \
             vaddq_f16(c01, vld1q_f16(&C(i + VL_FP16, j)))); \
   vst1q_f16(&C(i + VL_FP16_DOUBLE, j),                      \
-            vaddq_f16(c02, vld1q_f16(&C(i + VL_FP16_DOUBLE, j))));
+            vaddq_f16(c02, vld1q_f16(&C(i + VL_FP16_DOUBLE, j))));\
+
+#define KERNEL_8x1_HGEMM_packing()                 \
+  a = vmulq_f16(valpha, vld1q_f16(ptr_packing_a)); \
+  b0 = vmovq_n_f16(*ptr_packing_b);                \
+  c0 = vfmaq_f16(c0, b0, a);                       \
+  k++;                                             \
+  ptr_packing_a += VL_FP16;                        \
+  ptr_packing_b++;
+
+#define macro_KERNEL_8xkx1_HGEMM_packing() \
+  c0 = vdupq_n_f16(0.f);                   \
+  for (k = 0; k < K_;) {                   \
+    KERNEL_8x1_HGEMM_packing();            \
+    KERNEL_8x1_HGEMM_packing();            \
+    KERNEL_8x1_HGEMM_packing();            \
+    KERNEL_8x1_HGEMM_packing();            \
+  }                                        \
+  for (k = K_; k < K;) {                   \
+    KERNEL_8x1_HGEMM_packing();            \
+  }                                        \
+  vst1q_f16(&C(i, j), vaddq_f16(c0, vld1q_f16(&C(i, j))));
+
+
+
+#define KERNEL_4x1_HGEMM_packing()                  \
+  da0 = vmul_f16(dvalpha, vld1_f16(ptr_packing_a)); \
+  db0 = vmov_n_f16(*ptr_packing_b);                 \
+  dc00 = vfma_f16(dc00, db0, da0);                  \
+  ptr_packing_a += VL_FP16_HALF;                    \
+  ptr_packing_b++;                    \
+  k++;
+
+#define macro_KERNEL_4xkx1_packing()                              \
+  dc00 = vdup_n_f16(0.f);                                         \
+  for (k = k_start; k < K_;) {                                    \
+    KERNEL_4x1_HGEMM_packing();                                   \
+    KERNEL_4x1_HGEMM_packing();                                   \
+    KERNEL_4x1_HGEMM_packing();                                   \
+    KERNEL_4x1_HGEMM_packing();                                   \
+  }                                                               \
+  for (k = K_; k < k_end;) {                                      \
+    KERNEL_4x1_HGEMM_packing();                                   \
+  }                                                               \
+  vst1_f16(&C(i, j), vadd_f16(dc00, vld1_f16(&C(i, j))));         \
+
+
+#define macro_KERNEL_1xkx1_packing()  \
+  sc0 == 0.;                          \
+  for (k = k_start; k < k_end; k++) { \
+    sa = alpha * (*ptr_packing_a);    \
+    sb0 = *(ptr_packing_b);           \
+    sc0 += sa * sb0;                  \
+    ptr_packing_a++;                  \
+    ptr_packing_b++;                  \
+  }                                   \
+  C(i, j) += sc0;
+
