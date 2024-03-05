@@ -9,31 +9,31 @@ void packing_a_v10(__fp16 *src, __fp16 *dst, unsigned int leading_dim,
   __fp16 *tosrc, *todst;
   todst = dst;
   unsigned int count_first, count_second, count_sub = dim_first;
-  for (count_first = 0; count_sub > 23; count_first += 24, count_sub -= 24) {
+  for (count_first = 0; count_sub > (VL_FP16_TRIPLE -1); count_first += VL_FP16_TRIPLE, count_sub -= VL_FP16_TRIPLE) {
     tosrc = src + count_first;
     for (count_second = 0; count_second < dim_second; count_second++) {
       vst1q_f16(todst, vld1q_f16(tosrc));
-      vst1q_f16(todst + 8, vld1q_f16(tosrc + 8));
-      vst1q_f16(todst + 16, vld1q_f16(tosrc + 16));
+      vst1q_f16(todst + 8, vld1q_f16(tosrc + VL_FP16));
+      vst1q_f16(todst + 16, vld1q_f16(tosrc + VL_FP16_DOUBLE));
       tosrc += leading_dim;
-      todst += 24;
+      todst += VL_FP16_TRIPLE;
     }
   }
   // adaptive loops
-  for (; count_sub > 7; count_first += 8, count_sub -= 8) {
+  for (; count_sub > (VL_FP16-1); count_first += VL_FP16, count_sub -= VL_FP16) {
     tosrc = src + count_first;
     for (count_second = 0; count_second < dim_second; count_second++) {
       vst1q_f16(todst, vld1q_f16(tosrc));
       tosrc += leading_dim;
-      todst += 8;
+      todst += VL_FP16;
     }
   }
-  for (; count_sub > 3; count_first += 4, count_sub -= 4) {
+  for (; count_sub > (VL_FP16_HALF-1); count_first += VL_FP16_HALF, count_sub -= VL_FP16_HALF) {
     tosrc = src + count_first;
     for (count_second = 0; count_second < dim_second; count_second++) {
       vst1_f16(todst, vld1_f16(tosrc));
       tosrc += leading_dim;
-      todst += 4;
+      todst += VL_FP16_HALF;
     }
   }
   for (; count_sub > 0; count_first += 1, count_sub -= 1) {
@@ -105,18 +105,6 @@ void packing_b_v10(__fp16 *src, __fp16 *dst, unsigned int leading_dim,
       todst++;
       *todst = *tosrc4;
       tosrc4++;
-      todst++;
-    }
-  }
-  for (; count_sub > 1; count_second += 2, count_sub -= 2) {
-    tosrc1 = src + count_second * leading_dim;
-    tosrc2 = tosrc1 + leading_dim;
-    for (count_first = 0; count_first < dim_first; count_first++) {
-      *todst = *tosrc1;
-      tosrc1++;
-      todst++;
-      *todst = *tosrc2;
-      tosrc2++;
       todst++;
     }
   }
@@ -226,6 +214,15 @@ void hgemmv10_kernel_n_4(__fp16 *a_buffer, __fp16 *b_buffer, __fp16 *c_ptr,
     ptr_packing_a = a_buffer + m_count * K;
     ptr_packing_b = b_buffer;
     macro_KERNEL_8xkx4_HGEMM_packing();
+  }
+  for (; m_count_sub > (VL_FP16_HALF - 1);
+       m_count_sub -= VL_FP16_HALF, m_count += VL_FP16_HALF) {
+    // call the micro kernel: m8n4;
+    i = m_count;
+    j = 0;
+    ptr_packing_a = a_buffer + m_count * K;
+    ptr_packing_b = b_buffer;
+    macro_KERNEL_4xkx4_packing();
   }
   for (; m_count_sub > 0; m_count_sub -= 1, m_count += 1) {
     i = m_count;
