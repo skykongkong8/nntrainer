@@ -1621,6 +1621,7 @@ void hgemm(const __fp16 *A, const __fp16 *B, __fp16 *C, uint32_t M, uint32_t N,
     hgemm_transA(A, B, C32, M, N, K, alpha, beta);
   } else if (!TransA && !TransB) {
     hgemm_noTrans(A, B, C32, M, N, K, alpha, beta);
+    // hgemm_noTrans(A, B, C, M, N, K, alpha, beta);
   } else { // TransA && TransB
     hgemm_transAB(A, B, C32, M, N, K, alpha, beta, idx);
   }

@@ -17,9 +17,12 @@
 #define B(i, j) b[(i)*ldb + (j)]
 #define C(i, j) c[(i)*ldc + (j)]
 
-#define N_BLOCKING (384)
-#define K_BLOCKING (256)
+// #define N_BLOCKING (384)
+// #define K_BLOCKING (256)
+#define N_BLOCKING (768)
+#define K_BLOCKING (512)
 #define M_BLOCKING (4096)
+#define GEMM_UNROLLING_24 (24)
 #define GEMM_UNROLLING_16 (16)
 #define GEMM_UNROLLING_8 (8)
 #define GEMM_UNROLLING_4 (4)

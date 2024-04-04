@@ -6,6 +6,7 @@ hgemm_headers = [
   'hgemm_kernel_4x8.h',
   'hgemm_kernel_8x8.h',
   'hgemm_kernel_8x16.h',
+  'hgemm_kernel_8x24.h',
 ]
 
 hgemm_sources = [
