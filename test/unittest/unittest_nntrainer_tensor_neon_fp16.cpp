@@ -20,11 +20,87 @@
 #include <nntrainer_error.h>
 #include <tensor.h>
 #include <tensor_dim.h>
-
+#include <chrono>
+using std::chrono::nanoseconds; // or microseconds
+using std::chrono::microseconds; // or microseconds
+using std::chrono::milliseconds; // or microseconds
+using std::chrono::seconds; // or microseconds
+using std::chrono::high_resolution_clock;
+using std::chrono::duration_cast;
 #define EXPECT_IN_RANGE(VAL, MIN, MAX) \
   EXPECT_GE((VAL), (MIN));             \
   EXPECT_LE((VAL), (MAX))
 
+  bool rand_bool(){
+  return rand()>(RAND_MAX/2);
+}
+double rand_fp64(double max=1.0){
+  double sign[] = {-1.0,1.0};
+  return (double)sign[rand_bool()]*rand()/RAND_MAX*rand()/RAND_MAX*max;
+}
+int rand_int(int max=RAND_MAX){
+  return rand_fp64()*max;
+}
+#include <omp.h>
+class InitCache {
+public:
+  InitCache(int size) {
+    for (int i = 0; i < size; i++)
+      arr.push_back(rand_int(1000007));
+  }
+  InitCache() {}
+  ~InitCache() {}
+  int useCache() {
+    int ret = (int)clock();
+    for (auto it : arr)
+      ret = (ret + it) % 1000007;
+    return ret;
+  }
+  std::vector<int> arr;
+};
+class Timer {
+public:
+  Timer() { start(); }
+  void start() { tTime = omp_get_wtime(); }
+  float end_ms() {
+    float t = 1000.0 * (omp_get_wtime() - tTime);
+
+    timeSum += t;
+    if (t > tMax)
+      tMax = t;
+    if (t < tMin)
+      tMin = t;
+    timeRecord.push_back(t);
+    start();
+    return t;
+  }
+  float end_s() { return end_ms() / 1000; }
+  std::vector<float> getRecord() { return timeRecord; }
+  float getTimeMin_ms() { return tMin; }
+  float getTimeMax_ms() { return tMax; }
+
+  float getTimeMin_s() { return getTimeMin_ms() / 1000; }
+  float getTimeMax_s() { return getTimeMax_ms() / 1000; }
+
+  float getTimeMean_ms() { return timeSum / timeRecord.size(); }
+  float getTimeMean_s() { return getTimeMean_ms() / 1000; }
+  // testing::internal::color
+  void print_ms(const char str[]) {
+    printf("Computational Latency "
+           "------------------------------------------------------\n");
+    if (true)
+      printf("  %s mean : %5.5f ms\n", str, getTimeMean_ms());
+    if (true)
+      printf("  %s max  : %5.5f ms\n", str, getTimeMax_ms());
+    if (true)
+      printf("  %s min  : %5.5f ms\n", str, getTimeMin_ms());
+  }
+  double tTime;
+  float timeSum = 0;
+  float tMax = 0;
+  float tMin = 9999999;
+  std::vector<float> timeRecord;
+};
 TEST(nntrainer_Tensor, add_i) {
   int batch = 1;
   int channel = 1;
@@ -457,6 +533,9 @@ TEST(nntrainer_Tensor, dot_gemm_16_16_16) {
   double cosSimNeon = cosine_similarity<__fp16>(
     C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
 
+        std::cout << "mseErrorNeon : " << mseErrorNeon << std::endl;
+    std::cout << "cosSimNeon : " << cosSimNeon << std::endl;
+
   const float epsilon = 1e-3 * width;
 
   EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
@@ -507,8 +586,29 @@ TEST(nntrainer_Tensor, dot_gemm_1024_1024_1024) {
                              j * (batch * height_b) + k * (width_b) + l + 1) %
                             MOD) *
                              alpha);
-  nntrainer::Tensor C = A.dot(B, transA, transB);
-  nntrainer::Tensor C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+double  gflops = 2.0 * height * width_b * width * 1.0e-09;
+
+const int TC = 100;
+  nntrainer::Tensor C;
+  nntrainer::Tensor C_fp32;
+  InitCache initCache(10000000);
+
+  Timer timer;
+  for(int t=0;t<TC;t++){
+    initCache.useCache(); // Weight 값이 캐시에 올라가 있는것을 방지.
+    timer.start();
+    C = A.dot(B, transA, transB);
+    timer.end_ms();
+  }
+  timer.print_ms("test_latency");
+
+  for(int t=0;t<TC;t++){
+    initCache.useCache(); // Weight 값이 캐시에 올라가 있는것을 방지.
+    timer.start();
+  C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+    timer.end_ms();
+  }
+  timer.print_ms("test_latency");
 
   float mseErrorNeon =
     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
@@ -566,14 +666,369 @@ TEST(nntrainer_Tensor, dot_gemm_768) {
                              j * (batch * height_b) + k * (width_b) + l + 1) %
                             MOD) *
                              alpha);
-  nntrainer::Tensor C = A.dot(B, transA, transB);
-  nntrainer::Tensor C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+  
+const int TC = 100;
+  nntrainer::Tensor C;
+  nntrainer::Tensor C_fp32;
+  InitCache initCache(10000000);
+
+  Timer timer;
+  for(int t=0;t<TC;t++){
+    initCache.useCache(); // Weight 값이 캐시에 올라가 있는것을 방지.
+    timer.start();
+    C = A.dot(B, transA, transB);
+    timer.end_ms();
+  }
+  timer.print_ms("test_latency");
+
+  for(int t=0;t<TC;t++){
+    initCache.useCache(); // Weight 값이 캐시에 올라가 있는것을 방지.
+    timer.start();
+  C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+    timer.end_ms();
+  }
+  timer.print_ms("test_latency");
 
   float mseErrorNeon =
     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
 
   double cosSimNeon = cosine_similarity<__fp16>(
     C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+    std::cout << "mseErrorNeon : " << mseErrorNeon << std::endl;
+    std::cout << "cosSimNeon : " << cosSimNeon << std::endl;
+
+  const float epsilon = 1e-3 * width;
+
+  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
+  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
+}
+
+TEST(nntrainer_Tensor, dot_gemm_sr1) {
+  /// @note GEMM : A X B = C
+  int batch = 1;
+  int channel = 1;
+  int height = 256;
+  int width = 1440;
+
+  int height_b = 1440;
+  int width_b = 256;
+
+  bool transA = false;
+  bool transB = false;
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
+
+  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
+  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
+
+  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
+  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b, t_type_nchw_fp32);
+
+  const float alpha = 1e-1;
+  const int MOD = 10;
+
+  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
+                      k * (width) + l + 1) %
+                     MOD) *
+                      alpha);
+  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
+                        j * (batch * height_b) + k * (width_b) + l + 1) %
+                       MOD) *
+                        alpha);
+  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
+                           j * (batch * height) + k * (width) + l + 1) %
+                          MOD) *
+                           alpha);
+  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
+                             j * (batch * height_b) + k * (width_b) + l + 1) %
+                            MOD) *
+                             alpha);
+double  gflops = 2.0 * height * width_b * width * 1.0e-09;
+
+ 
+const int TC = 100;
+  nntrainer::Tensor C;
+  nntrainer::Tensor C_fp32;
+  InitCache initCache(10000000);
+
+  Timer timer;
+  for(int t=0;t<TC;t++){
+    initCache.useCache(); // Weight 값이 캐시에 올라가 있는것을 방지.
+    timer.start();
+    C = A.dot(B, transA, transB);
+    timer.end_ms();
+  }
+  timer.print_ms("test_latency");
+
+  for(int t=0;t<TC;t++){
+    initCache.useCache(); // Weight 값이 캐시에 올라가 있는것을 방지.
+    timer.start();
+  C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+    timer.end_ms();
+  }
+  timer.print_ms("test_latency");
+  float mseErrorNeon =
+    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+  double cosSimNeon = cosine_similarity<__fp16>(
+    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+    std::cout << "mseErrorNeon : " << mseErrorNeon << std::endl;
+    std::cout << "cosSimNeon : " << cosSimNeon << std::endl;
+
+  const float epsilon = 1e-3 * width;
+
+  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
+  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
+}
+
+TEST(nntrainer_Tensor, dot_gemm_sr2) {
+  /// @note GEMM : A X B = C
+  int batch = 1;
+  int channel = 1;
+  int height = 256;
+  int width = 256;
+
+  int height_b = 256;
+  int width_b = 1440;
+
+  bool transA = false;
+  bool transB = false;
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
+
+  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
+  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
+
+  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
+  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b, t_type_nchw_fp32);
+
+  const float alpha = 1e-1;
+  const int MOD = 10;
+
+  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
+                      k * (width) + l + 1) %
+                     MOD) *
+                      alpha);
+  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
+                        j * (batch * height_b) + k * (width_b) + l + 1) %
+                       MOD) *
+                        alpha);
+  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
+                           j * (batch * height) + k * (width) + l + 1) %
+                          MOD) *
+                           alpha);
+  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
+                             j * (batch * height_b) + k * (width_b) + l + 1) %
+                            MOD) *
+                             alpha);
+double  gflops = 2.0 * height * width_b * width * 1.0e-09;
+
+ 
+const int TC = 100;
+  nntrainer::Tensor C;
+  nntrainer::Tensor C_fp32;
+  InitCache initCache(10000000);
+
+  Timer timer;
+  for(int t=0;t<TC;t++){
+    initCache.useCache(); // Weight 값이 캐시에 올라가 있는것을 방지.
+    timer.start();
+    C = A.dot(B, transA, transB);
+    timer.end_ms();
+  }
+  timer.print_ms("test_latency");
+
+  for(int t=0;t<TC;t++){
+    initCache.useCache(); // Weight 값이 캐시에 올라가 있는것을 방지.
+    timer.start();
+  C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+    timer.end_ms();
+  }
+  timer.print_ms("test_latency");
+  float mseErrorNeon =
+    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+  double cosSimNeon = cosine_similarity<__fp16>(
+    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+    std::cout << "mseErrorNeon : " << mseErrorNeon << std::endl;
+    std::cout << "cosSimNeon : " << cosSimNeon << std::endl;
+
+  const float epsilon = 1e-3 * width;
+
+  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
+  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
+}
+
+TEST(nntrainer_Tensor, dot_gemm_small_batch8_2) {
+  /// @note GEMM : A X B = C
+  int batch = 1;
+  int channel = 1;
+  int height = 8;
+  int width = 8;
+
+  int height_b = 8;
+  int width_b = 1440;
+
+  bool transA = false;
+  bool transB = false;
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
+
+  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
+  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
+
+  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
+  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b, t_type_nchw_fp32);
+
+  const float alpha = 1e-1;
+  const int MOD = 10;
+
+  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
+                      k * (width) + l + 1) %
+                     MOD) *
+                      alpha);
+  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
+                        j * (batch * height_b) + k * (width_b) + l + 1) %
+                       MOD) *
+                        alpha);
+  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
+                           j * (batch * height) + k * (width) + l + 1) %
+                          MOD) *
+                           alpha);
+  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
+                             j * (batch * height_b) + k * (width_b) + l + 1) %
+                            MOD) *
+                             alpha);
+double  gflops = 2.0 * height * width_b * width * 1.0e-09;
+
+ 
+const int TC = 100;
+  nntrainer::Tensor C;
+  nntrainer::Tensor C_fp32;
+  InitCache initCache(10000000);
+
+  Timer timer;
+  for(int t=0;t<TC;t++){
+    initCache.useCache(); // Weight 값이 캐시에 올라가 있는것을 방지.
+    timer.start();
+    C = A.dot(B, transA, transB);
+    timer.end_ms();
+  }
+  timer.print_ms("test_latency");
+
+  for(int t=0;t<TC;t++){
+    initCache.useCache(); // Weight 값이 캐시에 올라가 있는것을 방지.
+    timer.start();
+  C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+    timer.end_ms();
+  }
+  timer.print_ms("test_latency");
+  float mseErrorNeon =
+    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+  double cosSimNeon = cosine_similarity<__fp16>(
+    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+    std::cout << "mseErrorNeon : " << mseErrorNeon << std::endl;
+    std::cout << "cosSimNeon : " << cosSimNeon << std::endl;
+
+  const float epsilon = 1e-3 * width;
+
+  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
+  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
+}
+
+TEST(nntrainer_Tensor, dot_gemm_small_batch8) {
+  /// @note GEMM : A X B = C
+  int batch = 1;
+  int channel = 1;
+  int height = 8;
+  int width = 1440;
+
+  int height_b = 1440;
+  int width_b = 8;
+
+  bool transA = false;
+  bool transB = false;
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
+
+  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
+  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
+
+  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
+  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b, t_type_nchw_fp32);
+
+  const float alpha = 1e-1;
+  const int MOD = 10;
+
+  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
+                      k * (width) + l + 1) %
+                     MOD) *
+                      alpha);
+  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
+                        j * (batch * height_b) + k * (width_b) + l + 1) %
+                       MOD) *
+                        alpha);
+  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
+                           j * (batch * height) + k * (width) + l + 1) %
+                          MOD) *
+                           alpha);
+  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
+                             j * (batch * height_b) + k * (width_b) + l + 1) %
+                            MOD) *
+                             alpha);
+double  gflops = 2.0 * height * width_b * width * 1.0e-09;
+
+ 
+const int TC = 100;
+  nntrainer::Tensor C;
+  nntrainer::Tensor C_fp32;
+  InitCache initCache(10000000);
+
+  Timer timer;
+  for(int t=0;t<TC;t++){
+    initCache.useCache(); // Weight 값이 캐시에 올라가 있는것을 방지.
+    timer.start();
+    C = A.dot(B, transA, transB);
+    timer.end_ms();
+  }
+  timer.print_ms("test_latency");
+
+  for(int t=0;t<TC;t++){
+    initCache.useCache(); // Weight 값이 캐시에 올라가 있는것을 방지.
+    timer.start();
+  C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+    timer.end_ms();
+  }
+  timer.print_ms("test_latency");
+  float mseErrorNeon =
+    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+  double cosSimNeon = cosine_similarity<__fp16>(
+    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+    std::cout << "mseErrorNeon : " << mseErrorNeon << std::endl;
+    std::cout << "cosSimNeon : " << cosSimNeon << std::endl;
 
   const float epsilon = 1e-3 * width;
 
