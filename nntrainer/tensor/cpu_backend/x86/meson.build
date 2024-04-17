@@ -1,7 +1,9 @@
 simd_interface_x86_headers = [
     'avx_simd.h',
 ]
-simd_interface_x86_sources = []
+simd_interface_x86_sources = [
+  'avx_simd.cpp',
+]
 
 if get_option('enable-fp16')
     simd_interface_x86_headers += 'blas_avx.h'

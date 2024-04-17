@@ -4,6 +4,7 @@ simd_interface_aarch64_headers = [
     'neon_setting.h'
 ]
 simd_interface_aarch64_sources = [
+    'neon_simd.cpp',
     'neon_single.cpp'
 ]
 
