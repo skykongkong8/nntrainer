@@ -42,24 +42,9 @@ cl_headers = [
   'cl_operations/cl_interface.h'
 ]
 
-
-arch = host_machine.cpu_family()
-if get_option('enable-fp16') 
-  if arch == 'arm'
-    error ('FP16/ARM code (blas_neon.cpp) uses armv8.2 instructions. armv7 is not supported.')
-  elif arch == 'aarch64' or get_option('platform') == 'android'
-    if get_option('enable-neon')
-      tensor_sources += 'blas_neon.cpp'
-      tensor_headers += 'blas_neon.h'
-      subdir('hgemm')
-      nntrainer_inc += include_directories('hgemm')
-      nntrainer_inc_abs += meson.current_source_dir() / 'hgemm'
-    endif
-  elif get_option('enable-avx')
-    tensor_sources += 'blas_avx.cpp'
-    tensor_headers += 'blas_avx.h'
-  endif
-endif
+subdir('simd_interface')
+nntrainer_inc += include_directories('simd_interface')
+nntrainer_inc_abs += meson.current_source_dir() / 'simd_interface'
 
 if get_option('enable-fp16')
   tensor_headers += 'half_tensor.h'

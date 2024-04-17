@@ -15,12 +15,12 @@
 #include <blas_interface.h>
 #include <nntrainer_error.h>
 
-#if (defined USE__FP16 && defined USE_NEON)
-#include <blas_neon.h>
+#if (defined USE_NEON)
+#include <neon_simd.h>
 #endif
 
 #if USE_AVX
-#include <blas_avx.h>
+#include <avx_simd.h>
 #endif
 
 #include <cmath>
