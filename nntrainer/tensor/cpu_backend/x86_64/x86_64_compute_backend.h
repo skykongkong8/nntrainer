@@ -1,10 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
+ *
+ * @file   x86_64_compute_backend.h
+ * @date   23 April 2024
+ * @see    https://github.com/nnstreamer/nntrainer
+ * @author Sungsik Kong <ss.kong@samsung.com>
+ * @bug    No known bugs except for NYI items
+ * @brief  Compute backend for x86_64
+ *
+ */
 
+#ifndef __NEON_SIMD_H__
+#define __NEON_SIMD_H__
+#ifdef __cplusplus
 
-extern "C" {
-#include <cblas.h>
-}
 
 #include <cstdint>
+#include <tensor_dim.h>
+
 namespace nntrainer {
 
 #ifdef ENABLE_FP16
@@ -14,14 +28,15 @@ namespace nntrainer {
  * @param[in] X __fp16 * for Vector X
  * @param[in] alpha float number
  */
-void sscal(const unsigned int N, const float alpha, _FP16 *X, const int incX);
+void sscal(const unsigned int N, const float alpha, _FP16 *X,
+           const unsigned int incX);
 
 /**
  * @brief     snrm2 computation : Euclidean norm
  * @param[in] N number of elements in X
  * @param[in] X __fp16 * for Vector X
  */
-_FP16 snrm2(const unsigned int N, const _FP16 *X, const int incX);
+_FP16 snrm2(const unsigned int N, const _FP16 *X, const unsigned int incX);
 
 /**
  * @brief     copy function : Y = X
@@ -29,8 +44,8 @@ _FP16 snrm2(const unsigned int N, const _FP16 *X, const int incX);
  * @param[in] X __fp16 * for Vector X
  * @param[in] Y __fp16 * for Vector Y
  */
-void scopy(const unsigned int N, const _FP16 *X, const int incX, _FP16 *Y,
-           const int incY);
+void scopy(const unsigned int N, const _FP16 *X, const unsigned int incX,
+           _FP16 *Y, const unsigned int incY);
 
 /**
  * @brief     copy function : Y = X
@@ -38,8 +53,8 @@ void scopy(const unsigned int N, const _FP16 *X, const int incX, _FP16 *Y,
  * @param[in] X float * for Vector X
  * @param[in] Y __fp16 * for Vector Y
  */
-void scopy(const unsigned int N, const float *X, const int incX, _FP16 *Y,
-           const int incY);
+void scopy(const unsigned int N, const float *X, const unsigned int incX,
+           _FP16 *Y, const unsigned int incY);
 
 /**
  * @brief     copy function : Y = X
@@ -47,8 +62,8 @@ void scopy(const unsigned int N, const float *X, const int incX, _FP16 *Y,
  * @param[in] X __fp16 * for Vector X
  * @param[in] Y float * for Vector Y
  */
-void scopy(const unsigned int N, const _FP16 *X, const int incX, float *Y,
-           const int incY);
+void scopy(const unsigned int N, const _FP16 *X, const unsigned int incX,
+           float *Y, const unsigned int incY);
 
 /**
  * @brief     copy function : Y = X
@@ -57,7 +72,8 @@ void scopy(const unsigned int N, const _FP16 *X, const int incX, float *Y,
  * @param[in] Y __fp16 * for Vector Y
  */
 void scopy_int4_to_float16(const unsigned int N, const uint8_t *X,
-                           const int incX, _FP16 *Y, const int incY);
+                           const unsigned int incX, _FP16 *Y,
+                           const unsigned int incY);
 
 /**
  * @brief     copy function : Y = X
@@ -66,7 +82,8 @@ void scopy_int4_to_float16(const unsigned int N, const uint8_t *X,
  * @param[in] Y __fp16 * for Vector Y
  */
 void scopy_int8_to_float16(const unsigned int N, const uint8_t *X,
-                           const int incX, _FP16 *Y, const int incY);
+                           const unsigned int incX, _FP16 *Y,
+                           const unsigned int incY);
 
 /**
  * @brief     sdot computation : sum of all X * Y
@@ -85,7 +102,7 @@ _FP16 sdot(const unsigned int N, const _FP16 *X, const unsigned int incX,
  * @param[in] Y __fp16 * for Vector Y
  */
 void saxpy(const unsigned int N, const float alpha, const _FP16 *X,
-           const int incX, _FP16 *Y, const int incY);
+           const unsigned int incX, _FP16 *Y, const unsigned int incY);
 
 /**
  * @brief     sgemm computation : Y = alpha*op(A)*op(B) + beta*C,
@@ -99,7 +116,7 @@ void saxpy(const unsigned int N, const float alpha, const _FP16 *X,
  * @param[in] alpha float number
  * @param[in] beta float number
  */
-void sgemm( const unsigned int TStorageOrder,bool TransA, bool TransB,
+void sgemm(const unsigned int TStorageOrder, bool TransA, bool TransB,
            const unsigned int M, const unsigned int N, const unsigned int K,
            const float alpha, const _FP16 *A, const unsigned int lda,
            const _FP16 *B, const unsigned int ldb, const float beta, _FP16 *C,
@@ -114,10 +131,10 @@ void sgemm( const unsigned int TStorageOrder,bool TransA, bool TransB,
  * @param[in] alpha float number
  * @param[in] beta float number
  */
-void sgemv( const unsigned int TStorageOrder,bool TransA, const unsigned int M,
+void sgemv(const unsigned int TStorageOrder, bool TransA, const unsigned int M,
            const unsigned int N, const float alpha, const _FP16 *A,
-           const unsigned int lda, const _FP16 *X, const int incX,
-           const float beta, _FP16 *Y, const int incY);
+           const unsigned int lda, const _FP16 *X, const unsigned int incX,
+           const float beta, _FP16 *Y, const unsigned int incY);
 /**
  * @brief     elementwise vector multiplication : Z = X ⊙ alpha * Y +
  * beta * Z
@@ -187,7 +204,8 @@ void ele_div(const unsigned N, const _FP16 *X, const _FP16 *Y, _FP16 *Z,
  * @param[in] N number of elements in X
  * @param[in] X __fp16 * for Vector X
  */
-unsigned int isamax(const unsigned int N, const _FP16 *X, const int incX);
+unsigned int isamax(const unsigned int N, const _FP16 *X,
+                    const unsigned int incX);
 
 /**
  * @brief squared root transformation inplace : X = sqrt(X)
@@ -203,29 +221,30 @@ void inv_sqrt_inplace(const unsigned int N, _FP16 *X);
  * @param[in] X float * for Vector X
  * @param[in] alpha float number
  */
-void sscal(const unsigned int N, const float alpha, float *X, const int incX);
+void sscal(const unsigned int N, const float alpha, float *X,
+           const unsigned int incX);
 /**
  * @brief     snrm2 computation : Euclidean norm
  * @param[in] N number of elements in X
  * @param[in] X float * for Vector X
  */
-float snrm2(const unsigned int N, const float *X, const int incX);
+float snrm2(const unsigned int N, const float *X, const unsigned int incX);
 /**
  * @brief     copy function : Y = X
  * @param[in] N number of elements in X
  * @param[in] X float * for Vector X
  * @param[in] Y float * for Vector Y
  */
-void scopy(const unsigned int N, const float *X, const int incX, float *Y,
-           const int intY);
+void scopy(const unsigned int N, const float *X, const unsigned int incX,
+           float *Y, const unsigned int incY);
 /**
  * @brief     copy function : Y = X
  * @param[in] N number of elements in X
  * @param[in] X uint8_t * for Vector X
  * @param[in] Y uint8_t * for Vector Y
  */
-void scopy(const unsigned int N, const uint8_t *X, const int incX, uint8_t *Y,
-           const int intY);
+void scopy(const unsigned int N, const uint8_t *X, const unsigned int incX,
+           uint8_t *Y, const unsigned int incY);
 /**
  * @brief     copy function : Y = X
  * @param[in] N number of elements in X
@@ -233,7 +252,7 @@ void scopy(const unsigned int N, const uint8_t *X, const int incX, uint8_t *Y,
  * @param[in] Y float * for Vector Y
  */
 void scopy_int4_to_float32(const unsigned int N, const uint8_t *X,
-                           const int incX, float *Y, const int intY);
+                           const unsigned int incX, float *Y, const unsigned int incY);
 
 /**
  * @brief     copy function : Y = X
@@ -242,7 +261,7 @@ void scopy_int4_to_float32(const unsigned int N, const uint8_t *X,
  * @param[in] Y float * for Vector Y
  */
 void scopy_int8_to_float32(const unsigned int N, const uint8_t *X,
-                           const int incX, float *Y, const int intY);
+                           const unsigned int incX, float *Y, const unsigned int incY);
 
 /**
  * @brief     sdot computation : sum of all X * Y
@@ -260,7 +279,7 @@ float sdot(const unsigned int N, const float *X, const unsigned int incX,
  * @param[in] Y float * for Vector Y
  */
 void saxpy(const unsigned int N, const float alpha, const float *X,
-           const int incX, float *Y, const int incY);
+           const unsigned int incX, float *Y, const unsigned int incY);
 /**
  * @brief     sgemm computation  : Y = alpha*op(A)*op(B) + beta*C,
  * where op(X) is one of X or X**T
@@ -273,7 +292,7 @@ void saxpy(const unsigned int N, const float alpha, const float *X,
  * @param[in] alpha float number
  * @param[in] beta float number
  */
-void sgemm( const unsigned int TStorageOrder,bool TransA, bool TransB,
+void sgemm(const unsigned int TStorageOrder, bool TransA, bool TransB,
            const unsigned int M, const unsigned int N, const unsigned int K,
            const float alpha, const float *A, const unsigned int lda,
            const float *B, const unsigned int ldb, const float beta, float *C,
@@ -288,16 +307,17 @@ void sgemm( const unsigned int TStorageOrder,bool TransA, bool TransB,
  * @param[in] alpha float number
  * @param[in] beta float number
  */
-void sgemv( const unsigned int TStorageOrder,bool TransA, const unsigned int M,
+void sgemv(const unsigned int TStorageOrder, bool TransA, const unsigned int M,
            const unsigned int N, const float alpha, const float *A,
-           const unsigned int lda, const float *X, const int incX,
-           const float beta, float *Y, const int incY);
+           const unsigned int lda, const float *X, const unsigned int incX,
+           const float beta, float *Y, const unsigned int incY);
 /**
  * @brief     isamax function : index of first maxima
  * @param[in] N number of elements in X
  * @param[in] X float * for Vector X
  */
-unsigned int isamax(const unsigned int N, const float *X, const int incX);
+unsigned int isamax(const unsigned int N, const float *X,
+                    const unsigned int incX);
 
 /**
  * @brief     sine with neon: Y = sin(alpha * X)

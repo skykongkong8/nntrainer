@@ -1,10 +1,10 @@
 simd_interface_aarch64_headers = [
-    'neon_simd.h',
+    'aarch64_compute_backend.h',
     'neon_single.h',
     'neon_setting.h'
 ]
 simd_interface_aarch64_sources = [
-    'neon_simd.cpp',
+    'aarch64_compute_backend.cpp',
     'neon_single.cpp'
 ]
 

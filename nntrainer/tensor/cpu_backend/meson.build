@@ -13,6 +13,7 @@ if get_option('enable-blas')
 endif
 
 arch = host_machine.cpu_family()
+message('arch is:' + arch)
 if arch == 'arm'
   error ('FP16/ARM code (blas_neon.cpp) uses armv8.2 instructions. armv7 is not supported.')
 elif arch == 'aarch64' or get_option('platform') == 'android'
@@ -21,10 +22,10 @@ elif arch == 'aarch64' or get_option('platform') == 'android'
     nntrainer_inc += include_directories('aarch64')
     nntrainer_inc_abs += meson.current_source_dir() / 'aarch64'
   endif
-elif get_option('enable-avx')
-  subdir('x86')
-  nntrainer_inc += include_directories('x86')
-  nntrainer_inc_abs += meson.current_source_dir() / 'x86'
+elif arch == 'x86_64'
+  subdir('x86_64')
+  nntrainer_inc += include_directories('x86_64')
+  nntrainer_inc_abs += meson.current_source_dir() / 'x86_64'
 endif
 
 foreach h : cpu_backend_headers

@@ -1,7 +1,20 @@
-#include <neon_setting.h>
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
+ *
+ * @file neon_half.cpp
+ * @date   23 April 2024
+ * @see    https://github.com/nnstreamer/nntrainer
+ * @author Sungsik Kong <ss.kong@samsung.com>
+ * @bug    No known bugs except for NYI items
+ * @brief  Half-precision computation functions based on NEON
+ *
+ */
+
 #include <hgemm.h>
 #include <memory>
 #include <neon_half.h>
+#include <neon_setting.h>
 
 namespace nntrainer::neon {
 
@@ -739,7 +752,7 @@ __fp16 hnrm2(const unsigned int N, const __fp16 *X) {
   for (; idx < N; idx++)
     ret += X[idx] * X[idx];
 
-  return ret;
+  return sqrt(ret);
 }
 
 void hscal(const unsigned int N, __fp16 *X, const float alpha) {
@@ -1470,4 +1483,4 @@ void inv_sqrt_inplace(const unsigned int N, __fp16 *X) {
     ++i;
   }
 }
-}
+} // namespace nntrainer::neon

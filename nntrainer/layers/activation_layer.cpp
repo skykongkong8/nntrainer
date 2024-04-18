@@ -20,7 +20,8 @@
 #include <vector>
 
 #include <activation_layer.h>
-#include <blas_interface.h>
+// #include <blas_interface.h>
+#include <cpu_backend.h>
 #include <common_properties.h>
 #include <layer_context.h>
 #include <nntrainer_error.h>

@@ -32,9 +32,9 @@
 #include <random>
 #include <stdexcept>
 #include <vector>
-
-// #include <blas_interface.h>
 #include <cpu_backend.h>
+// #include <cpu_backend/cpu_backend.h>
+// #include <blas_interface.h>
 #include <iostream>
 #include <memory_data.h>
 #include <nntrainer_error.h>

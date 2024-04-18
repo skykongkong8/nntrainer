@@ -14,14 +14,7 @@
 
 #include <blas_interface.h>
 #include <nntrainer_error.h>
-
-#if (defined USE_NEON)
-#include <neon_simd.h>
-#endif
-
-#if USE_AVX
-#include <avx_simd.h>
-#endif
+// #include <cpu_backend.h>
 
 #include <cmath>
 
@@ -87,7 +80,7 @@ static void saxpy_FP16(const unsigned int N, const float alpha, const _FP16 *X,
 #if (defined USE__FP16 && USE_NEON)
   // USE__FP16 is defined when platform is android
   if (incX == 1 && incY == 1) {
-    nntrainer::neon::haxpy(N, alpha, X, Y);
+    nntrainer::haxpy(N, alpha, X, Y);
   } else {
     haxpy_loop();
   }
@@ -103,9 +96,9 @@ static void sgemv_FP16(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA,
                        const float beta, _FP16 *Y, const int incY) {
 #if (defined USE__FP16 && USE_NEON)
   if (TransA == CblasTrans) {
-    nntrainer::neon::hgemv_transpose(A, X, Y, M, N, alpha, beta);
+    nntrainer::hgemv_transpose(A, X, Y, M, N, alpha, beta);
   } else {
-    nntrainer::neon::hgemv(A, X, Y, M, N, alpha, beta);
+    nntrainer::hgemv(A, X, Y, M, N, alpha, beta);
   }
 #else
   unsigned int lenX =
@@ -142,7 +135,7 @@ static _FP16 sdot_FP16(const unsigned int N, const _FP16 *X,
 
 #if (defined USE__FP16 && USE_NEON)
   if (incX == 1 && incY == 1) {
-    ret = nntrainer::neon::hdot(N, X, Y);
+    ret = nntrainer::hdot(N, X, Y);
   } else {
     for (unsigned int i = 0; i < N; ++i) {
       ret += X[i * incX] * Y[i * incY];
@@ -163,14 +156,12 @@ static void scopy_FP16(const unsigned int N, const _FP16 *X, const int incX,
 
 #if (defined USE__FP16 && USE_NEON)
   if (incX == 1 && incY == 1) {
-    nntrainer::neon::hcopy(N, X, Y);
+    nntrainer::hcopy(N, X, Y);
   } else {
     for (unsigned int i = 0; i < N; ++i)
       Y[i * incy] = X[i * incx];
   }
 #else
-  for (unsigned int i = 0; i < N; ++i)
-    Y[i * incy] = X[i * incx];
 #endif
 }
 
@@ -181,21 +172,19 @@ static void copy_float32_to_float16(const unsigned int N, const float *X,
 
 #if (defined USE__FP16 && USE_NEON)
   if (incX == 1 && incY == 1) {
-    nntrainer::neon::copy_fp32_to_fp16(N, X, Y);
+    nntrainer::copy_fp32_to_fp16(N, X, Y);
   } else {
     for (unsigned int i = 0; i < N; ++i)
       Y[i * incy] = X[i * incx];
   }
 #elif USE_AVX
   if (incX == 1 && incY == 1) {
-    nntrainer::avx::vcvt_f32_f16(N, X, Y);
+    nntrainer::vcvt_f32_f16(N, X, Y);
   } else {
     for (unsigned int i = 0; i < N; ++i)
       Y[i * incy] = static_cast<_FP16>(X[i * incx]);
   }
 #else
-  for (unsigned int i = 0; i < N; ++i)
-    Y[i * incy] = static_cast<_FP16>(X[i * incx]);
 #endif
 }
 
@@ -206,21 +195,19 @@ static void copy_float16_to_float32(const unsigned int N, const _FP16 *X,
 
 #if (defined USE__FP16 && USE_NEON)
   if (incX == 1 && incY == 1) {
-    nntrainer::neon::copy_fp16_to_fp32(N, X, Y);
+    nntrainer::copy_fp16_to_fp32(N, X, Y);
   } else {
     for (unsigned int i = 0; i < N; ++i)
       Y[i * incy] = X[i * incx];
   }
 #elif USE_AVX
   if (incX == 1 && incY == 1) {
-    nntrainer::avx::vcvt_f16_f32(N, X, Y);
+    nntrainer::vcvt_f16_f32(N, X, Y);
   } else {
     for (unsigned int i = 0; i < N; ++i)
       Y[i * incy] = static_cast<float>(X[i * incx]);
   }
 #else
-  for (unsigned int i = 0; i < N; ++i)
-    Y[i * incy] = static_cast<float>(X[i * incx]);
 #endif
 }
 
@@ -231,7 +218,7 @@ static void copy_int4_to_fp16(const unsigned int N, const uint8_t *X,
 
 #if (defined USE__FP16 && USE_NEON)
   if (incX == 1 && incY == 1) {
-    nntrainer::neon::copy_int4_to_fp16(N, X, Y);
+    nntrainer::copy_int4_to_fp16(N, X, Y);
   } else {
     throw std::invalid_argument(
       "Error: incX == 1 && incY == 1 is supported only");
@@ -251,7 +238,7 @@ static void copy_int8_to_fp16(const unsigned int N, const uint8_t *X,
 
 #if (defined USE__FP16 && USE_NEON)
   if (incX == 1 && incY == 1) {
-    nntrainer::neon::copy_int8_to_fp16(N, X, Y);
+    nntrainer::copy_int8_to_fp16(N, X, Y);
   } else {
     throw std::invalid_argument(
       "Error: incX == 1 && incY == 1 is supported only");
@@ -268,7 +255,7 @@ void sscal(const unsigned int N, const float alpha, _FP16 *X, const int incX) {
 
 #if (defined USE__FP16 && USE_NEON)
   if (incX == 1) {
-    nntrainer::neon::hscal(N, X, alpha);
+    nntrainer::hscal(N, X, alpha);
   } else {
     for (unsigned int i = 0; i < N; ++i)
       X[i * incx] = static_cast<_FP16>(alpha) * X[i * incx];
@@ -285,7 +272,7 @@ static _FP16 snrm2_FP16(const unsigned int N, const _FP16 *X, const int incX) {
   _FP16 tmp;
 #if (defined USE__FP16 && USE_NEON)
   if (incX == 1) {
-    sum = nntrainer::neon::hnrm2(N, X);
+    sum = nntrainer::hnrm2(N, X);
   } else {
     for (unsigned int i = 0; i < N; i++) {
       tmp = X[i * incx];
@@ -310,7 +297,7 @@ static void sgemm_FP16(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA,
                        const unsigned int ldc) {
 
 #if (defined USE__FP16 && USE_NEON)
-  nntrainer::neon::hgemm(A, B, C, M, N, K, alpha, beta, TransA == CblasTrans,
+  nntrainer::hgemm(A, B, C, M, N, K, alpha, beta, TransA == CblasTrans,
                          TransB == CblasTrans);
 #else
   float *A_ = new float[M * K];
@@ -335,7 +322,7 @@ static unsigned int isamax_FP16(const unsigned int N, const _FP16 *X,
 
 #if (defined USE__FP16 && USE_NEON)
   if (incX == 1 && N >= 8) {
-    max_idx = nntrainer::neon::isamax(N, X);
+    max_idx = nntrainer::isamax(N, X);
   } else {
     _FP16 max_val = X[0];
     for (unsigned int n = 1; n < N; n += incX) {
@@ -448,7 +435,7 @@ void ele_mul(const unsigned int N, const _FP16 *X, const _FP16 *Y, _FP16 *Z,
              unsigned int o_stride) {
   if (i_stride == 1 && o_stride == 1) {
 #if (defined USE__FP16 && USE_NEON)
-    nntrainer::neon::ele_mul(N, X, Y, Z, alpha, beta);
+    ele_mul(N, X, Y, Z, alpha, beta);
 #else
     ele_mul_fallback(N, X, Y, Z, alpha, beta, i_stride, o_stride);
 #endif
@@ -461,7 +448,7 @@ void ele_add(const unsigned int N, const _FP16 *X, const _FP16 *Y, _FP16 *Z,
              unsigned int o_stride) {
   if (i_stride == 1 && o_stride == 1) {
 #if (defined USE__FP16 && USE_NEON)
-    nntrainer::neon::ele_add(N, X, Y, Z, alpha, beta);
+    ele_add(N, X, Y, Z, alpha, beta);
 #else
     ele_add_fallback(N, X, Y, Z, alpha, beta, i_stride, o_stride);
 #endif
@@ -474,7 +461,7 @@ void ele_sub(const unsigned int N, const _FP16 *X, const _FP16 *Y, _FP16 *Z,
              unsigned int o_stride) {
   if (i_stride == 1 && o_stride == 1) {
 #if (defined USE__FP16 && USE_NEON)
-    nntrainer::neon::ele_sub(N, X, Y, Z, alpha, beta);
+    ele_sub(N, X, Y, Z, alpha, beta);
 #else
     ele_sub_fallback(N, X, Y, Z, alpha, beta, i_stride, o_stride);
 #endif
@@ -487,7 +474,7 @@ void ele_div(const unsigned int N, const _FP16 *X, const _FP16 *Y, _FP16 *Z,
              unsigned int o_stride) {
   if (i_stride == 1 && o_stride == 1) {
 #if (defined USE__FP16 && USE_NEON)
-    nntrainer::neon::ele_div(N, X, Y, Z, alpha, beta);
+    ele_div(N, X, Y, Z, alpha, beta);
 #else
     ele_div_fallback(N, X, Y, Z, alpha, beta, i_stride, o_stride);
 #endif
@@ -495,7 +482,7 @@ void ele_div(const unsigned int N, const _FP16 *X, const _FP16 *Y, _FP16 *Z,
     ele_div_fallback(N, X, Y, Z, alpha, beta, i_stride, o_stride);
 }
 
-_FP16 snrm2(const int N, const _FP16 *X, const int incX) {
+_FP16 snrm2(const unsigned int N, const _FP16 *X, const int incX) {
   return snrm2_FP16(N, X, incX);
 }
 
@@ -518,7 +505,7 @@ unsigned int isamax(const unsigned int N, const _FP16 *X, const int incX) {
 
 void inv_sqrt_inplace(const unsigned int N, _FP16 *X) {
 #ifdef USE_NEON
-  nntrainer::neon::inv_sqrt_inplace(N, X);
+  nntrainer::inv_sqrt_inplace(N, X);
 #else
   for (unsigned int i = 0; i < N; ++i) {
     X[i] = static_cast<_FP16>(1 / std::sqrt(static_cast<float>(X[i])));
@@ -634,28 +621,6 @@ static unsigned int isamax_raw(const unsigned int N, const float *X,
 
 #endif
 
-void sscal(const unsigned int N, const float alpha, void *X, const int incX,
-           ml::train::TensorDim::DataType d_type) {
-
-  if (d_type == ml::train::TensorDim::DataType::FP32) {
-
-#ifdef USE_BLAS
-#ifdef BLAS_NUM_THREADS
-    openblas_set_num_threads(BLAS_NUM_THREADS);
-#endif // BLAS_NUM_THREADS
-    cblas_sscal(N, alpha, (float *)X, incX);
-#else  // USE_BLAS else
-    sscal_raw(N, alpha, (float *)X, incX);
-#endif //  USE_BLAS
-  } else if (d_type == ml::train::TensorDim::DataType::FP16) {
-#ifdef ENABLE_FP16
-    sscal(N, alpha, (_FP16 *)X, incX);
-#else
-    throw std::invalid_argument("Error: enable-fp16 is not enabled");
-#endif
-  }
-}
-
 void sscal(const unsigned int N, const float alpha, float *X, const int incX) {
 #ifdef USE_BLAS
 #ifdef BLAS_NUM_THREADS
@@ -667,29 +632,6 @@ void sscal(const unsigned int N, const float alpha, float *X, const int incX) {
 #endif
 }
 
-void saxpy(const unsigned int N, const float alpha, const void *X,
-           const int incX, void *Y, const int incY,
-           ml::train::TensorDim::DataType d_type) {
-  if (d_type == ml::train::TensorDim::DataType::FP32) {
-#ifdef USE_BLAS
-#ifdef BLAS_NUM_THREADS
-    openblas_set_num_threads(BLAS_NUM_THREADS);
-#endif
-    cblas_saxpy(N, alpha, static_cast<const float *>(X), incX,
-                static_cast<float *>(Y), incY);
-#else
-    saxpy_raw(N, alpha, static_cast<const float *>(X), incX,
-              static_cast<float *>(Y), incY);
-#endif
-  } else if (d_type == ml::train::TensorDim::DataType::FP16) {
-#ifdef ENABLE_FP16
-    saxpy_FP16(N, alpha, static_cast<const _FP16 *>(X), incX,
-               static_cast<_FP16 *>(Y), incY);
-#else
-    throw std::invalid_argument("Error: enable-fp16 is not enabled");
-#endif
-  }
-}
 
 void saxpy(const unsigned int N, const float alpha, const float *X,
            const int incX, float *Y, const int incY) {
@@ -702,68 +644,6 @@ void saxpy(const unsigned int N, const float alpha, const float *X,
   saxpy_raw(N, alpha, X, incX, Y, incY);
 #endif
 }
-
-void sgemm(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA, CBLAS_TRANSPOSE TransB,
-           const unsigned int M, const unsigned int N, const unsigned int K,
-           const float alpha, const void *A, const unsigned int lda,
-           const void *B, const unsigned int ldb, const float beta, void *C,
-           const unsigned int ldc, ml::train::TensorDim::DataType d_type) {
-
-  if (d_type == ml::train::TensorDim::DataType::FP32) {
-#ifdef USE_CUBLAS
-    int devID = 0;
-    cudaDeviceProp deviceProp;
-    cudaGetDeviceProperties(&deviceProp, devID);
-    float *d_A, *d_B, *d_C;
-
-    unsigned int size_A = M * K * sizeof(float);
-    unsigned int size_B = K * N * sizeof(float);
-    unsigned int size_C = M * N * sizeof(float);
-
-    cudaMalloc((void **)&d_A, size_A);
-    cudaMalloc((void **)&d_B, size_B);
-    cudaMemcpy(d_A, A, size_A, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_B, B, size_B, cudaMemcpyHostToDevice);
-    cudaMalloc((void **)&d_C, size_C);
-
-    cublasHandle_t handle;
-    cublasCreate(&handle);
-
-    cublasOperation_t transA =
-      (TransA == CblasTrans) ? CUBLAS_OP_T : CUBLAS_OP_N;
-    cublasOperation_t transB =
-      (TransB == CblasTrans) ? CUBLAS_OP_T : CUBLAS_OP_N;
-    cublasSgemm(handle, transA, transB, N, M, K, &alpha, d_B, N, d_A, K, &beta,
-                d_C, N);
-
-    cudaMemcpy(C, d_C, size_C, cudaMemcpyDeviceToHost);
-    cublasDestroy(handle);
-
-#elif defined USE_BLAS
-
-#ifdef BLAS_NUM_THREADS
-    openblas_set_num_threads(BLAS_NUM_THREADS);
-#endif
-
-    cblas_sgemm(
-      order, TransA, TransB, M, N, K, alpha, static_cast<const float *>(A), lda,
-      static_cast<const float *>(B), ldb, beta, static_cast<float *>(C), ldc);
-#else
-    sgemm_raw(order, TransA, TransB, M, N, K, alpha,
-              static_cast<const float *>(A), lda, static_cast<const float *>(B),
-              ldb, beta, static_cast<float *>(C), ldc);
-#endif
-
-  } else if (d_type == ml::train::TensorDim::DataType::FP16) {
-#ifdef ENABLE_FP16
-    sgemm_FP16(
-      order, TransA, TransB, M, N, K, alpha, static_cast<const _FP16 *>(A), lda,
-      static_cast<const _FP16 *>(B), ldb, beta, static_cast<_FP16 *>(C), ldc);
-#else
-    throw std::invalid_argument("Error: enable-fp16 is not enabled");
-#endif
-  }
-} // namespace nntrainer
 
 void sgemm(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA, CBLAS_TRANSPOSE TransB,
            const unsigned int M, const unsigned int N, const unsigned int K,
@@ -809,29 +689,6 @@ void sgemm(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA, CBLAS_TRANSPOSE TransB,
 #endif
 }
 
-void scopy(const unsigned int N, const void *X, const int incX, void *Y,
-           const int incY, ml::train::TensorDim::DataType d_type) {
-
-  if (d_type == ml::train::TensorDim::DataType::FP32) {
-
-#ifdef USE_BLAS
-#ifdef BLAS_NUM_THREADS
-    openblas_set_num_threads(BLAS_NUM_THREADS);
-#endif
-    cblas_scopy(N, (float *)X, incX, (float *)Y, incY);
-#else
-    scopy_raw(N, (float *)X, incX, (float *)Y, incY);
-#endif
-
-  } else if (d_type == ml::train::TensorDim::DataType::FP16) {
-#ifdef ENABLE_FP16
-    scopy_FP16(N, (_FP16 *)X, incX, (_FP16 *)Y, incY);
-#else
-    throw std::invalid_argument("Error: enable-fp16 is not enabled");
-#endif
-  }
-}
-
 void scopy(const unsigned int N, const float *X, const int incX, float *Y,
            const int incY) {
 #ifdef USE_BLAS
@@ -847,7 +704,7 @@ void scopy(const unsigned int N, const float *X, const int incX, float *Y,
 void scopy(const unsigned int N, const uint8_t *X, const int incX, uint8_t *Y,
            const int intY) {
 #ifdef USE_NEON
-  nntrainer::neon::copy_int8_or_int4(N, X, Y);
+  nntrainer::copy_int8_or_int4(N, X, Y);
 #else
   for (unsigned int idx = 0; idx < N; idx++) {
     Y[idx] = X[idx];
@@ -858,7 +715,7 @@ void scopy(const unsigned int N, const uint8_t *X, const int incX, uint8_t *Y,
 void scopy_int4_to_float32(const unsigned int N, const uint8_t *X,
                            const int incX, float *Y, const int incY) {
 #ifdef USE_NEON
-  nntrainer::neon::copy_int4_to_fp32(N, X, Y);
+  nntrainer::copy_int4_to_fp32(N, X, Y);
 #else
   for (unsigned int idx = 0; idx < N; idx++) {
     Y[2 * idx] = X[idx] >> 4;
@@ -870,7 +727,7 @@ void scopy_int4_to_float32(const unsigned int N, const uint8_t *X,
 void scopy_int8_to_float32(const unsigned int N, const uint8_t *X,
                            const int incX, float *Y, const int incY) {
 #ifdef USE_NEON
-  nntrainer::neon::copy_int8_to_fp32(N, X, Y);
+  nntrainer::copy_int8_to_fp32(N, X, Y);
 #else
   for (unsigned int idx = 0; idx < N; idx++) {
     Y[idx] = X[idx];
@@ -878,7 +735,7 @@ void scopy_int8_to_float32(const unsigned int N, const uint8_t *X,
 #endif
 }
 
-float snrm2(const int N, const float *X, const int incX) {
+float snrm2(const unsigned int N, const float *X, const int incX) {
 #ifdef USE_BLAS
 #ifdef BLAS_NUM_THREADS
   openblas_set_num_threads(BLAS_NUM_THREADS);
@@ -899,36 +756,6 @@ float sdot(const unsigned int N, const float *X, const unsigned int incX,
 #else
   return sdot_raw(N, X, incX, Y, incY);
 #endif
-}
-
-void sgemv(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA, const unsigned int M,
-           const unsigned int N, const float alpha, const void *A,
-           const unsigned int lda, const void *X, const int incX,
-           const float beta, void *Y, const int incY,
-           ml::train::TensorDim::DataType d_type) {
-  if (d_type == ml::train::TensorDim::DataType::FP32) {
-#ifdef USE_BLAS
-#ifdef BLAS_NUM_THREADS
-    openblas_set_num_threads(BLAS_NUM_THREADS);
-#endif
-    return cblas_sgemv(
-      order, TransA, M, N, alpha, static_cast<const float *>(A), lda,
-      static_cast<const float *>(X), incX, beta, static_cast<float *>(Y), incY);
-#else
-
-    return sgemv_raw(order, TransA, M, N, alpha, static_cast<const float *>(A),
-                     lda, static_cast<const float *>(X), incX, beta,
-                     static_cast<float *>(Y), incY);
-#endif
-  } else if (d_type == ml::train::TensorDim::DataType::FP16) {
-#ifdef ENABLE_FP16
-    return sgemv_FP16(order, TransA, M, N, alpha, static_cast<const _FP16 *>(A),
-                      lda, static_cast<const _FP16 *>(X), incX, beta,
-                      static_cast<_FP16 *>(Y), incY);
-#else
-    throw std::invalid_argument("Error: enable-fp16 is not enabled");
-#endif
-  }
 }
 
 void sgemv(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA, const unsigned int M,
@@ -959,7 +786,7 @@ unsigned int isamax(const unsigned int N, const float *X, const int incX) {
 
 void sine(const unsigned int N, float *X, float *Y, float alpha) {
 #ifdef USE_NEON
-  nntrainer::neon::sine(N, X, Y, alpha);
+  nntrainer::sine(N, X, Y, alpha);
 #else
   unsigned int i = 0;
   while (i < N) {
@@ -971,7 +798,7 @@ void sine(const unsigned int N, float *X, float *Y, float alpha) {
 
 void cosine(const unsigned int N, float *X, float *Y, float alpha) {
 #ifdef USE_NEON
-  nntrainer::neon::cosine(N, X, Y, alpha);
+  nntrainer::cosine(N, X, Y, alpha);
 #else
   unsigned int i = 0;
   while (i < N) {
@@ -983,7 +810,7 @@ void cosine(const unsigned int N, float *X, float *Y, float alpha) {
 
 void inv_sqrt_inplace(const unsigned int N, float *X) {
 #ifdef USE_NEON
-  nntrainer::neon::inv_sqrt_inplace(N, X);
+  nntrainer::inv_sqrt_inplace(N, X);
 #else
   for (unsigned int i = 0; i < N; ++i) {
     X[i] = 1 / std::sqrt(static_cast<float>(X[i]));
@@ -1039,7 +866,7 @@ void ele_mul(const unsigned int N, const float *X, const float *Y, float *Z,
              unsigned int o_stride) {
   if (i_stride == 1 && o_stride == 1) {
 #ifdef USE_NEON
-    nntrainer::neon::ele_mul(N, X, Y, Z, alpha, beta);
+    ele_mul(N, X, Y, Z, alpha, beta);
 #else
     ele_mul_fallback(N, X, Y, Z, alpha, beta, i_stride, o_stride);
 #endif
@@ -1052,7 +879,7 @@ void ele_add(const unsigned int N, const float *X, const float *Y, float *Z,
              unsigned int o_stride) {
   if (i_stride == 1 && o_stride == 1) {
 #ifdef USE_NEON
-    nntrainer::neon::ele_add(N, X, Y, Z, alpha, beta);
+    ele_add(N, X, Y, Z, alpha, beta);
 #else
     ele_add_fallback(N, X, Y, Z, alpha, beta, i_stride, o_stride);
 #endif
@@ -1065,7 +892,7 @@ void ele_sub(const unsigned int N, const float *X, const float *Y, float *Z,
              unsigned int o_stride) {
   if (i_stride == 1 && o_stride == 1) {
 #ifdef USE_NEON
-    nntrainer::neon::ele_sub(N, X, Y, Z, alpha, beta);
+    ele_sub(N, X, Y, Z, alpha, beta);
 #else
     ele_sub_fallback(N, X, Y, Z, alpha, beta, i_stride, o_stride);
 #endif
@@ -1078,7 +905,7 @@ void ele_div(const unsigned int N, const float *X, const float *Y, float *Z,
              unsigned int o_stride) {
   if (i_stride == 1 && o_stride == 1) {
 #ifdef USE_NEON
-    nntrainer::neon::ele_div(N, X, Y, Z, alpha, beta);
+    ele_div(N, X, Y, Z, alpha, beta);
 #else
     ele_div_fallback(N, X, Y, Z, alpha, beta, i_stride, o_stride);
 #endif

@@ -1,3 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
+ *
+ * @file fallback_internal.h
+ * @date   23 April 2024
+ * @see    https://github.com/nnstreamer/nntrainer
+ * @author Sungsik Kong <ss.kong@samsung.com>
+ * @bug    No known bugs except for NYI items
+ * @brief  Single-precision computation functions based on NEON
+ *
+ */
+
 #ifndef __FALLBACK_INTERNAL_H__
 #define __FALLBACK_INTERNAL_H__
 #ifdef __cplusplus
@@ -5,7 +18,7 @@
 #include <cstdint>
 #include <tensor_dim.h>
 
-namespace nntrainer{
+namespace nntrainer {
 
 #ifdef ENABLE_FP16
 /**
@@ -15,14 +28,15 @@ namespace nntrainer{
  * @param[in] alpha float number
  */
 void __fallback_sscal(const unsigned int N, const float alpha, _FP16 *X,
-                      const int incX);
+                      const unsigned int incX);
 
 /**
  * @brief     snrm2 computation : Euclidean norm
  * @param[in] N number of elements in X
  * @param[in] X __fp16 * for Vector X
  */
-_FP16 __fallback_snrm2(const unsigned int N, const _FP16 *X, const int incX);
+_FP16 __fallback_snrm2(const unsigned int N, const _FP16 *X,
+                       const unsigned int incX);
 
 /**
  * @brief     copy function : Y = X
@@ -30,8 +44,9 @@ _FP16 __fallback_snrm2(const unsigned int N, const _FP16 *X, const int incX);
  * @param[in] X __fp16 * for Vector X
  * @param[in] Y __fp16 * for Vector Y
  */
-void __fallback_scopy(const unsigned int N, const _FP16 *X, const int incX,
-                      _FP16 *Y, const int incY);
+void __fallback_scopy(const unsigned int N, const _FP16 *X,
+                      const unsigned int incX, _FP16 *Y,
+                      const unsigned int incY);
 
 /**
  * @brief     copy function : Y = X
@@ -39,8 +54,9 @@ void __fallback_scopy(const unsigned int N, const _FP16 *X, const int incX,
  * @param[in] X float * for Vector X
  * @param[in] Y __fp16 * for Vector Y
  */
-void __fallback_scopy(const unsigned int N, const float *X, const int incX,
-                      _FP16 *Y, const int incY);
+void __fallback_scopy(const unsigned int N, const float *X,
+                      const unsigned int incX, _FP16 *Y,
+                      const unsigned int incY);
 
 /**
  * @brief     copy function : Y = X
@@ -48,8 +64,9 @@ void __fallback_scopy(const unsigned int N, const float *X, const int incX,
  * @param[in] X __fp16 * for Vector X
  * @param[in] Y float * for Vector Y
  */
-void __fallback_scopy(const unsigned int N, const _FP16 *X, const int incX,
-                      float *Y, const int incY);
+void __fallback_scopy(const unsigned int N, const _FP16 *X,
+                      const unsigned int incX, float *Y,
+                      const unsigned int incY);
 
 /**
  * @brief     copy function : Y = X
@@ -58,7 +75,8 @@ void __fallback_scopy(const unsigned int N, const _FP16 *X, const int incX,
  * @param[in] Y __fp16 * for Vector Y
  */
 void __fallback_scopy_int4_to_float16(const unsigned int N, const uint8_t *X,
-                                      const int incX, _FP16 *Y, const int incY);
+                                      const unsigned int incX, _FP16 *Y,
+                                      const unsigned int incY);
 
 /**
  * @brief     copy function : Y = X
@@ -67,7 +85,8 @@ void __fallback_scopy_int4_to_float16(const unsigned int N, const uint8_t *X,
  * @param[in] Y __fp16 * for Vector Y
  */
 void __fallback_scopy_int8_to_float16(const unsigned int N, const uint8_t *X,
-                                      const int incX, _FP16 *Y, const int incY);
+                                      const unsigned int incX, _FP16 *Y,
+                                      const unsigned int incY);
 
 /**
  * @brief     sdot computation : sum of all X * Y
@@ -87,7 +106,8 @@ _FP16 __fallback_sdot(const unsigned int N, const _FP16 *X,
  * @param[in] Y __fp16 * for Vector Y
  */
 void __fallback_saxpy(const unsigned int N, const float alpha, const _FP16 *X,
-                      const int incX, _FP16 *Y, const int incY);
+                      const unsigned int incX, _FP16 *Y,
+                      const unsigned int incY);
 
 /**
  * @brief     sgemm computation : Y = alpha*op(A)*op(B) + beta*C,
@@ -120,8 +140,8 @@ void __fallback_sgemm(const unsigned int TStorageOrder, bool TransA,
 void __fallback_sgemv(const unsigned int TStorageOrder, bool TransA,
                       const unsigned int M, const unsigned int N,
                       const float alpha, const _FP16 *A, const unsigned int lda,
-                      const _FP16 *X, const int incX, const float beta,
-                      _FP16 *Y, const int incY);
+                      const _FP16 *X, const unsigned int incX, const float beta,
+                      _FP16 *Y, const unsigned int incY);
 /**
  * @brief     elementwise vector multiplication : Z = X ⊙ alpha * Y +
  * beta * Z
@@ -135,8 +155,8 @@ void __fallback_sgemv(const unsigned int TStorageOrder, bool TransA,
  * @param[in] o_stride output stride
  */
 void __fallback_ele_mul(const unsigned int N, const _FP16 *X, const _FP16 *Y,
-                        _FP16 *Z, float alpha = 1.f, float beta = 0.f,
-                        unsigned int i_stride = 1, unsigned int o_stride = 1);
+                        _FP16 *Z, float alpha, float beta,
+                        unsigned int i_stride, unsigned int o_stride);
 
 /**
  * @brief     elementwise vector addition : Z = X + alpha * Y + beta *
@@ -151,8 +171,8 @@ void __fallback_ele_mul(const unsigned int N, const _FP16 *X, const _FP16 *Y,
  * @param[in] o_stride output stride
  */
 void __fallback_ele_add(const unsigned int N, const _FP16 *X, const _FP16 *Y,
-                        _FP16 *Z, float alpha = 1.f, float beta = 0.f,
-                        unsigned int i_stride = 1, unsigned int o_stride = 1);
+                        _FP16 *Z, float alpha, float beta,
+                        unsigned int i_stride, unsigned int o_stride);
 /**
  * @brief     elementwise vector subtraction with neon : Z = X - alpha * Y +
  * beta * Z
@@ -166,8 +186,8 @@ void __fallback_ele_add(const unsigned int N, const _FP16 *X, const _FP16 *Y,
  * @param[in] o_stride output stride
  */
 void __fallback_ele_sub(const unsigned N, const _FP16 *X, const _FP16 *Y,
-                        _FP16 *Z, float alpha = 1.f, float beta = 0.f,
-                        unsigned int i_stride = 1, unsigned int o_stride = 1);
+                        _FP16 *Z, float alpha, float beta,
+                        unsigned int i_stride, unsigned int o_stride);
 
 /**
  * @brief     elementwise vector division with neon : Z = X / (alpha * Y) + beta
@@ -183,8 +203,8 @@ void __fallback_ele_sub(const unsigned N, const _FP16 *X, const _FP16 *Y,
  * @param[in] o_stride output stride
  */
 void __fallback_ele_div(const unsigned N, const _FP16 *X, const _FP16 *Y,
-                        _FP16 *Z, float alpha = 1.f, float beta = 0.f,
-                        unsigned int i_stride = 1, unsigned int o_stride = 1);
+                        _FP16 *Z, float alpha, float beta,
+                        unsigned int i_stride, unsigned int o_stride);
 
 /**
  * @brief     isamax function : index of first maxima
@@ -192,7 +212,7 @@ void __fallback_ele_div(const unsigned N, const _FP16 *X, const _FP16 *Y,
  * @param[in] X __fp16 * for Vector X
  */
 unsigned int __fallback_isamax(const unsigned int N, const _FP16 *X,
-                               const int incX);
+                               const unsigned int incX);
 
 /**
  * @brief squared root transformation inplace : X = sqrt(X)
@@ -209,13 +229,14 @@ void __fallback_inv_sqrt_inplace(const unsigned int N, _FP16 *X);
  * @param[in] alpha float number
  */
 void __fallback_sscal(const unsigned int N, const float alpha, float *X,
-                      const int incX);
+                      const unsigned int incX);
 /**
  * @brief     snrm2 computation : Euclidean norm
  * @param[in] N number of elements in X
  * @param[in] X float * for Vector X
  */
-float __fallback_snrm2(const unsigned int N, const float *X, const int incX);
+float __fallback_snrm2(const unsigned int N, const float *X,
+                       const unsigned int incX);
 
 /**
  * @brief     copy function : Y = X
@@ -223,16 +244,18 @@ float __fallback_snrm2(const unsigned int N, const float *X, const int incX);
  * @param[in] X float * for Vector X
  * @param[in] Y float * for Vector Y
  */
-void __fallback_scopy(const unsigned int N, const float *X, const int incX,
-                      float *Y, const int intY);
+void __fallback_scopy(const unsigned int N, const float *X,
+                      const unsigned int incX, float *Y,
+                      const unsigned int incY);
 /**
  * @brief     copy function : Y = X
  * @param[in] N number of elements in X
  * @param[in] X uint8_t * for Vector X
  * @param[in] Y uint8_t * for Vector Y
  */
-void __fallback_scopy(const unsigned int N, const uint8_t *X, const int incX,
-                      uint8_t *Y, const int intY);
+void __fallback_scopy(const unsigned int N, const uint8_t *X,
+                      const unsigned int incX, uint8_t *Y,
+                      const unsigned int incY);
 /**
  * @brief     copy function : Y = X
  * @param[in] N number of elements in X
@@ -240,7 +263,8 @@ void __fallback_scopy(const unsigned int N, const uint8_t *X, const int incX,
  * @param[in] Y float * for Vector Y
  */
 void __fallback_scopy_int4_to_float32(const unsigned int N, const uint8_t *X,
-                                      const int incX, float *Y, const int intY);
+                                      const unsigned int incX, float *Y,
+                                      const unsigned int incY);
 
 /**
  * @brief     copy function : Y = X
@@ -249,7 +273,8 @@ void __fallback_scopy_int4_to_float32(const unsigned int N, const uint8_t *X,
  * @param[in] Y float * for Vector Y
  */
 void __fallback_scopy_int8_to_float32(const unsigned int N, const uint8_t *X,
-                                      const int incX, float *Y, const int intY);
+                                      const unsigned int incX, float *Y,
+                                      const unsigned int incY);
 
 /**
  * @brief     sdot computation : sum of all X * Y
@@ -269,7 +294,8 @@ float __fallback_sdot(const unsigned int N, const float *X,
  * @param[in] Y float * for Vector Y
  */
 void __fallback_saxpy(const unsigned int N, const float alpha, const float *X,
-                      const int incX, float *Y, const int incY);
+                      const unsigned int incX, float *Y,
+                      const unsigned int incY);
 /**
  * @brief     sgemm computation  : Y = alpha*op(A)*op(B) + beta*C,
  * where op(X) is one of X or X**T
@@ -301,15 +327,15 @@ void __fallback_sgemm(const unsigned int TStorageOrder, bool TransA,
 void __fallback_sgemv(const unsigned int TStorageOrder, bool TransA,
                       const unsigned int M, const unsigned int N,
                       const float alpha, const float *A, const unsigned int lda,
-                      const float *X, const int incX, const float beta,
-                      float *Y, const int incY);
+                      const float *X, const unsigned int incX, const float beta,
+                      float *Y, const unsigned int incY);
 /**
  * @brief     isamax function : index of first maxima
  * @param[in] N number of elements in X
  * @param[in] X float * for Vector X
  */
 unsigned int __fallback_isamax(const unsigned int N, const float *X,
-                               const int incX);
+                               const unsigned int incX);
 
 /**
  * @brief     sine with neon: Y = sin(alpha * X)
@@ -318,8 +344,7 @@ unsigned int __fallback_isamax(const unsigned int N, const float *X,
  * @param[in] Y float * for Vector Y
  * @param[in] alpha float * for scaling angle (radian)
  */
-void __fallback_sine(const unsigned int N, float *X, float *Y,
-                     float alpha = 1.f);
+void __fallback_sine(const unsigned int N, float *X, float *Y, float alpha);
 
 /**
  * @brief     cosine with neon: Y = cos(alpha * X)
@@ -328,11 +353,10 @@ void __fallback_sine(const unsigned int N, float *X, float *Y,
  * @param[in] Y float * for Vector Y
  * @param[in] alpha float * for scaling angle (radian)
  */
-void __fallback_cosine(const unsigned int N, float *X, float *Y,
-                       float alpha = 1.f);
+void __fallback_cosine(const unsigned int N, float *X, float *Y, float alpha);
 
 /**
- * @brief inversed squared root transformation inplace : X = 1 / sqrt(X)
+ * @brief inversed squared root transformation inplace : X  / sqrt(X)
  *
  * @param N size of X
  * @param X float * for Vector X
@@ -351,8 +375,8 @@ void __fallback_inv_sqrt_inplace(const unsigned int N, float *X);
  * @param[in] o_stride output stride
  */
 void __fallback_ele_mul(const unsigned int N, const float *X, const float *Y,
-                        float *Z, float alpha = 1.f, float beta = 0.f,
-                        unsigned int i_stride = 1, unsigned int o_stride = 1);
+                        float *Z, float alpha, float beta,
+                        unsigned int i_stride, unsigned int o_stride);
 
 /**
  * @brief     elementwise vector addition : Z = X + alpha * Y + beta *
@@ -367,8 +391,8 @@ void __fallback_ele_mul(const unsigned int N, const float *X, const float *Y,
  * @param[in] o_stride output stride
  */
 void __fallback_ele_add(const unsigned int N, const float *X, const float *Y,
-                        float *Z, float alpha = 1.f, float beta = 0.f,
-                        unsigned int i_stride = 1, unsigned int o_stride = 1);
+                        float *Z, float alpha, float beta,
+                        unsigned int i_stride, unsigned int o_stride);
 /**
  * @brief     elementwise vector subtraction with neon : Z = X - alpha * Y +
  * beta * Z
@@ -382,8 +406,8 @@ void __fallback_ele_add(const unsigned int N, const float *X, const float *Y,
  * @param[in] o_stride output stride
  */
 void __fallback_ele_sub(const unsigned N, const float *X, const float *Y,
-                        float *Z, float alpha = 1.f, float beta = 0.f,
-                        unsigned int i_stride = 1, unsigned int o_stride = 1);
+                        float *Z, float alpha, float beta,
+                        unsigned int i_stride, unsigned int o_stride);
 
 /**
  * @brief     elementwise vector division with neon : Z = X / (alpha * Y) + beta
@@ -399,8 +423,8 @@ void __fallback_ele_sub(const unsigned N, const float *X, const float *Y,
  * @param[in] o_stride output stride
  */
 void __fallback_ele_div(const unsigned N, const float *X, const float *Y,
-                        float *Z, float alpha = 1.f, float beta = 0.f,
-                        unsigned int i_stride = 1, unsigned int o_stride = 1);
-}
+                        float *Z, float alpha, float beta,
+                        unsigned int i_stride, unsigned int o_stride);
+} // namespace nntrainer
 #endif
 #endif

@@ -1,13 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
- * Copyright (C) 2022 Jijoong Moon <jijoong.moon@samsung.com>
+ * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
  *
- * @file   blas_neon.h
- * @date   4 Aug 2022
+ * @file neon_single.h
+ * @date   23 April 2024
  * @see    https://github.com/nnstreamer/nntrainer
- * @author Jijoong Moon <jijoong.moon@samsung.com>
  * @author Sungsik Kong <ss.kong@samsung.com>
  * @bug    No known bugs except for NYI items
- * @brief  This is header for blas neon implementation
+ * @brief  Single-precision computation functions based on NEON
  *
  */
 
@@ -18,6 +18,7 @@
 #include <arm_neon.h>
 #include <cmath>
 #include <neon_mathfun.h>
+#include <tensor_dim.h>
 
 namespace nntrainer::neon {
 
@@ -147,7 +148,6 @@ void ele_sub(const unsigned N, const float *X, const float *Y, float *Z,
  */
 void ele_div(const unsigned N, const float *X, const float *Y, float *Z,
              float alpha = 1.f, float beta = 0.f);
-
 
 } // namespace nntrainer::neon
 

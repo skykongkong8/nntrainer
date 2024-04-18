@@ -1,5 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
+ *
+ * @file neon_half.h
+ * @date   23 April 2024
+ * @see    https://github.com/nnstreamer/nntrainer
+ * @author Sungsik Kong <ss.kong@samsung.com>
+ * @bug    No known bugs except for NYI items
+ * @brief  Half-precision computation functions based on NEON
+ *
+ */
+
 #include <arm_neon.h>
 #include <cmath>
+#include <tensor_dim.h>
 
 namespace nntrainer::neon {
 
@@ -235,4 +249,4 @@ void hgemm_transAB(const __fp16 *A, const __fp16 *B, float *C, uint32_t M,
  */
 void inv_sqrt_inplace(const unsigned int N, __fp16 *X);
 
-}
+} // namespace nntrainer::neon

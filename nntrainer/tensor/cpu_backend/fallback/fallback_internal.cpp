@@ -1,7 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
+ *
+ * @file fallback_internal.cpp
+ * @date   23 April 2024
+ * @see    https://github.com/nnstreamer/nntrainer
+ * @author Sungsik Kong <ss.kong@samsung.com>
+ * @bug    No known bugs except for NYI items
+ * @brief  Single-precision computation functions based on NEON
+ *
+ */
 
 #include <assert.h>
-#include <cstdint>
 #include <cmath>
+#include <cstdint>
 #include <fallback_internal.h>
 #include <tensor_dim.h>
 
@@ -10,30 +22,30 @@
     float y0;                                                           \
     unsigned int i, j;                                                  \
     for (ci = 0; ci != cM; ci++) {                                      \
-      y0 = static_cast<float>(Y[ci * incy] * static_cast<_FP16>(beta)); \
+      y0 = static_cast<float>(Y[ci * incY] * static_cast<_FP16>(beta)); \
       for (cj = 0; cj != cN; cj++)                                      \
-        y0 += static_cast<float>(A[i + j * lda] * X[cj * incx]);        \
-      Y[ci * incy] = static_cast<_FP16>(y0);                            \
+        y0 += static_cast<float>(A[i + j * lda] * X[cj * incX]);        \
+      Y[ci * incY] = static_cast<_FP16>(y0);                            \
     }                                                                   \
   } while (0);
 
-#define hgemm_loop()                                                      \
-  do {                                                                    \
-    for (unsigned int m = 0; m < M; ++m) {                                \
-      for (unsigned int n = 0; n < N; ++n) {                              \
-        float c = 0;                                                      \
-        _FP16 c_old = C[m * ldc + n];                                     \
-        for (unsigned int k = 0; k < K; ++k) {                            \
-          _FP16 a, b;                                                     \
-          a = ((TransA == CblasTrans) ? A[k * lda + m] : A[m * lda + k]); \
-          b = ((TransB == CblasTrans) ? B[n * ldb + k] : B[k * ldb + n]); \
-          c += static_cast<float>(a * b);                                 \
-        }                                                                 \
-        C[m * ldc + n] = static_cast<_FP16>(alpha * c);                   \
-        if (beta != 0.0)                                                  \
-          C[m * ldc + n] += static_cast<_FP16>(beta) * c_old;             \
-      }                                                                   \
-    }                                                                     \
+#define hgemm_loop()                                          \
+  do {                                                        \
+    for (unsigned int m = 0; m < M; ++m) {                    \
+      for (unsigned int n = 0; n < N; ++n) {                  \
+        float c = 0;                                          \
+        _FP16 c_old = C[m * ldc + n];                         \
+        for (unsigned int k = 0; k < K; ++k) {                \
+          _FP16 a, b;                                         \
+          a = ((TransA) ? A[k * lda + m] : A[m * lda + k]);   \
+          b = ((TransB) ? B[n * ldb + k] : B[k * ldb + n]);   \
+          c += static_cast<float>(a * b);                     \
+        }                                                     \
+        C[m * ldc + n] = static_cast<_FP16>(alpha * c);       \
+        if (beta != 0.0)                                      \
+          C[m * ldc + n] += static_cast<_FP16>(beta) * c_old; \
+      }                                                       \
+    }                                                         \
   } while (0);
 
 #define haxpy_loop()                                                       \
@@ -48,52 +60,55 @@
     float y0;                                \
     unsigned int i, j;                       \
     for (ci = 0; ci != cM; ci++) {           \
-      y0 = Y[ci * incy] * beta;              \
+      y0 = Y[ci * incY] * beta;              \
       for (cj = 0; cj != cN; cj++)           \
-        y0 += A[i + j * lda] * X[cj * incx]; \
-      Y[ci * incy] = y0;                     \
+        y0 += A[i + j * lda] * X[cj * incX]; \
+      Y[ci * incY] = y0;                     \
     }                                        \
   } while (0);
 namespace nntrainer {
 #ifdef ENABLE_FP16
 void __fallback_sscal(const unsigned int N, const float alpha, _FP16 *X,
-                      const int incX) {
+                      const unsigned int incX) {
   for (unsigned int i = 0; i < N; ++i)
-    X[i * incx] = static_cast<_FP16>(alpha) * X[i * incx];
+    X[i * incX] = static_cast<_FP16>(alpha) * X[i * incX];
 }
 
-_FP16 __fallback_snrm2(const unsigned int N, const _FP16 *X, const int incX) {
-  unsigned int incx = abs(incX);
+_FP16 __fallback_snrm2(const unsigned int N, const _FP16 *X,
+                       const unsigned int incX) {
   float sum = 0;
   float tmp;
   for (unsigned int i = 0; i < N; i++) {
-    tmp = static_cast<float>(X[i * incx]);
+    tmp = static_cast<float>(X[i * incX]);
     sum += tmp * tmp;
   }
   return static_cast<_FP16>(sqrt(sum));
 }
 
-void __fallback_scopy(const unsigned int N, const _FP16 *X, const int incX,
-                      _FP16 *Y, const int incY) {
+void __fallback_scopy(const unsigned int N, const _FP16 *X,
+                      const unsigned int incX, _FP16 *Y,
+                      const unsigned int incY) {
   for (unsigned int i = 0; i < N; ++i)
-    Y[i * incy] = X[i * incx];
+    Y[i * incY] = X[i * incX];
 }
 
-void __fallback_scopy(const unsigned int N, const float *X, const int incX,
-                      _FP16 *Y, const int incY) {
+void __fallback_scopy(const unsigned int N, const float *X,
+                      const unsigned int incX, _FP16 *Y,
+                      const unsigned int incY) {
   for (unsigned int i = 0; i < N; ++i)
     Y[i * incY] = static_cast<_FP16>(X[i * incX]);
 }
 
-void __fallback_scopy(const unsigned int N, const _FP16 *X, const int incX,
-                      float *Y, const int incY) {
+void __fallback_scopy(const unsigned int N, const _FP16 *X,
+                      const unsigned int incX, float *Y,
+                      const unsigned int incY) {
   for (unsigned int i = 0; i < N; ++i)
     Y[i * incY] = static_cast<float>(X[i * incX]);
 }
 
 void __fallback_scopy_int4_to_float16(const unsigned int N, const uint8_t *X,
-                                      const int incX, _FP16 *Y,
-                                      const int incY) {
+                                      const unsigned int incX, _FP16 *Y,
+                                      const unsigned int incY) {
   for (unsigned int idx = 0; idx < N; idx++) {
     Y[2 * idx] = X[idx] >> 4;
     Y[2 * idx + 1] = X[idx] & 0x0f;
@@ -101,8 +116,8 @@ void __fallback_scopy_int4_to_float16(const unsigned int N, const uint8_t *X,
 }
 
 void __fallback_scopy_int8_to_float16(const unsigned int N, const uint8_t *X,
-                                      const int incX, _FP16 *Y,
-                                      const int incY) {
+                                      const unsigned int incX, _FP16 *Y,
+                                      const unsigned int incY) {
   for (unsigned int idx = 0; idx < N; idx++) {
     Y[idx] = X[idx];
   }
@@ -120,7 +135,8 @@ _FP16 __fallback_sdot(const unsigned int N, const _FP16 *X,
 }
 
 void __fallback_saxpy(const unsigned int N, const float alpha, const _FP16 *X,
-                      const int incX, _FP16 *Y, const int incY) {
+                      const unsigned int incX, _FP16 *Y,
+                      const unsigned int incY) {
   haxpy_loop();
 }
 
@@ -136,10 +152,8 @@ void __fallback_sgemm(const unsigned int TStorageOrder, bool TransA,
 void __fallback_sgemv(const unsigned int TStorageOrder, bool TransA,
                       const unsigned int M, const unsigned int N,
                       const float alpha, const _FP16 *A, const unsigned int lda,
-                      const _FP16 *X, const int incX, const float beta,
-                      _FP16 *Y, const int incY) {
-  unsigned int incy = abs(incY);
-  unsigned int incx = abs(incX);
+                      const _FP16 *X, const unsigned int incX, const float beta,
+                      _FP16 *Y, const unsigned int incY) {
 
   if (TransA == true) {
     hgemv_loop(i, j, N, M);
@@ -193,7 +207,7 @@ void __fallback_ele_div(const unsigned N, const _FP16 *X, const _FP16 *Y,
 }
 
 unsigned int __fallback_isamax(const unsigned int N, const _FP16 *X,
-                               const int incX) {
+                               const unsigned int incX) {
   unsigned int max_idx = 0;
   _FP16 max_val = X[0];
   for (unsigned int n = 1; n < N; n += incX) {
@@ -213,13 +227,14 @@ void __fallback_inv_sqrt_inplace(const unsigned int N, _FP16 *X) {
 }
 #endif
 void __fallback_sscal(const unsigned int N, const float alpha, float *X,
-                      const int incX) {
+                      const unsigned int incX) {
   assert(incX > 0);
   for (unsigned int i = 0; i < N; ++i)
     X[i * incX] = alpha * X[i * incX];
 }
 
-float __fallback_snrm2(const unsigned int N, const float *X, const int incX) {
+float __fallback_snrm2(const unsigned int N, const float *X,
+                       const unsigned int incX) {
   assert(incX > 0);
   float sum = 0.0f;
   float tmp;
@@ -231,23 +246,25 @@ float __fallback_snrm2(const unsigned int N, const float *X, const int incX) {
   return sqrt(sum);
 }
 
-void __fallback_scopy(const unsigned int N, const float *X, const int incX,
-                      float *Y, const int intY) {
-  assert(incX > 0 && intY > 0);
+void __fallback_scopy(const unsigned int N, const float *X,
+                      const unsigned int incX, float *Y,
+                      const unsigned int incY) {
+  assert(incX > 0 && incY > 0);
   for (unsigned int i = 0; i < N; ++i)
-    Y[i * intY] = X[i * incX];
+    Y[i * incY] = X[i * incX];
 }
 
-void __fallback_scopy(const unsigned int N, const uint8_t *X, const int incX,
-                      uint8_t *Y, const int intY) {
+void __fallback_scopy(const unsigned int N, const uint8_t *X,
+                      const unsigned int incX, uint8_t *Y,
+                      const unsigned int incY) {
   for (unsigned int idx = 0; idx < N; idx++) {
-    Y[idx * incX] = X[idx * intY];
+    Y[idx * incX] = X[idx * incY];
   }
 }
 
 void __fallback_scopy_int4_to_float32(const unsigned int N, const uint8_t *X,
-                                      const int incX, float *Y,
-                                      const int intY) {
+                                      const unsigned int incX, float *Y,
+                                      const unsigned int incY) {
   for (unsigned int idx = 0; idx < N; idx++) {
     Y[2 * idx] = X[idx] >> 4;
     Y[2 * idx + 1] = X[idx] & 0x0f;
@@ -255,10 +272,10 @@ void __fallback_scopy_int4_to_float32(const unsigned int N, const uint8_t *X,
 }
 
 void __fallback_scopy_int8_to_float32(const unsigned int N, const uint8_t *X,
-                                      const int incX, float *Y,
-                                      const int intY) {
+                                      const unsigned int incX, float *Y,
+                                      const unsigned int incY) {
   for (unsigned int idx = 0; idx < N; idx++) {
-    Y[idx * incX] = X[idx * intY];
+    Y[idx * incX] = X[idx * incY];
   }
 }
 
@@ -273,7 +290,8 @@ float __fallback_sdot(const unsigned int N, const float *X,
 }
 
 void __fallback_saxpy(const unsigned int N, const float alpha, const float *X,
-                      const int incX, float *Y, const int incY) {
+                      const unsigned int incX, float *Y,
+                      const unsigned int incY) {
   assert(incX > 0 && incY > 0);
   for (unsigned int i = 0; i < N; ++i)
     Y[i * incY] = Y[i * incY] + X[i * incX] * alpha;
@@ -305,10 +323,9 @@ void __fallback_sgemm(const unsigned int TStorageOrder, bool TransA,
 void __fallback_sgemv(const unsigned int TStorageOrder, bool TransA,
                       const unsigned int M, const unsigned int N,
                       const float alpha, const float *A, const unsigned int lda,
-                      const float *X, const int incX, const float beta,
-                      float *Y, const int incY) {
-  unsigned int incy = abs(incY);
-  unsigned int incx = abs(incX);
+                      const float *X, const unsigned int incX, const float beta,
+                      float *Y, const unsigned int incY) {
+
   if (TransA == true) {
     sgemv_loop(i, j, N, M);
   } else {
@@ -317,7 +334,7 @@ void __fallback_sgemv(const unsigned int TStorageOrder, bool TransA,
 }
 
 unsigned int __fallback_isamax(const unsigned int N, const float *X,
-                               const int incX) {
+                               const unsigned int incX) {
   unsigned int max_idx = 0;
   float max_val = X[0];
   for (unsigned int n = 1; n < N; n += incX) {
@@ -396,4 +413,4 @@ void __fallback_ele_div(const unsigned N, const float *X, const float *Y,
     Z += o_stride;
   }
 }
-}
+} // namespace nntrainer

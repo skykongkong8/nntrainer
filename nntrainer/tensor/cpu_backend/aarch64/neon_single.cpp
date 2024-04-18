@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Copyright (C) 2022 Jijoong Moon <jijoong.moon@samsung.com>
+ * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
  *
- * @file   blas_neon.cpp
- * @date   4 Aug 2022
+ * @file neon_single.cpp
+ * @date   23 April 2024
  * @see    https://github.com/nnstreamer/nntrainer
- * @author Jijoong Moon <jijoong.moon@samsung.com>
  * @author Sungsik Kong <ss.kong@samsung.com>
  * @bug    No known bugs except for NYI items
- * @brief  This is Source for blas neon implementation
+ * @brief  Single-precision computation functions based on NEON
  *
  */
 
-#include <neon_single.h>
-#include <neon_setting.h>
 #include <memory>
+#include <neon_setting.h>
+#include <neon_single.h>
 #include <nntrainer_error.h>
 
 namespace nntrainer::neon {
