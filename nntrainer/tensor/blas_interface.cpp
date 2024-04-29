@@ -21,6 +21,7 @@
 
 #if USE_AVX
 #include <blas_avx.h>
+#include <matrix_transpose_avx.h>
 #endif
 
 #include <cmath>
@@ -1084,6 +1085,15 @@ void ele_div(const unsigned int N, const float *X, const float *Y, float *Z,
 #endif
   } else
     ele_div_fallback(N, X, Y, Z, alpha, beta, i_stride, o_stride);
+}
+
+void transpose_simd(const unsigned int M, const unsigned int N, float *src,
+                    unsigned int ld_src, float *dst, unsigned int ld_dst) {
+#ifdef USE_AVX
+  transpose_avx2<float>(M, N, src, ld_src, dst, ld_dst);
+#else
+  throw std::invalid_argument("Error: enable-fp16 is not enabled");
+#endif
 }
 
 } // namespace nntrainer

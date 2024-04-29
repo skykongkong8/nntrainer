@@ -478,6 +478,9 @@ void ele_sub(const unsigned N, const float *X, const float *Y, float *Z,
 void ele_div(const unsigned N, const float *X, const float *Y, float *Z,
              float alpha = 1.f, float beta = 0.f, unsigned int i_stride = 1,
              unsigned int o_stride = 1);
+
+void transpose_simd(const unsigned int M, const unsigned int N, float *src,
+                    unsigned int ld_src, float *dst, unsigned int ld_dst);
 } /* namespace nntrainer */
 #endif /* __cplusplus */
 #endif /* __BLAS_INTERFACE_H__ */
