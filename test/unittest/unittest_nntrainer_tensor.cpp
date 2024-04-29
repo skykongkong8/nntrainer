@@ -13,19 +13,18 @@
 
 #include "nntrainer_test_util.h"
 #include "util_func.h"
+#include <chrono>
 #include <fstream>
+#include <iostream>
 #include <nntrainer_error.h>
 #include <tensor.h>
 #include <tensor_dim.h>
-#include <iostream>
-#include <chrono>
-using std::chrono::nanoseconds; // or microseconds
+using std::chrono::duration_cast;
+using std::chrono::high_resolution_clock;
 using std::chrono::microseconds; // or microseconds
 using std::chrono::milliseconds; // or microseconds
-using std::chrono::seconds; // or microseconds
-using std::chrono::high_resolution_clock;
-using std::chrono::duration_cast;
-
+using std::chrono::nanoseconds;  // or microseconds
+using std::chrono::seconds;      // or microseconds
 
 TEST(nntrainer_TensorDim, ctor_initializer_p) {
   unsigned int b = 3;
@@ -4740,31 +4739,23 @@ TEST(nntrainer_Tensor, transpose_768) {
   auto t1 = high_resolution_clock::now();
   nntrainer::Tensor C = A_fp32.transpose_matrix(B_fp32);
   auto t2 = high_resolution_clock::now();
-auto dt = duration_cast<nanoseconds>(t2 - t1);
-std::cout << "function_to_assess : " << dt.count()
-        << " ns " << std::endl;
-t1 = high_resolution_clock::now();
+  auto dt = duration_cast<nanoseconds>(t2 - t1);
+  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  t1 = high_resolution_clock::now();
   C_fp32 = A_fp32.transpose("0:2:1", C_fp32);
   t2 = high_resolution_clock::now();
-dt = duration_cast<nanoseconds>(t2 - t1);
-std::cout << "function_to_assess : " << dt.count()
-        << " ns " << std::endl;
+  dt = duration_cast<nanoseconds>(t2 - t1);
+  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
 
-  C.print(std::cout);
-  C_fp32.print(std::cout);
-  
-
-  float mseErrorNeon =
-    mse<float>(C.getData<float>(), C_fp32.getData<float>(), C.size());
-
-  double cosSimNeon = cosine_similarity<float>(
-    C.getData<float>(), C_fp32.getData<float>(), C.size());
-
-  const float epsilon = 1e-3 * width;
-
-
-  std::cout << "mseErrorNeon : " << mseErrorNeon << std::endl;
-  std::cout << "cosSimNeon : " << cosSimNeon << std::endl;
+  for (int b = 0; b < batch; b++) {
+    for (int c = 0; c < channel; c++) {
+      for (int h = 0; h < width; h++) {
+        for (int w = 0; w < height; w++) {
+          EXPECT_EQ(C.getValue(b, c, h, w), C_fp32.getValue(b, c, h, w));
+        }
+      }
+    }
+  }
 }
 
 TEST(nntrainer_Tensor, transpose_unbalanced) {
@@ -4791,30 +4782,23 @@ TEST(nntrainer_Tensor, transpose_unbalanced) {
   auto t1 = high_resolution_clock::now();
   nntrainer::Tensor C = A_fp32.transpose_matrix(B_fp32);
   auto t2 = high_resolution_clock::now();
-auto dt = duration_cast<nanoseconds>(t2 - t1);
-std::cout << "function_to_assess : " << dt.count()
-        << " ns " << std::endl;
-t1 = high_resolution_clock::now();
+  auto dt = duration_cast<nanoseconds>(t2 - t1);
+  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  t1 = high_resolution_clock::now();
   C_fp32 = A_fp32.transpose("0:2:1", C_fp32);
   t2 = high_resolution_clock::now();
-dt = duration_cast<nanoseconds>(t2 - t1);
-std::cout << "function_to_assess : " << dt.count()
-        << " ns " << std::endl;
+  dt = duration_cast<nanoseconds>(t2 - t1);
+  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
 
-  C.print(std::cout);
-  C_fp32.print(std::cout);
-
-  float mseErrorNeon =
-    mse<float>(C.getData<float>(), C_fp32.getData<float>(), C.size());
-
-  double cosSimNeon = cosine_similarity<float>(
-    C.getData<float>(), C_fp32.getData<float>(), C.size());
-
-  const float epsilon = 1e-3 * width;
-
-
-  std::cout << "mseErrorNeon : " << mseErrorNeon << std::endl;
-  std::cout << "cosSimNeon : " << cosSimNeon << std::endl;
+  for (int b = 0; b < batch; b++) {
+    for (int c = 0; c < channel; c++) {
+      for (int h = 0; h < width; h++) {
+        for (int w = 0; w < height; w++) {
+          EXPECT_EQ(C.getValue(b, c, h, w), C_fp32.getValue(b, c, h, w));
+        }
+      }
+    }
+  }
 }
 
 TEST(nntrainer_Tensor, transpose_prime) {
@@ -4842,30 +4826,23 @@ TEST(nntrainer_Tensor, transpose_prime) {
   auto t1 = high_resolution_clock::now();
   nntrainer::Tensor C = A_fp32.transpose_matrix(B_fp32);
   auto t2 = high_resolution_clock::now();
-auto dt = duration_cast<nanoseconds>(t2 - t1);
-std::cout << "function_to_assess : " << dt.count()
-        << " ns " << std::endl;
-t1 = high_resolution_clock::now();
+  auto dt = duration_cast<nanoseconds>(t2 - t1);
+  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  t1 = high_resolution_clock::now();
   C_fp32 = A_fp32.transpose("0:2:1", C_fp32);
   t2 = high_resolution_clock::now();
-dt = duration_cast<nanoseconds>(t2 - t1);
-std::cout << "function_to_assess : " << dt.count()
-        << " ns " << std::endl;
+  dt = duration_cast<nanoseconds>(t2 - t1);
+  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
 
-  C.print(std::cout);
-  C_fp32.print(std::cout);
-
-  float mseErrorNeon =
-    mse<float>(C.getData<float>(), C_fp32.getData<float>(), C.size());
-
-  double cosSimNeon = cosine_similarity<float>(
-    C.getData<float>(), C_fp32.getData<float>(), C.size());
-
-  const float epsilon = 1e-3 * width;
-
-
-  std::cout << "mseErrorNeon : " << mseErrorNeon << std::endl;
-  std::cout << "cosSimNeon : " << cosSimNeon << std::endl;
+  for (int b = 0; b < batch; b++) {
+    for (int c = 0; c < channel; c++) {
+      for (int h = 0; h < width; h++) {
+        for (int w = 0; w < height; w++) {
+          EXPECT_EQ(C.getValue(b, c, h, w), C_fp32.getValue(b, c, h, w));
+        }
+      }
+    }
+  }
 }
 
 TEST(nntrainer_Tensor, transpose_small) {
@@ -4893,36 +4870,26 @@ TEST(nntrainer_Tensor, transpose_small) {
   auto t1 = high_resolution_clock::now();
   nntrainer::Tensor C = A_fp32.transpose_matrix(B_fp32);
   auto t2 = high_resolution_clock::now();
-auto dt = duration_cast<nanoseconds>(t2 - t1);
-std::cout << "function_to_assess : " << dt.count()
-        << " ns " << std::endl;
-t1 = high_resolution_clock::now();
+  auto dt = duration_cast<nanoseconds>(t2 - t1);
+  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  t1 = high_resolution_clock::now();
   C_fp32 = A_fp32.transpose("0:2:1", C_fp32);
   t2 = high_resolution_clock::now();
-dt = duration_cast<nanoseconds>(t2 - t1);
-std::cout << "function_to_assess : " << dt.count()
-        << " ns " << std::endl;
-A_fp32.print(std::cout);
+  dt = duration_cast<nanoseconds>(t2 - t1);
+  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  A_fp32.print(std::cout);
   C.print(std::cout);
 
-  C_fp32 = A_fp32.transpose("1:0:2", C_fp32);
-  C_fp32.print(std::cout);
-
-
-
-  float mseErrorNeon =
-    mse<float>(C.getData<float>(), C_fp32.getData<float>(), C.size());
-
-  double cosSimNeon = cosine_similarity<float>(
-    C.getData<float>(), C_fp32.getData<float>(), C.size());
-
-  const float epsilon = 1e-3 * width;
-
-
-  std::cout << "mseErrorNeon : " << mseErrorNeon << std::endl;
-  std::cout << "cosSimNeon : " << cosSimNeon << std::endl;
+  for (int b = 0; b < batch; b++) {
+    for (int c = 0; c < channel; c++) {
+      for (int h = 0; h < width; h++) {
+        for (int w = 0; w < height; w++) {
+          EXPECT_EQ(C.getValue(b, c, h, w), C_fp32.getValue(b, c, h, w));
+        }
+      }
+    }
+  }
 }
-
 
 int main(int argc, char **argv) {
   int result = -1;

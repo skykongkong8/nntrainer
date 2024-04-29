@@ -6,53 +6,73 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-#if defined(__x86_64__) || defined(__i386__) || \
-  (defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86)))
-#include <immintrin.h>
+#if defined(__ARM_NEON__)
+#include <arm_neon.h>
 #endif
+#include <arm_neon.h>
+
 #include <cassert>
 #include <cstdint>
 
-#include "./mask_avx.h"
+#include "./mask_neon.h"
 
-// #ifdef __AVX2__
-// NOTE: Make sure every function defined in here has static linkage because
-// this header file is included by UtilsAvx512.cc compiled with -mavx512f option
+#define TRANSPOSE_FP32_4x4(row0, row1, row2, row3)                             \
+  float32x4x2_t row01 = vtrnq_f32(row0, row1);                                 \
+  float32x4x2_t row23 = vtrnq_f32(row2, row3);                                 \
+  row0 = vcombine_f32(vget_low_f32(row01.val[0]), vget_low_f32(row23.val[0])); \
+  row1 = vcombine_f32(vget_low_f32(row01.val[1]), vget_low_f32(row23.val[1])); \
+  row2 =                                                                       \
+    vcombine_f32(vget_high_f32(row01.val[0]), vget_high_f32(row23.val[0]));    \
+  row3 = vcombine_f32(vget_high_f32(row01.val[1]), vget_high_f32(row23.val[1]));
+
+#define TRANSPOSE_FP16_4x4(row0, row1, row2, row3)                             \
+  float16x4x2_t row01 = vtrn_f16(row0, row1);                                  \
+  float16x4x2_t row23 = vtrn_f16(row2, row3);                                  \
+  row0 = vcvt_f16_f32(vcombine_f32(vget_low_f32(vcvt_f32_f16(row01.val[0])),   \
+                                   vget_low_f32(vcvt_f32_f16(row23.val[0])))); \
+  row1 = vcvt_f16_f32(vcombine_f32(vget_low_f32(vcvt_f32_f16(row01.val[1])),   \
+                                   vget_low_f32(vcvt_f32_f16(row23.val[1])))); \
+  row2 =                                                                       \
+    vcvt_f16_f32(vcombine_f32(vget_high_f32(vcvt_f32_f16(row01.val[0])),       \
+                              vget_high_f32(vcvt_f32_f16(row23.val[0]))));     \
+  row3 =                                                                       \
+    vcvt_f16_f32(vcombine_f32(vget_high_f32(vcvt_f32_f16(row01.val[1])),       \
+                              vget_high_f32(vcvt_f32_f16(row23.val[1]))));
 
 // 4 * 4 = 16 instructions
-static inline void transpose_kernel_4x4_sse(const float *src,
-                                            unsigned int ld_src, float *dst,
-                                            unsigned int ld_dst) {
+static inline void transpose_kernel_4x4_neon(const float *src,
+                                             unsigned int ld_src, float *dst,
+                                             unsigned int ld_dst) {
   // load from src to registers
   // a : a0 a1 a2 a3
   // b : b0 b1 b2 b3
   // c : c0 c1 c2 c3
   // d : d0 d1 d2 d3
-  __m128 a = _mm_loadu_ps(&src[0 * ld_src]);
-  __m128 b = _mm_loadu_ps(&src[1 * ld_src]);
-  __m128 c = _mm_loadu_ps(&src[2 * ld_src]);
-  __m128 d = _mm_loadu_ps(&src[3 * ld_src]);
+  float32x4_t a = vld1q_f32(&src[0 * ld_src]);
+  float32x4_t b = vld1q_f32(&src[1 * ld_src]);
+  float32x4_t c = vld1q_f32(&src[2 * ld_src]);
+  float32x4_t d = vld1q_f32(&src[3 * ld_src]);
 
   // transpose the 4x4 matrix formed by 32-bit elements: Macro from SSE
   // a : a0 b0 c0 d0
   // b : a1 b1 c1 d1
   // c : a2 b2 c2 d2
   // d : a3 b3 c3 d3
-  _MM_TRANSPOSE4_PS(a, b, c, d);
+  TRANSPOSE_FP32_4x4(a, b, c, d);
 
   // store from registers to dst
-  _mm_storeu_ps(&dst[0 * ld_dst], a);
-  _mm_storeu_ps(&dst[1 * ld_dst], b);
-  _mm_storeu_ps(&dst[2 * ld_dst], c);
-  _mm_storeu_ps(&dst[3 * ld_dst], d);
+  vst1q_f32(&dst[0 * ld_dst], a);
+  vst1q_f32(&dst[1 * ld_dst], b);
+  vst1q_f32(&dst[2 * ld_dst], c);
+  vst1q_f32(&dst[3 * ld_dst], d);
 }
 
 // kernel for transpose mxn where m, n <= 4
 // M + (M + 1) / 2 * 2 + 2 * N instructions
 template <unsigned M>
-static void transpose_kernel_mxn_sse(unsigned N, const float *src,
-                                     unsigned int ld_src, float *dst,
-                                     unsigned int ld_dst) {
+static void transpose_kernel_mxn_neon_128(unsigned N, const float *src,
+                                          unsigned int ld_src, float *dst,
+                                          unsigned int ld_dst) {
   // clang-format off
   alignas(64) static const int masks[5][4] = {
     {  0,  0,  0,  0, },
@@ -64,63 +84,49 @@ static void transpose_kernel_mxn_sse(unsigned N, const float *src,
   // clang-format on
 
   // load from src to registers
-  __m128i mask_v = _mm_load_si128(reinterpret_cast<const __m128i *>(masks[N]));
-  __m128 input[4];
+  uint32x4_t mask_v = vld1q_u32(reinterpret_cast<const uint32_t *>(masks[N]));
+  float32x4_t input[4];
+  float32x4_t ZEROS = {0, 0, 0, 0};
+
   unsigned i;
   for (i = 0; i < M; ++i) {
-    input[i] = _mm_maskload_ps(&src[i * ld_src], mask_v);
+    input[i] = vbslq_f32(mask_v, vld1q_f32(&src[i * ld_src]), ZEROS);
+    // input[i] = _mm_maskload_ps(&src[i * ld_src], mask_v);
   }
   for (; i < 4; ++i) {
     // Not really needed but to avoid uninitialized variable warning.
     // Shouldn't be much overhead because xor can be executed in parallel with
     // other instructions.
-    input[i] = _mm_setzero_ps();
+    input[i] = vmovq_n_f32(0.F);
   }
 
-  __m128 temp[4];
+  float32x4_t temp[4];
   for (i = 0; i < (M + 1) / 2; ++i) {
-    temp[2 * i] = _mm_unpacklo_ps(input[2 * i], input[2 * i + 1]);
-    temp[2 * i + 1] = _mm_unpackhi_ps(input[2 * i], input[2 * i + 1]);
+    temp[2 * i] = vzip1q_f32(input[2 * i], input[2 * i + 1]);
+    temp[2 * i + 1] = vzip2q_f32(input[2 * i], input[2 * i + 1]);
   }
   for (i = i * 2; i < 4; ++i) {
-    temp[i] = _mm_setzero_ps();
+    temp[i] = vmovq_n_f32();
   }
 
-  mask_v = _mm_load_si128(reinterpret_cast<const __m128i *>(masks[M]));
+  mask_v = vld1q_u32(reinterpret_cast<const uint32_t *>(masks[M]));
   for (i = 0; i < N; ++i) {
     if (i % 2 == 0) {
-      input[i] = _mm_movelh_ps(temp[i / 2], temp[2 + i / 2]);
+      input[i] =
+        vcombine_f32(vget_low_f32(temp[i / 2]), vget_low_f32(temp[2 + i / 2]));
     } else {
-      input[i] = _mm_movehl_ps(temp[2 + i / 2], temp[i / 2]);
+      input[i] = vcombine_f32(vget_high_f32(temp[2 + i / 2]),
+                              vget_high_f32(temp[i / 2]));
     }
-    _mm_maskstore_ps(&dst[i * ld_dst], mask_v, input[i]);
+    vst1q_f32(&dst[i * ld_dst], vbslq_f32(mask_v, input[i], ZEROS));
   }
 }
 
-static inline void transpose_kernel_8x8_avx2_experimental(const float *src,
+/* TOO MANY REGISTERS! 8x8 KERNEL : CANNOT BE DONE ON ARM ANYWAY ???
+// 8 * 5 = 40 instructions
+static inline void transpose_kernel_8x8_neon(const float *src,
                                              unsigned int ld_src, float *dst,
                                              unsigned int ld_dst) {
-  uint32_t i = 8;
-  do {
-    dst[0 * ld_dst] = *src++;
-    dst[1* ld_dst] = *src++;
-    dst[2* ld_dst] = *src++;
-    dst[3* ld_dst] = *src++;
-    dst[4* ld_dst] = *src++;
-    dst[5* ld_dst] = *src++;
-    dst[6* ld_dst] = *src++;
-    dst[7* ld_dst] = *src++;
-    dst ++;
-    src += ld_src;
-  } while (--i);
-}
-
-// 8 * 5 = 40 instructions
-static inline void transpose_kernel_8x8_avx2(
-    const float* src,
-    unsigned int ld_src,
-    float* dst,
-    unsigned int ld_dst) {
   // load from src to registers
   // a : a0 a1 a2 a3 a4 a5 a6 a7
   // b : b0 b1 b2 b3 b4 b5 b6 b7
@@ -130,16 +136,35 @@ static inline void transpose_kernel_8x8_avx2(
   // f : f0 f1 f2 f3 f4 f5 f6 f7
   // g : g0 g1 g2 g3 g4 g5 g6 g7
   // h : h0 h1 h2 h3 h4 h5 h6 h7
-  __m256 a = _mm256_loadu_ps(&src[0 * ld_src]);
-  __m256 b = _mm256_loadu_ps(&src[1 * ld_src]);
-  __m256 c = _mm256_loadu_ps(&src[2 * ld_src]);
-  __m256 d = _mm256_loadu_ps(&src[3 * ld_src]);
-  __m256 e = _mm256_loadu_ps(&src[4 * ld_src]);
-  __m256 f = _mm256_loadu_ps(&src[5 * ld_src]);
-  __m256 g = _mm256_loadu_ps(&src[6 * ld_src]);
-  __m256 h = _mm256_loadu_ps(&src[7 * ld_src]);
+
+  // __m256 a = _mm256_loadu_ps(&src[0 * ld_src]);
+  float32x4_t a0_3 = vld1q_f32(&src[0 * ld_src]);
+  float32x4_t a4_7 = vld1q_f32(&src[0 * ld_src + 4]);
+  // __m256 b = _mm256_loadu_ps(&src[1 * ld_src]);
+  float32x4_t b0_3 = vld1q_f32(&src[1 * ld_src]);
+  float32x4_t b4_7 = vld1q_f32(&src[1 * ld_src + 4]);
+  // __m256 c = _mm256_loadu_ps(&src[2 * ld_src]);
+  float32x4_t c0_3 = vld1q_f32(&src[2 * ld_src]);
+  float32x4_t c4_7 = vld1q_f32(&src[2 * ld_src + 4]);
+  // __m256 d = _mm256_loadu_ps(&src[3 * ld_src]);
+  float32x4_t d0_3 = vld1q_f32(&src[3 * ld_src]);
+  float32x4_t d4_7 = vld1q_f32(&src[3 * ld_src + 4]);
+  // __m256 e = _mm256_loadu_ps(&src[4 * ld_src]);
+  float32x4_t e0_3 = vld1q_f32(&src[4 * ld_src]);
+  float32x4_t e4_7 = vld1q_f32(&src[4 * ld_src + 4]);
+  // __m256 f = _mm256_loadu_ps(&src[5 * ld_src]);
+  float32x4_t f0_3 = vld1q_f32(&src[5 * ld_src]);
+  float32x4_t f4_7 = vld1q_f32(&src[5 * ld_src + 4]);
+  // __m256 g = _mm256_loadu_ps(&src[6 * ld_src]);
+  float32x4_t g0_3 = vld1q_f32(&src[6 * ld_src]);
+  float32x4_t g4_7 = vld1q_f32(&src[6 * ld_src + 4]);
+  // __m256 h = _mm256_loadu_ps(&src[7 * ld_src]);
+  float32x4_t h0_3 = vld1q_f32(&src[7 * ld_src]);
+  float32x4_t h4_7 = vld1q_f32(&src[7 * ld_src + 4]);
 
   __m256 ab0145, ab2367, cd0145, cd2367, ef0145, ef2367, gh0145, gh2367;
+  __m256 ab0145, ab2367, cd0145, cd2367, ef0145, ef2367, gh0145, gh2367;
+  __m256 abcd04, abcd15, efgh04, efgh15, abcd26, abcd37, efgh26, efgh37;
   __m256 abcd04, abcd15, efgh04, efgh15, abcd26, abcd37, efgh26, efgh37;
   // unpacking and interleaving 32-bit elements
   // ab0145 : a0 b0 a1 b1 a4 b4 a5 b5
@@ -209,12 +234,12 @@ static inline void transpose_kernel_8x8_avx2(
 // kernel for transposing mxn where m, n <= 8
 // M + (M + 1) / 2 * 2 + (M + 3) / 4 * 4 + 2 * N instructions
 template <unsigned M>
-static void transpose_kernel_mxn_avx2(unsigned N, const float *src,
-                                      unsigned int ld_src, float *dst,
-                                      unsigned int ld_dst) {
+static void transpose_kernel_mxn_neon_256(unsigned N, const float *src,
+                                          unsigned int ld_src, float *dst,
+                                          unsigned int ld_dst) {
   // load from src to registers
   __m256i mask_v = _mm256_load_si256(
-    reinterpret_cast<const __m256i *>(avx2_ps_or_epi32_masks[N]));
+    reinterpret_cast<const __m256i *>(neon_ps_or_epi32_masks[N]));
   __m256 input[8];
   unsigned i;
   for (i = 0; i < M; ++i) {
@@ -250,7 +275,7 @@ static void transpose_kernel_mxn_avx2(unsigned N, const float *src,
   // shuffling 128-bit elements
   // store from registers to dst
   mask_v = _mm256_load_si256(
-    reinterpret_cast<const __m256i *>(avx2_ps_or_epi32_masks[M]));
+    reinterpret_cast<const __m256i *>(neon_ps_or_epi32_masks[M]));
   for (i = 0; i < N; ++i) {
     if (i < 4) {
       temp[i] = _mm256_permute2f128_ps(input[4 + i], input[i], 0x02);
@@ -260,6 +285,260 @@ static void transpose_kernel_mxn_avx2(unsigned N, const float *src,
     _mm256_maskstore_ps(&dst[i * ld_dst], mask_v, temp[i]);
   }
 }
+*/
+
+/* FP16 */
+
+// 4 * 4 = 16 instructions
+static inline void transpose_kernel_4x4_neon(const __fp16 *src,
+                                             unsigned int ld_src, __fp16 *dst,
+                                             unsigned int ld_dst) {
+  // load from src to registers
+  // a : a0 a1 a2 a3
+  // b : b0 b1 b2 b3
+  // c : c0 c1 c2 c3
+  // d : d0 d1 d2 d3
+  float16x4_t a = vld1_f16(&src[0 * ld_src]);
+  float16x4_t b = vld1_f16(&src[1 * ld_src]);
+  float16x4_t c = vld1_f16(&src[2 * ld_src]);
+  float16x4_t d = vld1_f16(&src[3 * ld_src]);
+
+  // transpose the 4x4 matrix formed by 32-bit elements: Macro from SSE
+  // a : a0 b0 c0 d0
+  // b : a1 b1 c1 d1
+  // c : a2 b2 c2 d2
+  // d : a3 b3 c3 d3
+  TRANSPOSE_FP16_4x4(a, b, c, d);
+
+  // store from registers to dst
+  vst1_f16(&dst[0 * ld_dst], a);
+  vst1_f16(&dst[1 * ld_dst], b);
+  vst1_f16(&dst[2 * ld_dst], c);
+  vst1_f16(&dst[3 * ld_dst], d);
+}
+
+// kernel for transpose mxn where m, n <= 4
+// M + (M + 1) / 2 * 2 + 2 * N instructions
+template <unsigned M>
+static void transpose_kernel_mxn_neon_128(unsigned N, const __fp16 *src,
+                                          unsigned int ld_src, __fp16 *dst,
+                                          unsigned int ld_dst) {
+  // clang-format off
+  alignas(64) static const int masks[5][4] = {
+    {  0,  0,  0,  0, },
+    { -1,  0,  0,  0, },
+    { -1, -1,  0,  0, },
+    { -1, -1, -1,  0, },
+    { -1, -1, -1, -1, },
+  };
+  // clang-format on
+
+  // load from src to registers
+  uint16x4_t mask_v = vld1_u16(reinterpret_cast<const uint16_t *>(masks[N]));
+  float16x4_t input[4];
+  float16x4_t ZEROS = vmov_n_f16(0.F);
+
+  unsigned i;
+  for (i = 0; i < M; ++i) {
+    input[i] = vbsl_f16(mask_v, vld1_f16(&src[i * ld_src]), ZEROS);
+    // input[i] = _mm_maskload_ps(&src[i * ld_src], mask_v);
+  }
+  for (; i < 4; ++i) {
+    // Not really needed but to avoid uninitialized variable warning.
+    // Shouldn't be much overhead because xor can be executed in parallel with
+    // other instructions.
+    input[i] = vmov_n_f16(0.F);
+  }
+
+  float16x4_t temp[4];
+  for (i = 0; i < (M + 1) / 2; ++i) {
+    temp[2 * i] = vzip1_f16(input[2 * i], input[2 * i + 1]);
+    temp[2 * i + 1] = vzip2_f16(input[2 * i], input[2 * i + 1]);
+  }
+  for (i = i * 2; i < 4; ++i) {
+    temp[i] = vmov_n_f16(0.F);
+  }
+
+  mask_v = vld1_u16(reinterpret_cast<const uint16_t *>(masks[M]));
+  for (i = 0; i < N; ++i) {
+    if (i % 2 == 0) {
+      input[i] =
+        vcvt_f16_f32(vcombine_f32(vget_low_f32(vcvt_f32_f16(temp[i / 2])),
+                                  vget_low_f32(vcvt_f32_f16(temp[2 + i / 2]))));
+    } else {
+      input[i] =
+        vcvt_f16_f32(vcombine_f32(vget_high_f32(vcvt_f32_f16(temp[2 + i / 2])),
+                                  vget_high_f32(vcvt_f32_f16(temp[i / 2]))));
+    }
+    vst1_f16(&dst[i * ld_dst], vbsl_f16(mask_v, input[i], ZEROS));
+  }
+}
+
+// 8 * 5 = 40 instructions
+static inline void transpose_kernel_8x8_neon(const __fp16 *src,
+                                             unsigned int ld_src, __fp16 *dst,
+                                             unsigned int ld_dst) {
+  // load from src to registers
+  // a : a0 a1 a2 a3 a4 a5 a6 a7
+  // b : b0 b1 b2 b3 b4 b5 b6 b7
+  // c : c0 c1 c2 c3 c4 c5 c6 c7
+  // d : d0 d1 d2 d3 d4 d5 d6 d7
+  // e : e0 e1 e2 e3 e4 e5 e6 e7
+  // f : f0 f1 f2 f3 f4 f5 f6 f7
+  // g : g0 g1 g2 g3 g4 g5 g6 g7
+  // h : h0 h1 h2 h3 h4 h5 h6 h7
+
+  float16x8_t a = vld1q_f16(&src[0 * ld_src]);
+  float16x8_t b = vld1q_f16(&src[1 * ld_src]);
+  float16x8_t c = vld1q_f16(&src[2 * ld_src]);
+  float16x8_t d = vld1q_f16(&src[3 * ld_src]);
+  float16x8_t e = vld1q_f16(&src[4 * ld_src]);
+  float16x8_t f = vld1q_f16(&src[5 * ld_src]);
+  float16x8_t g = vld1q_f16(&src[6 * ld_src]);
+  float16x8_t h = vld1q_f16(&src[7 * ld_src]);
+
+  float16x8_t ab0145, ab2367, cd0145, cd2367, ef0145, ef2367, gh0145, gh2367;
+  float16x8_t abcd04, abcd15, efgh04, efgh15, abcd26, abcd37, efgh26, efgh37;
+  // unpacking and interleaving 32-bit elements
+  // ab0145 : a0 b0 a1 b1 a4 b4 a5 b5
+  // ab2367 : a2 b2 a3 b3 a6 b6 a7 b7
+  // cd0145 : c0 d0 c1 d1 c4 d4 c5 d5
+  // cd2367 : c2 d2 c3 d3 c6 d6 c7 d7
+  // ef0145 : e0 f0 e1 f1 e4 f4 e5 f5
+  // ef2367 : e2 f2 e3 f3 e6 f6 e7 f7
+  // gh0145 : g0 h0 g1 h1 g4 h4 g5 h5
+  // gh2367 : g2 h2 g3 h3 g6 h6 g7 h7
+  ab0145 = vcombine_f16(vzip1_f16(vget_low_f16(a), vget_low_f16(b)),
+                        vzip1_f16(vget_high_f16(a), vget_high_f16(b)));
+  ab2367 = vcombine_f16(vzip2_f16(vget_low_f16(a), vget_low_f16(b)),
+                        vzip2_f16(vget_high_f16(a), vget_high_f16(b)));
+  cd0145 = vcombine_f16(vzip1_f16(vget_low_f16(c), vget_low_f16(d)),
+                        vzip1_f16(vget_high_f16(c), vget_high_f16(d)));
+  cd2367 = vcombine_f16(vzip2_f16(vget_low_f16(c), vget_low_f16(d)),
+                        vzip2_f16(vget_high_f16(c), vget_high_f16(d)));
+  ef0145 = vcombine_f16(vzip1_f16(vget_low_f16(e), vget_low_f16(f)),
+                        vzip1_f16(vget_high_f16(e), vget_high_f16(f)));
+  ef2367 = vcombine_f16(vzip2_f16(vget_low_f16(e), vget_low_f16(f)),
+                        vzip2_f16(vget_high_f16(e), vget_high_f16(f)));
+  gh0145 = vcombine_f16(vzip1_f16(vget_low_f16(g), vget_low_f16(h)),
+                        vzip1_f16(vget_high_f16(g), vget_high_f16(b)));
+  gh2367 = vcombine_f16(vzip2_f16(vget_low_f16(g), vget_low_f16(h)),
+                        vzip2_f16(vget_high_f16(g), vget_high_f16(h)));
+
+  // shuffling the 32-bit elements
+  // abcd04 : a0 b0 c0 d0 a4 b4 c4 d4
+  // abcd15 : a1 b1 c1 d1 a5 b5 c5 d5
+  // efgh04 : e0 f0 g0 h0 e4 f4 g4 h4
+  // efgh15 : e1 f1 g1 h1 e5 b5 c5 d5
+  // abcd26 : a2 b2 c2 d2 a6 b6 c6 d6
+  // abcd37 : a3 b3 c3 d3 a7 b7 c7 d7
+  // efgh26 : e2 f2 g2 h2 e6 f6 g6 h6
+  // efgh37 : e3 f3 g3 h3 e7 f7 g7 h7
+  uint16x8_t shuffle_mask =
+    vld1q_u16(reinterpret_cast<const uint16_t *>(shuffle_masks));
+  abcd04 = vbslq_f16(shuffle_mask, ab0145, vextq_f16(cd0145, cd0145, 6));
+  abcd15 = vbslq_f16(shuffle_mask, vextq_f16(ab0145, ab0145, 2), cd0145);
+  efgh04 = vbslq_f16(shuffle_mask, ef0145, vextq_f16(gh0145, gh0145, 6));
+  efgh15 = vbslq_f16(shuffle_mask, vextq_f16(ef0145, ef0145, 2), gh0145);
+  abcd26 = vbslq_f16(shuffle_mask, ab2367, vextq_f16(cd2367, cd2367, 6));
+  abcd37 = vbslq_f16(shuffle_mask, vextq_f16(ab2367, ab2367, 2), cd2367);
+  efgh26 = vbslq_f16(shuffle_mask, ef2367, vextq_f16(gh2367, gh2367, 6));
+  efgh37 = vbslq_f16(shuffle_mask, vextq_f16(ef2367, ef2367, 2), gh2367);
+
+  // shuffling 128-bit elements
+  // a : a0 b0 c0 d0 e0 f0 g0 h0
+  // b : a1 b1 c1 d1 e1 f1 g1 h1
+  // c : a2 b2 c2 d2 e2 f2 g2 h2
+  // d : a3 b3 c3 d3 e3 f3 g3 h3
+  // e : a4 b4 c4 d4 e4 f4 g4 h4
+  // f : a5 b5 c5 d5 e5 f5 g5 h5
+  // g : a6 b6 c6 d6 e6 f6 g6 h6
+  // h : a7 b7 c7 d7 e7 f7 g7 h7
+  a = vcombine_f16(vget_low_f16(abcd04), vget_low_f16(efgh04));
+  b = vcombine_f16(vget_low_f16(abcd15), vget_low_f16(efgh15));
+  c = vcombine_f16(vget_low_f16(abcd26), vget_low_f16(efgh26));
+  d = vcombine_f16(vget_low_f16(abcd37), vget_low_f16(efgh37));
+  e = vcombine_f16(vget_high_f16(abcd04), vget_high_f16(efgh04));
+  e = vcombine_f16(vget_high_f16(abcd15), vget_high_f16(efgh15));
+  e = vcombine_f16(vget_high_f16(abcd26), vget_high_f16(efgh26));
+  e = vcombine_f16(vget_high_f16(abcd37), vget_high_f16(efgh37));
+
+  // store from registers to dst
+  vst1q_f16(&dst[0 * ld_dst], a);
+  vst1q_f16(&dst[1 * ld_dst], b);
+  vst1q_f16(&dst[2 * ld_dst], c);
+  vst1q_f16(&dst[3 * ld_dst], d);
+  vst1q_f16(&dst[4 * ld_dst], e);
+  vst1q_f16(&dst[5 * ld_dst], f);
+  vst1q_f16(&dst[6 * ld_dst], g);
+  vst1q_f16(&dst[7 * ld_dst], h);
+}
+
+// kernel for transposing mxn where m, n <= 8
+// M + (M + 1) / 2 * 2 + (M + 3) / 4 * 4 + 2 * N instructions
+template <unsigned M>
+static void transpose_kernel_mxn_neon_256(unsigned N, const __fp16 *src,
+                                          unsigned int ld_src, __fp16 *dst,
+                                          unsigned int ld_dst) {
+  // load from src to registers
+  uint16x8_t mask_v = vld1q_u16(
+    reinterpret_cast<const uint16_t *>(neon_ps_or_epi32_masks[N]));
+    /*
+    
+    GET STARTED FROM HERE!
+    NOTE THAT they consists of 256 bit registers!
+
+    maybe something like : 
+    float16x8_t input[8][2];  ???
+
+    */
+  __m256 input[8];
+  unsigned i;
+  for (i = 0; i < M; ++i) {
+    input[i] = _mm256_maskload_ps(&src[i * ld_src], mask_v);
+  }
+  for (; i < 8; ++i) {
+    // Not really needed but to avoid uninitialized variable warning.
+    // Shouldn't be much overhead because xor can be executed in parallel with
+    // other instructions.
+    input[i] = _mm256_setzero_ps();
+  }
+
+  // unpacking and interleaving 32-bit elements
+  __m256 temp[8];
+  for (i = 0; i < (M + 1) / 2; ++i) {
+    temp[2 * i] = _mm256_unpacklo_ps(input[2 * i], input[2 * i + 1]);
+    temp[2 * i + 1] = _mm256_unpackhi_ps(input[2 * i], input[2 * i + 1]);
+  }
+  for (i = i * 2; i < 8; ++i) {
+    temp[i] = _mm256_setzero_ps();
+  }
+
+  // shuffling the 32-bit elements
+  for (i = 0; i < (M + 3) / 4; ++i) {
+    input[4 * i] = _mm256_shuffle_ps(temp[4 * i], temp[4 * i + 2], 0x44);
+    input[4 * i + 1] = _mm256_shuffle_ps(temp[4 * i], temp[4 * i + 2], 0xee);
+    input[4 * i + 2] =
+      _mm256_shuffle_ps(temp[4 * i + 1], temp[4 * i + 3], 0x44);
+    input[4 * i + 3] =
+      _mm256_shuffle_ps(temp[4 * i + 1], temp[4 * i + 3], 0xee);
+  }
+
+  // shuffling 128-bit elements
+  // store from registers to dst
+  mask_v = _mm256_load_si256(
+    reinterpret_cast<const __m256i *>(neon_ps_or_epi32_masks[M]));
+  for (i = 0; i < N; ++i) {
+    if (i < 4) {
+      temp[i] = _mm256_permute2f128_ps(input[4 + i], input[i], 0x02);
+    } else {
+      temp[i] = _mm256_permute2f128_ps(input[i], input[i - 4], 0x13);
+    }
+    _mm256_maskstore_ps(&dst[i * ld_dst], mask_v, temp[i]);
+  }
+}
+
+#ifdef 0
 
 inline __m256i permute_row(__m256i row) {
   // clang-format off
@@ -272,7 +551,7 @@ inline __m256i permute_row(__m256i row) {
 }
 
 // template <>
-inline static void transpose_kernel_8x32_avx2(const uint8_t *src,
+inline static void transpose_kernel_8x32_neon(const uint8_t *src,
                                               unsigned int ld_src, uint8_t *dst,
                                               unsigned int ld_dst) {
   // load from src to registers
@@ -461,7 +740,7 @@ static inline void load_with_remainders_i16(const uint16_t *src,
   if (nrem < 16) {
     uint16_t local_buffer[16] = {0};
     __m256i mask_nrem_v = _mm256_load_si256(
-      reinterpret_cast<const __m256i *>(avx2_ps_or_epi32_masks[nrem / 2]));
+      reinterpret_cast<const __m256i *>(neon_ps_or_epi32_masks[nrem / 2]));
     unsigned half = nrem % 2;
     for (unsigned i = 0; i < mrem; ++i) {
       // mask load
@@ -490,7 +769,7 @@ static inline void store_with_remainders_i16(uint16_t *dst, unsigned int ld_dst,
   if (mrem < 8) {
     uint16_t local_buffer[8] = {0};
     __m256i mask_mrem_v = _mm256_load_si256(
-      reinterpret_cast<const __m256i *>(avx2_ps_or_epi32_masks[mrem / 2]));
+      reinterpret_cast<const __m256i *>(neon_ps_or_epi32_masks[mrem / 2]));
     unsigned half = mrem % 2;
     unsigned i = 0;
     for (; i < nrem; i += 1) {
@@ -528,7 +807,7 @@ static inline void store_with_remainders_i16(uint16_t *dst, unsigned int ld_dst,
 
 template <bool MREM = false, bool NREM = false>
 inline static void
-transpose_kernel_8x16_avx2(const uint16_t *src, unsigned int ld_src,
+transpose_kernel_8x16_neon(const uint16_t *src, unsigned int ld_src,
                            uint16_t *dst, unsigned int ld_dst,
                            unsigned mrem = 8, unsigned nrem = 16) {
   __m256i r[8];
@@ -693,13 +972,13 @@ transpose_kernel_8x16_avx2(const uint16_t *src, unsigned int ld_src,
 // kernel for transposing mxn where m, n <= 8
 // M + (M + 1) / 2 * 2 + (M + 3) / 4 * 4 + 2 * N instructions
 template <unsigned M>
-static void transpose_kernel_mxn_avx2_uint8(unsigned N, const uint8_t *src,
+static void transpose_kernel_mxn_neon_uint8(unsigned N, const uint8_t *src,
                                             unsigned int ld_src, uint8_t *dst,
                                             unsigned int ld_dst) {
   // load from src to registers
   // first load masks
   __m256i mask_v = _mm256_load_si256(
-    reinterpret_cast<const __m256i *>(avx2_ps_or_epi32_masks[N / 4]));
+    reinterpret_cast<const __m256i *>(neon_ps_or_epi32_masks[N / 4]));
 
   __m256i input[8] = {0};
   //   __m256i input[8];
@@ -762,7 +1041,7 @@ static void transpose_kernel_mxn_avx2_uint8(unsigned N, const uint8_t *src,
   // 192-255 bit:   a17 -- h17
   uint64_t t;
   mask_v = _mm256_load_si256(
-    reinterpret_cast<const __m256i *>(avx2_ps_or_epi32_masks[M / 4]));
+    reinterpret_cast<const __m256i *>(neon_ps_or_epi32_masks[M / 4]));
   for (i = 0; i < N; ++i) {
     if (i < 16) {
       if (i % 2 == 0)
@@ -786,3 +1065,4 @@ static void transpose_kernel_mxn_avx2_uint8(unsigned N, const uint8_t *src,
 }
 
 // #endif // __AVX2__
+#endif
