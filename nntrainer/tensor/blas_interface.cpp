@@ -17,6 +17,7 @@
 
 #if (defined USE__FP16 && defined USE_NEON)
 #include <blas_neon.h>
+#include <matrix_transpose_neon.h>
 #endif
 
 #if USE_AVX
@@ -524,6 +525,15 @@ void inv_sqrt_inplace(const unsigned int N, _FP16 *X) {
   for (unsigned int i = 0; i < N; ++i) {
     X[i] = static_cast<_FP16>(1 / std::sqrt(static_cast<float>(X[i])));
   }
+#endif
+}
+
+void transpose_simd(const unsigned int M, const unsigned int N, _FP16 *src,
+                    unsigned int ld_src, _FP16 *dst, unsigned int ld_dst) {
+#ifdef USE_NEON
+  transpose_neon<_FP16>(M, N, src, ld_src, dst, ld_dst);
+#else
+  throw std::invalid_argument("Error: enable-fp16 is not enabled");
 #endif
 }
 #endif
@@ -1092,8 +1102,10 @@ void transpose_simd(const unsigned int M, const unsigned int N, float *src,
 #ifdef USE_AVX
   transpose_avx2<float>(M, N, src, ld_src, dst, ld_dst);
 #else
-  throw std::invalid_argument("Error: enable-fp16 is not enabled");
+  throw std::invalid_argument("Error: enable-avx is not enabled");
 #endif
 }
+
+
 
 } // namespace nntrainer

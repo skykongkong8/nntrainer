@@ -194,7 +194,7 @@ void ele_add(const unsigned int N, const _FP16 *X, const _FP16 *Y, _FP16 *Z,
  * @param[in] i_stride input stride
  * @param[in] o_stride output stride
  */
-void ele_sub(const unsigned N, const _FP16 *X, const _FP16 *Y, _FP16 *Z,
+void ele_sub(const unsigned int N, const _FP16 *X, const _FP16 *Y, _FP16 *Z,
              float alpha = 1.f, float beta = 0.f, unsigned int i_stride = 1,
              unsigned int o_stride = 1);
 
@@ -211,7 +211,7 @@ void ele_sub(const unsigned N, const _FP16 *X, const _FP16 *Y, _FP16 *Z,
  * @param[in] i_stride input stride
  * @param[in] o_stride output stride
  */
-void ele_div(const unsigned N, const _FP16 *X, const _FP16 *Y, _FP16 *Z,
+void ele_div(const unsigned int N, const _FP16 *X, const _FP16 *Y, _FP16 *Z,
              float alpha = 1.f, float beta = 0.f, unsigned int i_stride = 1,
              unsigned int o_stride = 1);
 
@@ -229,6 +229,9 @@ unsigned int isamax(const unsigned int N, const _FP16 *X, const int incX);
  * @param X __fp16 * for Vector X
  */
 void inv_sqrt_inplace(const unsigned int N, _FP16 *X);
+
+void transpose_simd(const unsigned int M, const unsigned int N, _FP16 *src,
+                    unsigned int ld_src, _FP16 *dst, unsigned int ld_dst);
 #endif
 /**
  * @brief     sscal computation : X = alpha * X
@@ -458,7 +461,7 @@ void ele_add(const unsigned int N, const float *X, const float *Y, float *Z,
  * @param[in] i_stride input stride
  * @param[in] o_stride output stride
  */
-void ele_sub(const unsigned N, const float *X, const float *Y, float *Z,
+void ele_sub(const unsigned int N, const float *X, const float *Y, float *Z,
              float alpha = 1.f, float beta = 0.f, unsigned int i_stride = 1,
              unsigned int o_stride = 1);
 
@@ -475,7 +478,7 @@ void ele_sub(const unsigned N, const float *X, const float *Y, float *Z,
  * @param[in] i_stride input stride
  * @param[in] o_stride output stride
  */
-void ele_div(const unsigned N, const float *X, const float *Y, float *Z,
+void ele_div(const unsigned int N, const float *X, const float *Y, float *Z,
              float alpha = 1.f, float beta = 0.f, unsigned int i_stride = 1,
              unsigned int o_stride = 1);
 

@@ -49,8 +49,8 @@ static inline void transpose_kernel_4x4_sse(const float *src,
 
 // kernel for transpose mxn where m, n <= 4
 // M + (M + 1) / 2 * 2 + 2 * N instructions
-template <unsigned M>
-static void transpose_kernel_mxn_sse(unsigned N, const float *src,
+template <unsigned int M>
+static void transpose_kernel_mxn_sse(unsigned int N, const float *src,
                                      unsigned int ld_src, float *dst,
                                      unsigned int ld_dst) {
   // clang-format off
@@ -208,8 +208,8 @@ static inline void transpose_kernel_8x8_avx2(
 
 // kernel for transposing mxn where m, n <= 8
 // M + (M + 1) / 2 * 2 + (M + 3) / 4 * 4 + 2 * N instructions
-template <unsigned M>
-static void transpose_kernel_mxn_avx2(unsigned N, const float *src,
+template <unsigned int M>
+static void transpose_kernel_mxn_avx2(unsigned int N, const float *src,
                                       unsigned int ld_src, float *dst,
                                       unsigned int ld_dst) {
   // load from src to registers
@@ -692,8 +692,8 @@ transpose_kernel_8x16_avx2(const uint16_t *src, unsigned int ld_src,
 
 // kernel for transposing mxn where m, n <= 8
 // M + (M + 1) / 2 * 2 + (M + 3) / 4 * 4 + 2 * N instructions
-template <unsigned M>
-static void transpose_kernel_mxn_avx2_uint8(unsigned N, const uint8_t *src,
+template <unsigned int M>
+static void transpose_kernel_mxn_avx2_uint8(unsigned int N, const uint8_t *src,
                                             unsigned int ld_src, uint8_t *dst,
                                             unsigned int ld_dst) {
   // load from src to registers

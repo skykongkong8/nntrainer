@@ -149,6 +149,21 @@ private:
   size_t off;        /**< offset from the source data ptr */
 };
 
+Tensor &Tensor::transpose_matrix(Tensor &out) {
+  if (getDataType() == ml::train::TensorDim::DataType::FP32) {
+    transpose_simd(height(), width(), getData<float>(), width(),
+                   out.getData<float>(), out.width());
+  } else if (getDataType() == ml::train::TensorDim::DataType::FP16) {
+#ifdef ENABLE_FP16
+    transpose_simd(height(), width(), getData<_FP16>(), width(),
+                   out.getData<_FP16>(), out.width());
+#endif
+  }
+  else std::invalid_argument("No supported datatype!");
+  
+  return out;
+}
+
 void Tensor::allocate() {
   if (empty() || data)
     /// already allocated

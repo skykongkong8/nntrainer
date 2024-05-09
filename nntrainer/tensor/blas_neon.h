@@ -131,7 +131,7 @@ void ele_add(const unsigned int N, const float *X, const float *Y, float *Z,
  * @param[in] alpha scalar multiplier for input
  * @param[in] beta scalar multiplier for output
  */
-void ele_sub(const unsigned N, const float *X, const float *Y, float *Z,
+void ele_sub(const unsigned int N, const float *X, const float *Y, float *Z,
              float alpha = 1.f, float beta = 0.f);
 
 /**
@@ -145,7 +145,7 @@ void ele_sub(const unsigned N, const float *X, const float *Y, float *Z,
  * @param[in] alpha scalar multiplier for input
  * @param[in] beta scalar multiplier for output
  */
-void ele_div(const unsigned N, const float *X, const float *Y, float *Z,
+void ele_div(const unsigned int N, const float *X, const float *Y, float *Z,
              float alpha = 1.f, float beta = 0.f);
 
 #ifdef ENABLE_FP16
@@ -172,7 +172,7 @@ void hgemv(const __fp16 *A, const __fp16 *X, __fp16 *Y, uint32_t M, uint32_t N,
  * @param[in] alpha scalar multiplier for input
  * @param[in] beta scalar multiplier for output
  */
-void ele_mul(const unsigned N, const __fp16 *X, const __fp16 *Y, __fp16 *Z,
+void ele_mul(const unsigned int N, const __fp16 *X, const __fp16 *Y, __fp16 *Z,
              float alpha = 1.f, float beta = 0.f);
 /**
  * @brief     elementwise vector addition with neon : Z = X + alpha * Y + beta *
@@ -184,7 +184,7 @@ void ele_mul(const unsigned N, const __fp16 *X, const __fp16 *Y, __fp16 *Z,
  * @param[in] alpha scalar multiplier for input
  * @param[in] beta scalar multiplier for output
  */
-void ele_add(const unsigned N, const __fp16 *X, const __fp16 *Y, __fp16 *Z,
+void ele_add(const unsigned int N, const __fp16 *X, const __fp16 *Y, __fp16 *Z,
              float alpha = 1.f, float beta = 0.f);
 
 /**
@@ -197,7 +197,7 @@ void ele_add(const unsigned N, const __fp16 *X, const __fp16 *Y, __fp16 *Z,
  * @param[in] alpha scalar multiplier for input
  * @param[in] beta scalar multiplier for output
  */
-void ele_sub(const unsigned N, const __fp16 *X, const __fp16 *Y, __fp16 *Z,
+void ele_sub(const unsigned int N, const __fp16 *X, const __fp16 *Y, __fp16 *Z,
              float alpha = 1.f, float beta = 0.f);
 
 /**
@@ -211,7 +211,7 @@ void ele_sub(const unsigned N, const __fp16 *X, const __fp16 *Y, __fp16 *Z,
  * @param[in] alpha scalar multiplier for input
  * @param[in] beta scalar multiplier for output
  */
-void ele_div(const unsigned N, const __fp16 *X, const __fp16 *Y, __fp16 *Z,
+void ele_div(const unsigned int N, const __fp16 *X, const __fp16 *Y, __fp16 *Z,
              float alpha = 1.f, float beta = 0.f);
 
 /**

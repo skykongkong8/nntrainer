@@ -1087,11 +1087,7 @@ public:
    */
   Tensor &transpose(const std::string &direction, Tensor &out) const;
 
-  Tensor &transpose_matrix(Tensor &out) {
-    transpose_simd(height(), width(), getData<float>(), width(),
-                   out.getData<float>(), out.width());
-    return out;
-  }
+  Tensor &transpose_matrix(Tensor &out);
 
   /**
    * @brief Calculate Drop Out Mask : x * 1.0/(1.0-rate)

@@ -492,7 +492,7 @@ void ele_add(const unsigned int N, const float *X, const float *Y, float *Z,
   }
 }
 
-void ele_sub(const unsigned N, const float *X, const float *Y, float *Z,
+void ele_sub(const unsigned int N, const float *X, const float *Y, float *Z,
              float alpha, float beta) {
   unsigned int i = 0;
   float32x4_t alpha_vec = vdupq_n_f32(alpha);
@@ -519,7 +519,7 @@ void ele_sub(const unsigned N, const float *X, const float *Y, float *Z,
   }
 }
 
-void ele_div(const unsigned N, const float *X, const float *Y, float *Z,
+void ele_div(const unsigned int N, const float *X, const float *Y, float *Z,
              float alpha, float beta) {
   unsigned int i = 0;
   float32x4_t alpha_vec = vdupq_n_f32(alpha);

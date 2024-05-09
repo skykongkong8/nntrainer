@@ -26,6 +26,20 @@ alignas(64) static const int neon_ps_or_epi32_masks[9][8] = {
   { -1, -1, -1, -1, -1, -1, -1, -1,  },
 };
 
+alignas(64) static const int16_t neon_16bit_masks[9][8] = {
+  // NOTE: clang-format wants to use a different formatting but the current
+  // formatting should be easier to read.
+  {  0,  0,  0,  0,  0,  0,  0,  0,  },
+  { -1,  0,  0,  0,  0,  0,  0,  0,  },
+  { -1, -1,  0,  0,  0,  0,  0,  0,  },
+  { -1, -1, -1,  0,  0,  0,  0,  0,  },
+  { -1, -1, -1, -1,  0,  0,  0,  0,  },
+  { -1, -1, -1, -1, -1,  0,  0,  0,  },
+  { -1, -1, -1, -1, -1, -1,  0,  0,  },
+  { -1, -1, -1, -1, -1, -1, -1,  0,  },
+  { -1, -1, -1, -1, -1, -1, -1, -1,  },
+};
+
 // mask can be accessed by neon_ps_or_epi32_combined_mask[(8 - remainder) % 8]
 static const int neon_ps_or_epi32_combined_mask[16] = {
   -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -53,7 +67,7 @@ alignas(64) static const std::int8_t sse_epi8_masks[17][16] = {
   { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, },
 };
 
-static const int16_t shuffle_masks[8] = {
+alignas(8) static const int16_t shuffle_masks[8] = {
     -1, -1, 0, 0, -1, -1,  0,  0, 
 };
 // clang-format on

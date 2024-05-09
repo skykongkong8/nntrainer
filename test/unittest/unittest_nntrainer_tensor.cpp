@@ -4845,6 +4845,51 @@ TEST(nntrainer_Tensor, transpose_prime) {
   }
 }
 
+TEST(nntrainer_Tensor, transpose_prime2) {
+  /// @note GEMM : A X B = C
+  int batch = 1;
+  int channel = 1;
+  int height = 311;
+  int width = 821;
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
+
+  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
+  nntrainer::Tensor B_fp32(batch, channel, width, height, t_type_nchw_fp32);
+  nntrainer::Tensor C_fp32(batch, channel, width + 1, height + 1, t_type_nchw_fp32);
+
+  const float alpha = 1e-1;
+  const int MOD = 10;
+
+  GEN_TEST_INPUT(A_fp32, ((i * (width * height * channel) +
+                           j * (width * height) + k * (width) + l + 1) %
+                          MOD) *
+                           alpha);
+
+  auto t1 = high_resolution_clock::now();
+  nntrainer::Tensor C = A_fp32.transpose_matrix(B_fp32);
+  auto t2 = high_resolution_clock::now();
+  auto dt = duration_cast<nanoseconds>(t2 - t1);
+  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  t1 = high_resolution_clock::now();
+  C_fp32 = A_fp32.transpose("0:2:1", C_fp32);
+  t2 = high_resolution_clock::now();
+  dt = duration_cast<nanoseconds>(t2 - t1);
+  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+
+  for (int b = 0; b < batch; b++) {
+    for (int c = 0; c < channel; c++) {
+      for (int h = 0; h < width; h++) {
+        for (int w = 0; w < height; w++) {
+          EXPECT_EQ(C.getValue(b, c, h, w), C_fp32.getValue(b, c, h, w));
+        }
+      }
+    }
+  }
+}
+
+
 TEST(nntrainer_Tensor, transpose_small) {
   /// @note GEMM : A X B = C
   int batch = 1;
