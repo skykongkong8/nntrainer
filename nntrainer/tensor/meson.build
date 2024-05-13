@@ -62,6 +62,10 @@ if get_option('enable-fp16')
   elif get_option('enable-avx')
     tensor_sources += 'blas_avx.cpp'
     tensor_headers += 'blas_avx.h'
+
+    subdir('matrix_transpose_avx')
+    nntrainer_inc += include_directories('matrix_transpose_avx')
+    nntrainer_inc_abs += meson.current_source_dir() / 'matrix_transpose_avx'
   endif
 endif
 

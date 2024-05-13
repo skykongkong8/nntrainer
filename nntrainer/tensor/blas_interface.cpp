@@ -22,6 +22,7 @@
 
 #if USE_AVX
 #include <blas_avx.h>
+#include <matrix_transpose_avx.h>
 #endif
 
 #include <cmath>
@@ -551,6 +552,8 @@ void transpose_matrix(const unsigned int M, const unsigned int N,
                       unsigned int ld_dst) {
 #ifdef USE_NEON
   transpose_neon<_FP16>(M, N, src, ld_src, dst, ld_dst);
+#elif USE_AVX
+  transpose_avx2<uint16_t>(M, N, (uint16_t*)src, ld_src, (uint16_t*)dst, ld_dst);
 #else
   transpose_fallback<_FP16>(M, N, src, ld_src, dst, ld_dst);
 #endif
