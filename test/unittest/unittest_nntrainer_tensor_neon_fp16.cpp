@@ -921,16 +921,76 @@ TEST(nntrainer_Tensor, transpose_768) {
                            j * (width * height) + k * (width) + l + 1) %
                           MOD) *
                            alpha + (i * j * k) % 65500);
+
+  const int TC = 20;
+  nntrainer::Tensor C;
   auto t1 = high_resolution_clock::now();
-  nntrainer::Tensor C = A_fp32.transpose_matrix(B_fp32);
+  for (int i = 0; i < TC; ++i){
+  C = A_fp32.transpose_matrix(B_fp32);
+  }
   auto t2 = high_resolution_clock::now();
   auto dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  std::cout << "function_to_assess : " << dt.count() / TC<< " ns " << std::endl;
   t1 = high_resolution_clock::now();
+  for (int i = 0; i < TC; ++i){
   C_fp32 = A_fp32.transpose("0:2:1", C_fp32);
+  }
   t2 = high_resolution_clock::now();
   dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  std::cout << "function_to_assess : " << dt.count() / TC << " ns " << std::endl;
+
+  for (int b = 0; b < batch; b++) {
+    for (int c = 0; c < channel; c++) {
+      for (int h = 0; h < width; h++) {
+        for (int w = 0; w < height; w++) {
+          EXPECT_EQ(C.getValue<__fp16>(b, c, h, w), C_fp32.getValue<__fp16>(b, c, h, w));
+        }
+      }
+    }
+  }
+}
+
+TEST(nntrainer_Tensor, transpose_1440) {
+  /// @note GEMM : A X B = C
+  int batch = 1;
+  int channel = 1;
+  int height = 1440;
+  int width = 1440;
+
+  int height_b = 1440;
+  int width_b = 1440;
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
+
+  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
+  nntrainer::Tensor B_fp32(batch, channel, width, height, t_type_nchw_fp32);
+  nntrainer::Tensor C_fp32(batch, channel, width, height, t_type_nchw_fp32);
+
+  const float alpha = 1e-1;
+  const int MOD = 10;
+
+  GEN_TEST_INPUT(A_fp32, ((i * (width * height * channel) +
+                           j * (width * height) + k * (width) + l + 1) %
+                          MOD) *
+                           alpha + (i * j * k) % 65500);
+
+  const int TC = 20;
+  nntrainer::Tensor C;
+  auto t1 = high_resolution_clock::now();
+  for (int i = 0; i < TC; ++i){
+  C = A_fp32.transpose_matrix(B_fp32);
+  }
+  auto t2 = high_resolution_clock::now();
+  auto dt = duration_cast<nanoseconds>(t2 - t1);
+  std::cout << "function_to_assess : " << dt.count() / TC<< " ns " << std::endl;
+  t1 = high_resolution_clock::now();
+  for (int i = 0; i < TC; ++i){
+  C_fp32 = A_fp32.transpose("0:2:1", C_fp32);
+  }
+  t2 = high_resolution_clock::now();
+  dt = duration_cast<nanoseconds>(t2 - t1);
+  std::cout << "function_to_assess : " << dt.count() / TC << " ns " << std::endl;
 
   for (int b = 0; b < batch; b++) {
     for (int c = 0; c < channel; c++) {
@@ -964,16 +1024,22 @@ TEST(nntrainer_Tensor, transpose_unbalanced) {
                            j * (width * height) + k * (width) + l + 1) %
                           MOD) *
                            alpha);
+   const int TC = 20;
+  nntrainer::Tensor C;
   auto t1 = high_resolution_clock::now();
-  nntrainer::Tensor C = A_fp32.transpose_matrix(B_fp32);
+  for (int i = 0; i < TC; ++i){
+  C = A_fp32.transpose_matrix(B_fp32);
+  }
   auto t2 = high_resolution_clock::now();
   auto dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  std::cout << "function_to_assess : " << dt.count() / TC<< " ns " << std::endl;
   t1 = high_resolution_clock::now();
+  for (int i = 0; i < TC; ++i){
   C_fp32 = A_fp32.transpose("0:2:1", C_fp32);
+  }
   t2 = high_resolution_clock::now();
   dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  std::cout << "function_to_assess : " << dt.count() / TC << " ns " << std::endl;
 
   for (int b = 0; b < batch; b++) {
     for (int c = 0; c < channel; c++) {
@@ -1008,16 +1074,22 @@ TEST(nntrainer_Tensor, transpose_prime) {
                           MOD) *
                            alpha);
 
+   const int TC = 20;
+  nntrainer::Tensor C;
   auto t1 = high_resolution_clock::now();
-  nntrainer::Tensor C = A_fp32.transpose_matrix(B_fp32);
+  for (int i = 0; i < TC; ++i){
+  C = A_fp32.transpose_matrix(B_fp32);
+  }
   auto t2 = high_resolution_clock::now();
   auto dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  std::cout << "function_to_assess : " << dt.count() / TC<< " ns " << std::endl;
   t1 = high_resolution_clock::now();
+  for (int i = 0; i < TC; ++i){
   C_fp32 = A_fp32.transpose("0:2:1", C_fp32);
+  }
   t2 = high_resolution_clock::now();
   dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  std::cout << "function_to_assess : " << dt.count() / TC << " ns " << std::endl;
 
   for (int b = 0; b < batch; b++) {
     for (int c = 0; c < channel; c++) {
@@ -1053,17 +1125,23 @@ TEST(nntrainer_Tensor, transpose_prime2) {
                           MOD) *
                            alpha);
 
+    const int TC = 20;
   auto t1 = high_resolution_clock::now();
+  for (int i = 0; i < TC; ++i){
   C = A_fp32.transpose_matrix(B_fp32);
+  }
   auto t2 = high_resolution_clock::now();
   auto dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  std::cout << "function_to_assess : " << dt.count() / TC<< " ns " << std::endl;
   t1 = high_resolution_clock::now();
+  for (int i = 0; i < TC; ++i){
   C_fp32 = A_fp32.transpose("0:2:1", C_fp32);
+  }
   t2 = high_resolution_clock::now();
   dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
-  bool flag = true;
+  std::cout << "function_to_assess : " << dt.count() / TC << " ns " << std::endl;
+
+    bool flag = true;
 
   for (int b = 0; b < batch; b++) {
     for (int c = 0; c < channel; c++) {
@@ -1080,39 +1158,7 @@ TEST(nntrainer_Tensor, transpose_prime2) {
     }
   }
   EXPECT_TRUE(flag);
-// std::cout << "a_fp32\n";
-//     for (int b = 0; b < batch; b++) {
-//     for (int c = 0; c < channel; c++) {
-//       for (int h = 0; h < height; h++) {
-//         for (int w = 0; w < width; w++) {
-//           std::cout << A_fp32.getValue<__fp16>(b, c, h, w) << "\t";
-//         }
-//         std::cout << std::endl;
-//       }
-//     }
-//   }
-// std::cout << "c\n";
-//   for (int b = 0; b < batch; b++) {
-//     for (int c = 0; c < channel; c++) {
-//       for (int h = 0; h < width; h++) {
-//         for (int w = 0; w < height; w++) {
-//           std::cout << C.getValue<__fp16>(b, c, h, w) << "\t";
-//         }
-//         std::cout << std::endl;
-//       }
-//     }
-//   }
-// std::cout << "c_fp32\n";
-//     for (int b = 0; b < batch; b++) {
-//     for (int c = 0; c < channel; c++) {
-//       for (int h = 0; h < width; h++) {
-//         for (int w = 0; w < height; w++) {
-//           std::cout << C_fp32.getValue<__fp16>(b, c, h, w) << "\t";
-//         }
-//         std::cout << std::endl;
-//       }
-//     }
-//   }
+
 
 }
 
@@ -1139,16 +1185,22 @@ TEST(nntrainer_Tensor, transpose_prime3) {
                           MOD) *
                            alpha);
 
+  const int TC = 20;
   auto t1 = high_resolution_clock::now();
+  for (int i = 0; i < TC; ++i){
   C = A_fp32.transpose_matrix(B_fp32);
+  }
   auto t2 = high_resolution_clock::now();
   auto dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  std::cout << "function_to_assess : " << dt.count() / TC<< " ns " << std::endl;
   t1 = high_resolution_clock::now();
+  for (int i = 0; i < TC; ++i){
   C_fp32 = A_fp32.transpose("0:2:1", C_fp32);
+  }
   t2 = high_resolution_clock::now();
   dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  std::cout << "function_to_assess : " << dt.count() / TC << " ns " << std::endl;
+
   bool flag = true;
 
   for (int b = 0; b < batch; b++) {
@@ -1192,16 +1244,22 @@ TEST(nntrainer_Tensor, transpose_ptts1) {
                           MOD) *
                            alpha + i + j + k);
 
+  const int TC = 20;
+  nntrainer::Tensor C;
   auto t1 = high_resolution_clock::now();
-  nntrainer::Tensor C = A_fp32.transpose_matrix(B_fp32);
+  for (int i = 0; i < TC; ++i){
+  C = A_fp32.transpose_matrix(B_fp32);
+  }
   auto t2 = high_resolution_clock::now();
   auto dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  std::cout << "function_to_assess : " << dt.count() / TC<< " ns " << std::endl;
   t1 = high_resolution_clock::now();
+  for (int i = 0; i < TC; ++i){
   C_fp32 = A_fp32.transpose("0:2:1", C_fp32);
+  }
   t2 = high_resolution_clock::now();
   dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  std::cout << "function_to_assess : " << dt.count() / TC << " ns " << std::endl;
 
   // C.print(std::cout);
   // C_fp32.print(std::cout);
@@ -1239,16 +1297,22 @@ TEST(nntrainer_Tensor, transpose_ptts2) {
                           MOD) *
                            alpha + i + j + k);
 
+  const int TC = 20;
+  nntrainer::Tensor C;
   auto t1 = high_resolution_clock::now();
-  nntrainer::Tensor C = A_fp32.transpose_matrix(B_fp32);
+  for (int i = 0; i < TC; ++i){
+  C = A_fp32.transpose_matrix(B_fp32);
+  }
   auto t2 = high_resolution_clock::now();
   auto dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  std::cout << "function_to_assess : " << dt.count() / TC<< " ns " << std::endl;
   t1 = high_resolution_clock::now();
+  for (int i = 0; i < TC; ++i){
   C_fp32 = A_fp32.transpose("0:2:1", C_fp32);
+  }
   t2 = high_resolution_clock::now();
   dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  std::cout << "function_to_assess : " << dt.count() / TC << " ns " << std::endl;
 
   // C.print(std::cout);
   // C_fp32.print(std::cout);
@@ -1286,16 +1350,22 @@ TEST(nntrainer_Tensor, transpose_ptts3) {
                           MOD) *
                            alpha + i + j + k);
 
+  const int TC = 20;
+  nntrainer::Tensor C;
   auto t1 = high_resolution_clock::now();
-  nntrainer::Tensor C = A_fp32.transpose_matrix(B_fp32);
+  for (int i = 0; i < TC; ++i){
+  C = A_fp32.transpose_matrix(B_fp32);
+  }
   auto t2 = high_resolution_clock::now();
   auto dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  std::cout << "function_to_assess : " << dt.count() / TC<< " ns " << std::endl;
   t1 = high_resolution_clock::now();
+  for (int i = 0; i < TC; ++i){
   C_fp32 = A_fp32.transpose("0:2:1", C_fp32);
+  }
   t2 = high_resolution_clock::now();
   dt = duration_cast<nanoseconds>(t2 - t1);
-  std::cout << "function_to_assess : " << dt.count() << " ns " << std::endl;
+  std::cout << "function_to_assess : " << dt.count() / TC << " ns " << std::endl;
 
   // C.print(std::cout);
   // C_fp32.print(std::cout);

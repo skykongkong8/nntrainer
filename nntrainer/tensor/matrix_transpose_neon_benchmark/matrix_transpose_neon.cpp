@@ -182,18 +182,12 @@ void transpose_neon(
     unsigned int ld_dst) {
   unsigned int ib = 0, jb = 0;
   if (N % 8 > 0 && N % 8 < 4) {
-    // If the remainder has n < 4 columns, we use the SSE kernel for the
-    // remainder because it requires 2 * (2 * 4 + 2 * N) = 16 + 4N instructions
-    // instead of 3 * 8 + 2 * N = 24 + 2N instructions in the masked AVX2
-    // kernel.
     for (ib = 0; ib + 8 <= M; ib += 8) {
       for (jb = 0; jb + 8 <= N; jb += 8) {
-        // std::cout << "if : transpose_kernel_8x8_neon\n";
         transpose_kernel_8x8_neon(
             &src[ib * ld_src + jb], ld_src, &dst[ib + jb * ld_dst], ld_dst);
       }
       for (unsigned int i = ib; i < ib + 8; i += 4) {
-        std::cout << "if : transpose_kernel_mxn_neon_128<4>\n";
         transpose_kernel_mxn_neon_128<4>(
             N - jb,
             &src[i * ld_src + jb],
@@ -203,17 +197,12 @@ void transpose_neon(
       }
     }
   } else if (N % 8 == 4) {
-    // If the remainder has 4 columns, we use the SSE kernel for the remainder
-    // because it requires 2 * 16 = 32 instructions instead of 3 * 8 + 2 * 4 =
-    // 32 instructions + looping overhead needed in the masked AVX2 kernel.
     for (ib = 0; ib + 8 <= M; ib += 8) {
       for (jb = 0; jb + 8 <= N; jb += 8) {
-        // std::cout << "else if == 4: transpose_kernel_8x8_neon\n";
         transpose_kernel_8x8_neon(
             &src[ib * ld_src + jb], ld_src, &dst[ib + jb * ld_dst], ld_dst);
       }
       for (unsigned int i = ib; i < ib + 8; i += 4) {
-        std::cout << "else if == 4: transpose_kernel_4x4_neon\n";
         transpose_kernel_4x4_neon(
             &src[i * ld_src + jb], ld_src, &dst[i + jb * ld_dst], ld_dst);
       }
@@ -221,13 +210,10 @@ void transpose_neon(
   } else {
     for (ib = 0; ib + 8 <= M; ib += 8) {
       for (jb = 0; jb + 8 <= N; jb += 8) {
-        // std::cout << "else : transpose_kernel_8x8_neon\n";
         transpose_kernel_8x8_neon(
             &src[ib * ld_src + jb], ld_src, &dst[ib + jb * ld_dst], ld_dst);
       }
-      // std::cout << "jb : " << jb << std::endl;
       if (jb < N) {
-        // std::cout << "transpose_kernel_mxn_neon_256<8>\n";
         transpose_kernel_mxn_neon_256<8>(
             N - jb,
             &src[ib * ld_src + jb],
@@ -238,13 +224,6 @@ void transpose_neon(
     }
   }
 
-  // Specialization for small M - ib cases so that the compiler can inline
-  // transpose_kernel_mxn_neon and unroll the loops whose iteration count
-  // depends on by M - ib .
-  // Specialization for m helps more than for n in transpose_kernel_mxn_neon
-  // because we have more loops in that function whose iteration count depends
-  // on m.
-  // std::cout << "ib : " << ib << std::endl;
   switch (M - ib) {
     case 1:
       for (unsigned int j = 0; j < N; ++j) {
@@ -294,7 +273,6 @@ void transpose_neon(
       }
       break;
     case 5:
-        std::cout << "transpose_kernel_mxn_neon_256<5>\n";
       for (jb = 0; jb + 8 <= N; jb += 8) {
         transpose_kernel_mxn_neon_256<5>(
             8, &src[ib * ld_src + jb], ld_src, &dst[ib + jb * ld_dst], ld_dst);
@@ -309,7 +287,6 @@ void transpose_neon(
       }
       break;
     case 6:
-        std::cout << "transpose_kernel_mxn_neon_256<6>\n";
       for (jb = 0; jb + 8 <= N; jb += 8) {
         transpose_kernel_mxn_neon_256<6>(
             8, &src[ib * ld_src + jb], ld_src, &dst[ib + jb * ld_dst], ld_dst);
@@ -324,7 +301,6 @@ void transpose_neon(
       }
       break;
     case 7:
-        std::cout << "transpose_kernel_mxn_neon_256<7>\n";
       for (jb = 0; jb + 8 <= N; jb += 8) {
         transpose_kernel_mxn_neon_256<7>(
             8, &src[ib * ld_src + jb], ld_src, &dst[ib + jb * ld_dst], ld_dst);

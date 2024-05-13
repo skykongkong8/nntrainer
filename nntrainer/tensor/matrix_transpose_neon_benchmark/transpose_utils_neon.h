@@ -388,7 +388,8 @@ static void transpose_kernel_mxn_neon_128(unsigned int N, const __fp16 *src,
         vcvt_f16_f32(vcombine_f32(vget_high_f32(vcvt_f32_f16(temp[i / 2])),
                                   vget_high_f32(vcvt_f32_f16(temp[2 + i / 2]))));
     }
-    vst1_f16(&dst[i * ld_dst], vbsl_f16(mask_v, input[i], ZEROS));
+    vst1_f16(&dst[i * ld_dst], vbsl_f16(mask_v, input[i], vld1_f16(&dst[i * ld_dst])));
+    // vst1_f16(&dst[i * ld_dst], vbsl_f16(mask_v, input[i], ZEROS));
   }
 
 }
@@ -582,7 +583,8 @@ static void transpose_kernel_mxn_neon_256(unsigned int N, const __fp16 *src,
       temp[i] = vcombine_f16(vget_high_f16(input[i - 4]), vget_high_f16(input[i])); 
     // print8(temp[i], 0);
     }
-    vst1q_f16(&dst[i * ld_dst], vbslq_f16(mask_v, temp[i], ZEROS));
+    vst1q_f16(&dst[i * ld_dst], vbslq_f16(mask_v, temp[i], vld1q_f16(&dst[i * ld_dst])));
+    // vst1q_f16(&dst[i * ld_dst], vbslq_f16(mask_v, temp[i], ZEROS));
 
     // print8(vbslq_f16(mask_v, temp[i], ZEROS), i);
   }
