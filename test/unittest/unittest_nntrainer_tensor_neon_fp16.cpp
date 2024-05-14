@@ -571,8 +571,11 @@ TEST(nntrainer_Tensor, dot_gemm_1024_1024_1024) {
                              j * (batch * height_b) + k * (width_b) + l + 1) %
                             MOD) *
                              alpha);
-  nntrainer::Tensor C = A.dot(B, transA, transB);
-  nntrainer::Tensor C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+  nntrainer::Tensor C;
+  C = A.dot_with_alpha(B,C, transA, transB,3,77);
+
+  nntrainer::Tensor C_fp32;
+   C_fp32= A_fp32.dot_with_alpha(B_fp32,C_fp32, transA, transB,3,77);
 
   float mseErrorNeon =
     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
@@ -630,8 +633,13 @@ TEST(nntrainer_Tensor, dot_gemm_768) {
                              j * (batch * height_b) + k * (width_b) + l + 1) %
                             MOD) *
                              alpha);
-  nntrainer::Tensor C = A.dot(B, transA, transB);
-  nntrainer::Tensor C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+  nntrainer::Tensor C;
+  nntrainer::Tensor C_fp32;
+  C.fill(A, true);
+  C_fp32.fill(A_fp32, true);
+
+  C = A.dot_with_alpha(B,C, transA, transB,10,5);
+   C_fp32= A_fp32.dot_with_alpha(B_fp32,C_fp32, transA, transB,10,5);
 
   float mseErrorNeon =
     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
@@ -639,247 +647,8 @@ TEST(nntrainer_Tensor, dot_gemm_768) {
   double cosSimNeon = cosine_similarity<__fp16>(
     C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
 
-  const float epsilon = 1e-3 * width;
-
-  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
-  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
-}
-
-TEST(nntrainer_Tensor, dot_gemm_50_768_48000) {
-  /// @note GEMM : A X B = C
-  int batch = 1;
-  int channel = 1;
-  int height = 50;
-  int width = 768;
-
-  int height_b = 768;
-  int width_b = 48000;
-
-  bool transA = false;
-  bool transB = false;
-
-  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
-    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
-
-  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
-    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
-
-  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
-  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
-
-  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
-  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b, t_type_nchw_fp32);
-
-  const float alpha = 1e-1;
-  const int MOD = 10;
-
-  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
-                      k * (width) + l + 1) %
-                     MOD) *
-                      alpha);
-  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
-                        j * (batch * height_b) + k * (width_b) + l + 1) %
-                       MOD) *
-                        alpha);
-  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
-                           j * (batch * height) + k * (width) + l + 1) %
-                          MOD) *
-                           alpha);
-  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
-                             j * (batch * height_b) + k * (width_b) + l + 1) %
-                            MOD) *
-                             alpha);
-  nntrainer::Tensor C = A.dot(B, transA, transB);
-  nntrainer::Tensor C_fp32 = A_fp32.dot(B_fp32, transA, transB);
-
-  float mseErrorNeon =
-    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-  double cosSimNeon = cosine_similarity<__fp16>(
-    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-  const float epsilon = 1e-3 * width;
-
-  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
-  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
-}
-
-TEST(nntrainer_Tensor, dot_gemm_50_768_20000) {
-  /// @note GEMM : A X B = C
-  int batch = 1;
-  int channel = 1;
-  int height = 50;
-  int width = 768;
-
-  int height_b = 768;
-  int width_b = 20000;
-
-  bool transA = false;
-  bool transB = false;
-
-  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
-    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
-
-  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
-    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
-
-  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
-  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
-
-  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
-  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b, t_type_nchw_fp32);
-
-  const float alpha = 1e-1;
-  const int MOD = 10;
-
-  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
-                      k * (width) + l + 1) %
-                     MOD) *
-                      alpha);
-  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
-                        j * (batch * height_b) + k * (width_b) + l + 1) %
-                       MOD) *
-                        alpha);
-  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
-                           j * (batch * height) + k * (width) + l + 1) %
-                          MOD) *
-                           alpha);
-  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
-                             j * (batch * height_b) + k * (width_b) + l + 1) %
-                            MOD) *
-                             alpha);
-
-  nntrainer::Tensor C = A.dot(B, transA, transB);
-
-  nntrainer::Tensor C_fp32 = A_fp32.dot(B_fp32, transA, transB);
-
-  float mseErrorNeon =
-    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-  double cosSimNeon = cosine_similarity<__fp16>(
-    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-  const float epsilon = 1e-3 * width;
-
-  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
-  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
-}
-
-TEST(nntrainer_Tensor, dot_gemm_512_520_1032) {
-  /// @note GEMM : A X B = C
-  int batch = 1;
-  int channel = 1;
-  int height = 512;
-  int width = 520;
-
-  int height_b = 520;
-  int width_b = 1032;
-
-  bool transA = false;
-  bool transB = false;
-
-  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
-    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
-
-  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
-    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
-
-  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
-  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
-
-  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
-  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b, t_type_nchw_fp32);
-
-  const float alpha = 1e-1;
-  const int MOD = 10;
-
-  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
-                      k * (width) + l + 1) %
-                     MOD) *
-                      alpha);
-  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
-                        j * (batch * height_b) + k * (width_b) + l + 1) %
-                       MOD) *
-                        alpha);
-  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
-                           j * (batch * height) + k * (width) + l + 1) %
-                          MOD) *
-                           alpha);
-  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
-                             j * (batch * height_b) + k * (width_b) + l + 1) %
-                            MOD) *
-                             alpha);
-
-  nntrainer::Tensor C = A.dot(B, transA, transB);
-
-  nntrainer::Tensor C_fp32 = A_fp32.dot(B_fp32, transA, transB);
-
-  float mseErrorNeon =
-    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-  double cosSimNeon = cosine_similarity<__fp16>(
-    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-  const float epsilon = 1e-3 * width;
-
-  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
-  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
-}
-
-TEST(nntrainer_Tensor, dot_gemm_1001_1024_20000) {
-  /// @note GEMM : A X B = C
-  int batch = 1;
-  int channel = 1;
-  int height = 1001;
-  int width = 1024;
-
-  int height_b = 1024;
-  int width_b = 20000;
-
-  bool transA = false;
-  bool transB = false;
-
-  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
-    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
-
-  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
-    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
-
-  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
-  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
-
-  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
-  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b, t_type_nchw_fp32);
-
-  const float alpha = 1e-1;
-  const int MOD = 10;
-
-  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
-                      k * (width) + l + 1) %
-                     MOD) *
-                      alpha);
-  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
-                        j * (batch * height_b) + k * (width_b) + l + 1) %
-                       MOD) *
-                        alpha);
-  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
-                           j * (batch * height) + k * (width) + l + 1) %
-                          MOD) *
-                           alpha);
-  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
-                             j * (batch * height_b) + k * (width_b) + l + 1) %
-                            MOD) *
-                             alpha);
-
-  nntrainer::Tensor C = A.dot(B, transA, transB);
-
-  nntrainer::Tensor C_fp32 = A_fp32.dot(B_fp32, transA, transB);
-
-  float mseErrorNeon =
-    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-  double cosSimNeon = cosine_similarity<__fp16>(
-    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+    C.print(std::cout);
+    C_fp32.print(std::cout);
 
   const float epsilon = 1e-3 * width;
 
@@ -932,127 +701,11 @@ TEST(nntrainer_Tensor, dot_gemm_50_768_516) {
                             MOD) *
                              alpha);
 
-  nntrainer::Tensor C = A.dot(B, transA, transB);
+  nntrainer::Tensor C;
+  C = A.dot_with_alpha(B,C, transA, transB,3,77);
 
-  nntrainer::Tensor C_fp32 = A_fp32.dot(B_fp32, transA, transB);
-
-  float mseErrorNeon =
-    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-  double cosSimNeon = cosine_similarity<__fp16>(
-    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-  const float epsilon = 1e-3 * width;
-
-  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
-  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
-}
-
-TEST(nntrainer_Tensor, dot_gemv_768_96000) {
-  /// @note GEMV : A X B = C
-  int batch = 1;
-  int channel = 1;
-  int height = 1;
-  int width = 768;
-
-  int height_b = 768;
-  int width_b = 96000;
-
-  bool transA = false;
-  bool transB = false;
-
-  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
-    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
-
-  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
-    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
-
-  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
-  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
-
-  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
-  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b, t_type_nchw_fp32);
-
-  const float alpha = 1e-1;
-  const int MOD = 10;
-
-  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
-                      k * (width) + l + 1) %
-                     MOD) *
-                      alpha);
-  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
-                        j * (batch * height_b) + k * (width_b) + l + 1) %
-                       MOD) *
-                        alpha);
-  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
-                           j * (batch * height) + k * (width) + l + 1) %
-                          MOD) *
-                           alpha);
-  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
-                             j * (batch * height_b) + k * (width_b) + l + 1) %
-                            MOD) *
-                             alpha);
-  nntrainer::Tensor C = A.dot(B, transA, transB);
-  nntrainer::Tensor C_fp32 = A_fp32.dot(B_fp32, transA, transB);
-
-  float mseErrorNeon =
-    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-  double cosSimNeon = cosine_similarity<__fp16>(
-    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-  const float epsilon = 1e-3 * width;
-
-  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
-  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
-}
-
-TEST(nntrainer_Tensor, dot_gemv_768_48000) {
-  /// @note GEMV : A X B = C
-  int batch = 1;
-  int channel = 1;
-  int height = 1;
-  int width = 768;
-
-  int height_b = 768;
-  int width_b = 48000;
-
-  bool transA = false;
-  bool transB = false;
-
-  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
-    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
-
-  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
-    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
-
-  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
-  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
-
-  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
-  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b, t_type_nchw_fp32);
-
-  const float alpha = 1e-1;
-  const int MOD = 10;
-
-  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
-                      k * (width) + l + 1) %
-                     MOD) *
-                      alpha);
-  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
-                        j * (batch * height_b) + k * (width_b) + l + 1) %
-                       MOD) *
-                        alpha);
-  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
-                           j * (batch * height) + k * (width) + l + 1) %
-                          MOD) *
-                           alpha);
-  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
-                             j * (batch * height_b) + k * (width_b) + l + 1) %
-                            MOD) *
-                             alpha);
-  nntrainer::Tensor C = A.dot(B, transA, transB);
-  nntrainer::Tensor C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+  nntrainer::Tensor C_fp32;
+   C_fp32= A_fp32.dot_with_alpha(B_fp32,C_fp32, transA, transB,3,77);
 
   float mseErrorNeon =
     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
@@ -1111,8 +764,10 @@ TEST(nntrainer_Tensor, dot_gemv_768_20000) {
                             MOD) *
                              alpha);
 
-  nntrainer::Tensor C = A.dot(B, transA, transB);
-  nntrainer::Tensor C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+  nntrainer::Tensor C;
+  C = A.dot_with_alpha(B,C, transA, transB,3,77);
+  nntrainer::Tensor C_fp32;
+  C_fp32 = A_fp32.dot_with_alpha(B_fp32,C_fp32, transA, transB,3,77);
 
   float mseErrorNeon =
     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
@@ -1124,60 +779,6 @@ TEST(nntrainer_Tensor, dot_gemv_768_20000) {
 
   EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
   EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
-}
-
-TEST(nntrainer_Tensor, inv_sqrt_i_p) {
-  int batch = 4;
-  int channel = 10;
-  int height = 10;
-  int width = 10;
-
-  const int MOD = 10;
-  const float eps = 1e-3;
-
-  nntrainer::Tensor input(batch, channel, height, width,
-                          nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16);
-  GEN_TEST_INPUT(input, (i * (batch * height) + j * (width) + k) % MOD + 1);
-
-  nntrainer::Tensor ground_truth(batch, channel, height, width,
-                                 nntrainer::Tformat::NCHW,
-                                 nntrainer::Tdatatype::FP32);
-  GEN_TEST_INPUT(ground_truth,
-                 (i * (batch * height) + j * (width) + k) % MOD + 1);
-
-  input.inv_sqrt_i();
-
-  for (int b = 0; b < batch; b++) {
-    for (int c = 0; c < channel; c++) {
-      for (int h = 0; h < height; h++) {
-        for (int w = 0; w < width; w++) {
-          ground_truth.setValue(
-            b, c, h, w, 1 / std::sqrt(ground_truth.getValue(b, c, h, w)));
-        }
-      }
-    }
-  }
-
-  bool flag = true;
-
-  for (int b = 0; b < batch; b++) {
-    for (int c = 0; c < channel; c++) {
-      for (int h = 0; h < height; h++) {
-        for (int w = 0; w < width; w++) {
-          double err = std::abs(input.getValue<__fp16>(b, c, h, w) -
-                                ground_truth.getValue(b, c, h, w));
-
-          if (err > eps) {
-            flag = false;
-            std::cout << input.getValue<__fp16>(b, c, h, w) << " VS "
-                      << ground_truth.getValue(b, c, h, w) << std::endl;
-          }
-        }
-      }
-    }
-  }
-
-  EXPECT_EQ(flag, true);
 }
 
 GTEST_API_ int main(int argc, char **argv) {

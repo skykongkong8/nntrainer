@@ -2318,6 +2318,182 @@ Tensor &Tensor::dot(Tensor const &m, Tensor &result, bool trans, bool trans_m,
   return result;
 }
 
+Tensor &Tensor::dot_with_alpha(Tensor const &m, Tensor &result, bool trans, bool trans_m,
+                    float alpha, float beta) const {
+  NNTR_THROW_IF(!contiguous, std::invalid_argument)
+    << getName() << " is not contiguous. Cannot dot product.";
+
+  // Comment out with intension to support the calculation wrt. batch and height
+  // direction. It supposes to have this->dim as [ BxCxH,W ] and m.dim is
+  // [BxCxH,W] as well if (m.dim.rank() > 2) {
+  //   throw exception::not_supported("Error: support only for rank of dot "
+  //                                  "matrix <= 2");
+  // }
+
+  // Comment out with intension to support the calculation wrt. batch and height
+  // direction of this tensor. It is OK as long as m is 2D
+  //
+  if (trans && dim.rank() > 2) {
+    ml_logw("Warning: support only for rank of dot matrix <= 2 with trans");
+  }
+  unsigned int dim1, dim2, mdim1, mdim2;
+  if (getFormat() == Tformat::NHWC) {
+    dim1 = batch() * height() * width();
+    dim2 = channel();
+    mdim1 = m.batch() * m.height() * m.width();
+    mdim2 = m.channel();
+  } else {
+    dim1 = batch() * channel() * height();
+    dim2 = width();
+    mdim1 = m.batch() * m.channel() * m.height();
+    mdim2 = m.width();
+  }
+
+  unsigned int M, N, K, lda, ldb, ldc;
+
+  if (!trans && !trans_m) {
+    if (dim2 != mdim1)
+      throw std::runtime_error(
+        "Error: incompatible dimensions for dot product");
+    K = mdim1; /** == dim2 */
+    N = mdim2;
+    M = dim1;
+    if (getFormat() == Tformat::NHWC) {
+      CREATE_IF_EMPTY_DIMS(result, batch(), N, height(), width(),
+                           getTensorType()); //  NHWC Result Tensor
+    } else {
+      CREATE_IF_EMPTY_DIMS(result, batch(), channel(), height(), N,
+                           getTensorType());
+    }
+
+    // We are not set zero the result because of performance reason.
+    // However, result is not initialized properly. There might include
+    // garbage like nan. When we have to use this value as in C = alpha*A*B +
+    // beta*C, then have to check garbage data of C is not effect or not.
+
+  } else if (!trans && trans_m) {
+    if (dim2 != mdim2)
+      throw std::runtime_error(
+        "Error: incompatible dimensions for dot product");
+    K = mdim2; /** == dim2 */
+    N = mdim1;
+    M = dim1;
+    if (getFormat() == Tformat::NHWC) {
+      CREATE_IF_EMPTY_DIMS(result, batch(), N, height(), width(),
+                           getTensorType());
+    } else {
+      CREATE_IF_EMPTY_DIMS(result, batch(), channel(), height(), N,
+                           getTensorType());
+    }
+  } else if (trans && !trans_m) {
+    if (dim1 != mdim1)
+      throw std::runtime_error(
+        "Error: incompatible dimensions for dot product");
+    K = mdim1; /** == dim1 */
+    N = mdim2;
+    M = dim2;
+    if (getFormat() == Tformat::NHWC) {
+      CREATE_IF_EMPTY_DIMS(result, 1, N, M, 1, getTensorType());
+    } else {
+      CREATE_IF_EMPTY_DIMS(result, 1, 1, M, N, getTensorType());
+    }
+  } else {
+    if (dim1 != mdim2)
+      throw std::runtime_error(
+        "Error: incompatible dimensions for dot product");
+    K = mdim2; /** == dim1 */
+    N = mdim1;
+    M = dim2;
+    if (getFormat() == Tformat::NHWC) {
+      CREATE_IF_EMPTY_DIMS(result, 1, N, M, 1, getTensorType());
+    } else {
+      CREATE_IF_EMPTY_DIMS(result, 1, 1, M, N, getTensorType());
+    }
+  }
+  lda = dim2;
+  ldb = mdim2;
+  ldc = (getFormat() == Tformat::NHWC) ? result.channel() : result.width();
+
+  if (getDataType() == ml::train::TensorDim::DataType::FP32) {
+    const float *data = getData();
+    const float *mdata = m.getData();
+    float *rdata = result.getData();
+    enum CBLAS_TRANSPOSE transA = trans ? CblasTrans : CblasNoTrans;
+    enum CBLAS_TRANSPOSE transB = trans_m ? CblasTrans : CblasNoTrans;
+
+    /// shortcut handling in case of vector
+    /// for vector, (1 * K) == (K * 1) in current memory layout...
+    /// and plaese note that N, K, M is a fixed place holder after considering
+    /// transpose.
+    /// For example, there is no case like (1 * K) X (1 * K) while
+    /// (1 * K) X (1 * M) can be a case
+    /// case1: (1 * K) X (K * 1)
+    if (M == 1 && N == 1) {
+      *rdata = sdot(K, data, 1, mdata, 1) + beta * (*rdata);
+    }
+    /// case2: (M * K) X (K * 1)
+    else if (N == 1) {
+      sgemv(CblasRowMajor, transA, dim1, dim2, alpha, data, lda, mdata, 1, beta,
+            rdata, 1);
+    }
+    /// case3: (1 * K) X (K * N) = 1 * N = R
+    /// = R^T = (K * N) ^T * (1 * K) ^T = (N * K) * (K * 1) = (N * K) * (1 * K)
+    /// Effectively a translation of sgemv
+    else if (M == 1) {
+      transB = transB == CblasTrans ? CblasNoTrans : CblasTrans;
+      sgemv(CblasRowMajor, transB, mdim1, mdim2, alpha, mdata, ldb, data, 1,
+            beta, rdata, 1);
+    }
+    /// case others: use gemm
+    else {
+      sgemm(CblasRowMajor, transA, transB, M, N, K, alpha, data, lda, mdata,
+            ldb, beta, rdata, ldc);
+    }
+  } else if (getDataType() == ml::train::TensorDim::DataType::FP16) {
+#ifdef ENABLE_FP16
+    const _FP16 *data = getData<_FP16>();
+    const _FP16 *mdata = m.getData<_FP16>();
+    _FP16 *rdata = result.getData<_FP16>();
+    enum CBLAS_TRANSPOSE transA = trans ? CblasTrans : CblasNoTrans;
+    enum CBLAS_TRANSPOSE transB = trans_m ? CblasTrans : CblasNoTrans;
+
+    /// shortcut handling in case of vector
+    /// for vector, (1 * K) == (K * 1) in current memory layout...
+    /// and plaese note that N, K, M is a fixed place holder after considering
+    /// transpose.
+    /// For example, there is no case like (1 * K) X (1 * K) while
+    /// (1 * K) X (1 * M) can be a case
+    /// case1: (1 * K) X (K * 1)
+    if (M == 1 && N == 1) {
+      *rdata = sdot(K, data, 1, mdata, 1) + static_cast<_FP16>(beta) * (*rdata);
+    }
+    /// case2: (M * K) X (K * 1)
+    else if (N == 1) {
+      sgemv(CblasRowMajor, transA, dim1, dim2, alpha, data, lda, mdata, 1, beta,
+            rdata, 1);
+    }
+    /// case3: (1 * K) X (K * N) = 1 * N = R
+    /// = R^T = (K * N) ^T * (1 * K) ^T = (N * K) * (K * 1) = (N * K) * (1 * K)
+    /// Effectively a translation of sgemv
+    else if (M == 1) {
+      transB = transB == CblasTrans ? CblasNoTrans : CblasTrans;
+      sgemv(CblasRowMajor, transB, mdim1, mdim2, alpha, mdata, ldb, data, 1,
+            beta, rdata, 1);
+    }
+    /// case others: use sgemm
+    else {
+      sgemm(CblasRowMajor, transA, transB, M, N, K, alpha, data, lda, mdata,
+            ldb, beta, rdata, ldc);
+    }
+#else
+    throw std::invalid_argument("Error: enable-fp16 is not enabled");
+#endif
+  }
+
+  return result;
+}
+
+
 Tensor &Tensor::transpose(const std::string &direction, Tensor &out) const {
   NNTR_THROW_IF(!contiguous, std::invalid_argument)
     << getName() << " is not contiguous. Cannot transpose.";

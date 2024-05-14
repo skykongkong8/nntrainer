@@ -21,6 +21,7 @@
 #include <hgemm_kernel_8x8.h>
 #include <hgemm_kernel_pack.h>
 #include <hgemm_util.h>
+#include <iostream>
 
 #define HGEMM_KERNEL_1x4 hgemm_kernel_1x4
 #define HGEMM_KERNEL_4x4 hgemm_kernel_4x4
@@ -31,9 +32,10 @@
 
 void hgemm_noTrans(const __fp16 *A, const __fp16 *B, float *C32, unsigned int M,
                    unsigned int N, unsigned int K, float alpha, float beta) {
-  if (alpha == 1.F && beta == 0.F && N > 4) {
+  if (alpha == 1.F && N > 4) {
     // used bitwise operator instead of modulo for performance
     // e.g (M % 8) is same as (M & 0x7) which will extract last 3 bits of M
+    std::cout << "beta : " << beta << std::endl;
     if ((M & 0x7) == 0 && (N & 0xF) == 0 && (K & 0x7) == 0) {
       hgemm_noTrans_8x16(M, N, K, A, K, B, N, C32, N, alpha, beta);
     } else if ((M & 0x7) == 0 && (N & 0x7) == 0 && (K & 0x7) == 0) {
@@ -53,7 +55,7 @@ void hgemm_noTrans(const __fp16 *A, const __fp16 *B, float *C32, unsigned int M,
 
 void hgemm_noTrans(const __fp16 *A, const __fp16 *B, __fp16 *C, unsigned int M,
                    unsigned int N, unsigned int K, float alpha, float beta) {
-  if (alpha == 1.F && beta == 0.F) {
+  if (alpha == 1.F) {
     // used bitwise operator instead of modulo for performance
     // e.g (M % 8) is same as (M & 0x7) which will extract last 3 bits of M
     if ((M & 0x7) == 0 && (N & 0xF) == 0 && (K & 0x7) == 0) {
@@ -876,9 +878,11 @@ void hgemm_noTrans_8x16(unsigned int M, unsigned int N, unsigned int K,
 
         packing_A8(m2_min, k_min, A + ms2 * lda + ks, lda,
                    sA + k_min * (ms2 - ms));
-
+if (alpha == 1.F)
         HGEMM_KERNEL_8x16(m2_min, n_min, k_min, sA + k_min * (ms2 - ms), sB,
                           C + ms2 * ldc, ldc);
+                          else         HGEMM_KERNEL_8x16(m2_min, n_min, k_min, sA + k_min * (ms2 - ms), sB,
+                          C + ms2 * ldc, ldc, alpha, beta);
       }
 
       for (ns = n_min; ns < N; ns += n_min) {
@@ -890,7 +894,11 @@ void hgemm_noTrans_8x16(unsigned int M, unsigned int N, unsigned int K,
         }
 
         packing_B16(k_min, n_min, B + ns + ldb * ks, ldb, sB);
-        HGEMM_KERNEL_8x16(m_min, n_min, k_min, sA, sB, C + ms * ldc + ns, ldc);
+if (alpha == 1.F)
+        HGEMM_KERNEL_8x16(m2_min, n_min, k_min, sA + k_min * (ms2 - ms), sB,
+                          C + ms2 * ldc, ldc);
+                          else         HGEMM_KERNEL_8x16(m2_min, n_min, k_min, sA + k_min * (ms2 - ms), sB,
+                          C + ms2 * ldc, ldc, alpha, beta);
       }
     }
   }

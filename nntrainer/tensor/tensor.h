@@ -1019,6 +1019,10 @@ public:
   Tensor &dot(Tensor const &m, Tensor &output, bool trans = false,
               bool trans_m = false, float beta = 0.0f) const;
 
+  Tensor &dot_with_alpha(Tensor const &m, Tensor &output, bool trans = false,
+                         bool trans_m = false, float alpha = 1.0F,
+                         float beta = 0.0f) const;
+
   /**
    * @brief compute the derivative of this in the current tensor
    * @param m same as given to the dot()

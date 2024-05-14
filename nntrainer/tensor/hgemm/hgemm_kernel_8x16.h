@@ -615,6 +615,32 @@
   b += 16 * 1;                                       \
   a += 8 * 1;
 
+#define KERNEL_8x16_ACC1_ALPHA()                     \
+  va0 = vmulq_f16(vld1q_f16(a), valpha);                                \
+  v24 = vld1q_f16(b);                                \
+  v25 = vld1q_f16(b + 8);                            \
+  v0_7 = vfmaq_laneq_f16(v0_7, v24, va0, 0);         \
+  v8_15 = vfmaq_laneq_f16(v8_15, v24, va0, 1);       \
+  v16_23 = vfmaq_laneq_f16(v16_23, v24, va0, 2);     \
+  v24_31 = vfmaq_laneq_f16(v24_31, v24, va0, 3);     \
+  v32_39 = vfmaq_laneq_f16(v32_39, v24, va0, 4);     \
+  v40_47 = vfmaq_laneq_f16(v40_47, v24, va0, 5);     \
+  v48_55 = vfmaq_laneq_f16(v48_55, v24, va0, 6);     \
+  v56_63 = vfmaq_laneq_f16(v56_63, v24, va0, 7);     \
+  v64_71 = vfmaq_laneq_f16(v64_71, v25, va0, 0);     \
+  v72_79 = vfmaq_laneq_f16(v72_79, v25, va0, 1);     \
+  v80_87 = vfmaq_laneq_f16(v80_87, v25, va0, 2);     \
+  v88_95 = vfmaq_laneq_f16(v88_95, v25, va0, 3);     \
+  v96_103 = vfmaq_laneq_f16(v96_103, v25, va0, 4);   \
+  v104_111 = vfmaq_laneq_f16(v104_111, v25, va0, 5); \
+  v112_119 = vfmaq_laneq_f16(v112_119, v25, va0, 6); \
+  v120_127 = vfmaq_laneq_f16(v120_127, v25, va0, 7); \
+  l += 1;                                            \
+  __builtin_prefetch(b + 16, 0, 3);                  \
+  __builtin_prefetch(a + 8, 0, 3);                   \
+  b += 16 * 1;                                       \
+  a += 8 * 1;
+
 #define SAVE_KERNEL_8X16_F16_F32()                                             \
   vst1q_f32(c, vaddq_f32(vld1q_f32(c), vcvt_f32_f16(vget_low_f16(v0_7))));     \
   vst1q_f32(c + 4,                                                             \
@@ -825,6 +851,66 @@ void hgemm_kernel_8x16(unsigned int M, unsigned int N, unsigned int K,
       for (; l < K;) {
         INIT_KERNEL_8X16();
         KERNEL_8x16_ACC1();
+        SAVE_KERNEL_8X16_F16_F32();
+      }
+      c += 16;
+      a -= 8 * K;
+    }
+    sc += ldc * 8;
+    c = sc;
+    a += 8 * K;
+    b = sb;
+  }
+}
+
+void hgemm_kernel_8x16(unsigned int M, unsigned int N, unsigned int K,
+                       __fp16 *sa, __fp16 *sb, float *sc, unsigned int ldc,
+                       float alpha, float beta) {
+  // alpha = 1.0F, beta = 0.0F by default
+  // C = alpha * A * B + beta * C
+  assert(M > 0 && N > 0 && K > 0);
+  assert(M % 8 == 0 && N % 16 == 0);
+
+  __fp16 *a = sa, *b = sb;
+  float *c = sc;
+  unsigned int i, j, l;
+  unsigned int K4 = (K >> 2) << 2;
+  unsigned int K8 = (K >> 3) << 3;
+  unsigned int K16 = (K >> 4) << 4;
+  float16x8_t valpha = vmovq_n_f16(alpha);
+  for (i = 0; i < M; i += 8) {
+    for (j = 0; j < N; j += 16) {
+      __builtin_prefetch(b, 0, 3);
+      __builtin_prefetch(a, 0, 3);
+      float16x8_t v0_7, v8_15;
+      float16x8_t v16_23, v24_31;
+      float16x8_t v32_39, v40_47;
+      float16x8_t v48_55, v56_63;
+      float16x8_t v64_71, v72_79;
+      float16x8_t v80_87, v88_95;
+      float16x8_t v96_103, v104_111;
+      float16x8_t v112_119, v120_127;
+      float16x8_t v24, v25, v26, v27, v28, v29, v30, v31;
+      float16x8_t va0, va1, va2, va3, va4, va5, va6, va7;
+      l = 0;
+      // for (; l < K16;) {
+      //   INIT_KERNEL_8X16();
+      //   KERNEL_8x16_ACC16();
+      //   SAVE_KERNEL_8X16_F16_F32();
+      // }
+      // for (; l < K8;) {
+      //   INIT_KERNEL_8X16();
+      //   KERNEL_8x16_ACC8();
+      //   SAVE_KERNEL_8X16_F16_F32();
+      // }
+      // for (; l < K4;) {
+      //   INIT_KERNEL_8X16();
+      //   KERNEL_8x16_ACC4();
+      //   SAVE_KERNEL_8X16_F16_F32();
+      // }
+      for (; l < K;) {
+        INIT_KERNEL_8X16();
+        KERNEL_8x16_ACC1_ALPHA();
         SAVE_KERNEL_8X16_F16_F32();
       }
       c += 16;
