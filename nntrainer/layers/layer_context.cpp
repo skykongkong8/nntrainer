@@ -22,6 +22,9 @@
 #include <nntrainer_log.h>
 #include <stdexcept>
 #include <var_grad.h>
+#include <stdexcept>
+#include <iostream>
+
 
 namespace nntrainer {
 
@@ -137,6 +140,12 @@ RunLayerContext::RunLayerContext(const std::string &name, bool trainable,
   inputs(in),
   outputs(out),
   tensors(t) {
+
+  std::cerr << "weights in RunLayerContext init : " << &weights << " | " << weights.size() << "\n";
+  std::cerr << "inputs in RunLayerContext init : " << &inputs << " | " << inputs.size() << "\n";
+  std::cerr << "outputs in RunLayerContext init : " << &outputs << " | " << outputs.size() << "\n";
+  std::cerr << "tensors in RunLayerContext init : " << &tensors << " | " << tensors.size() << "\n";
+
   std::get<props::Name>(props).set(name);
   std::get<props::Trainable>(props).set(trainable);
   NNTR_THROW_IF(!readyToUse(), std::invalid_argument)

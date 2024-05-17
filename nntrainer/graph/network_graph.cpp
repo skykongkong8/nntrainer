@@ -761,6 +761,8 @@ NetworkGraph::finalizeContext(const std::shared_ptr<LayerNode> &lnode,
   const std::vector<Var_Grad *> &inputs = tensor_manager->requestInputs(
     gnode, init_context.getInputDimensions(), input_names);
 
+  // std::cerr << "const std::vector<Var_Grad *> &inputs size : " << inputs.size() << "\n"; // SEEMS GOOD
+
   /** In-Place optimizations */
   /**
    * Request manager for either a pre-allocated input as output or a newly
@@ -828,7 +830,9 @@ NetworkGraph::finalizeContext(const std::shared_ptr<LayerNode> &lnode,
   const std::vector<Var_Grad *> &outputs = tensor_manager->requestTensors(
     out_specs, Manager::TensorGroupType::OUTPUT, lnode->getExecutionOrder(),
     lnode->getName());
-
+  
+  // std::cerr << "const std::vector<Var_Grad *> &outputs size : " << outputs.size() << "\n"; // SEEMS GOOD
+  
   /** create shared weight names if requested */
   std::vector<std::string> shared_weight_names;
   std::vector<std::string> shared_tensor_names;
@@ -880,6 +884,9 @@ NetworkGraph::finalizeContext(const std::shared_ptr<LayerNode> &lnode,
     inputs, outputs,
     tensor_manager->requestTensors(gnode, init_context.getTensorsSpec(),
                                    lnode->getTrainable(), shared_tensor_names));
+
+  std::cerr << "finalizeContext return | name : " << lnode->getName()
+            << " , numInput : " << lnode->getNumInputs() << "\n";
 
   return outputs;
 }
@@ -1028,7 +1035,6 @@ NetworkGraph::refinalizeContext(const std::shared_ptr<LayerNode> &lnode,
     weights, inputs, outputs,
     tensor_manager->requestTensors(gnode, init_context.getTensorsSpec(),
                                    lnode->getTrainable(), shared_tensor_names));
-
   return outputs;
 }
 
@@ -1208,11 +1214,12 @@ int NetworkGraph::initialize(ExecutionMode mode,
 
   /**** identify model input / output to be set externally later ****/
   auto identify_as_model_input = [this](LayerNode *node) {
-    auto num_input = node->getNumInputs();
+    auto num_input = node->getRunContext().getNumInputs();
+    // auto num_input = node->getNumInputs();
     NNTR_THROW_IF(num_input != 1, std::invalid_argument)
       << "Input layer is supposed to have exactly one input, but more then "
          "one input detected, num inputs: "
-      << num_input;
+      << num_input << "\t" << node->getName();
 
     input_list.push_back(node->getInput(0).getName());
     input_dims.push_back(node->getInputDimensions()[0]);
@@ -1222,6 +1229,7 @@ int NetworkGraph::initialize(ExecutionMode mode,
 
   auto identify_as_model_label = [this](LayerNode *node) {
     /// @todo change this as lnode->getNumLabels of sorts
+    // auto num_label = node->getRunContext().getNumOutputs();
     auto num_label = node->getNumOutputs();
     NNTR_THROW_IF(!node->getOutputConnections().empty(), std::invalid_argument)
       << "label layer is supposed to be a leaf for now";
@@ -1413,7 +1421,8 @@ int NetworkGraph::reinitialize(
   }
   /**** identify model input / output to be set externally later ****/
   auto identify_as_model_input = [this](LayerNode *node) {
-    auto num_input = node->getNumInputs();
+    auto num_input = node->getRunContext().getNumInputs();
+    // auto num_input = node->getNumInputs();
     NNTR_THROW_IF(num_input != 1, std::invalid_argument)
       << "Input layer is supposed to have exactly one input, but more then "
          "one input detected, num inputs: "

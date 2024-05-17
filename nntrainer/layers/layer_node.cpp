@@ -865,9 +865,15 @@ void LayerNode::configureRunContext(const std::vector<Weight *> &weights,
                                     const std::vector<Var_Grad *> &inputs,
                                     const std::vector<Var_Grad *> &outputs,
                                     const std::vector<Var_Grad *> &tensors) {
-  run_context = std::make_unique<RunLayerContext>(
+ this->run_context = std::make_unique<RunLayerContext>(
     getName(), getTrainable(), 0.0f, executeInPlace() != InPlace::NONE, weights,
     inputs, outputs, tensors);
+    
+  std::cerr << "=======MAKE UNIQUE RUNLAYERCONTEXT !==========\n";
+  std::cerr << "configureRunContext | run_context after make_unique : " << run_context->getNumInputs()
+            << "\n";
+  std::cerr << "configureRunContext | this after make_unique : " << this->getNumInputs() << "\n";
+  std::cerr << "configureRunContext | this->run_context after make_unique : " << this->run_context->getNumInputs() << "\n";
 }
 
 /**

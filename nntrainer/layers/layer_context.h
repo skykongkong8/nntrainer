@@ -672,14 +672,35 @@ public:
    *
    * @return unsigned int number of output tensors
    */
-  unsigned int getNumOutputs() const { return outputs.size(); }
+  unsigned int getNumOutputs() const {
+    // if (&outputs != &(this->outputs)) {
+    //   std::cerr << "input address : " << &outputs << " VS " << &(this->outputs)
+    //             << "\t\t";
+    // }
+    // std::cerr << " (getNumOutputs()'s outputs.size(): " << &outputs << "\t"
+    //           << outputs.size() << " AND addr of this is : " << this << " ) \t";
+    // std::cerr << " (getNumOutputs()'s this->outputs.size(): "
+    //           << &(this->outputs) << "\t" << (this->outputs).size()
+    //           << " AND addr of this is : " << this << " ) \t";
+
+    return outputs.size();
+  }
 
   /**
    * @brief Get the number of inputs tensor objects
    *
    * @return unsigned int number of input tensors
    */
-  unsigned int getNumInputs() const { return inputs.size(); }
+  unsigned int getNumInputs() const {
+    // std::cerr << " (getNumInputs()'s inputs.size(): " << &inputs << "\t"<<
+    // inputs.size() << " AND addr of this is : " << this  << " ) \t"; 
+    
+    // std::cerr << " (getNumInputs()'s this->inputs.size(): " << &(this->inputs) <<
+    // "\t"<< (this->inputs).size() << " AND addr of this is : " << this  << " )\t";
+
+    unsigned int ret = this->inputs.size();
+    return ret;
+  }
 
   /**
    * @brief Get the number of weights tensor objects
