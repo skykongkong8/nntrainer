@@ -436,9 +436,7 @@ public:
   unsigned int getNumInputs() const {
     NNTR_THROW_IF(!run_context, std::runtime_error)
       << __func__ << " layer needs to be finalized first!";
-    unsigned int number_of_inputs = run_context->getNumInputs();
-    return number_of_inputs;
-    // return run_context->getNumInputs();
+    return run_context->getNumInputs();
   }
 
   /**
@@ -448,7 +446,8 @@ public:
   unsigned int getNumOutputs() const {
     NNTR_THROW_IF(!run_context, std::runtime_error)
       << __func__ << " layer needs to be finalized first!";
-    return run_context->getNumOutputs();
+    return this->run_context->getNumOutputs();
+    // return run_context->getNumOutputs();
   }
 
   /**

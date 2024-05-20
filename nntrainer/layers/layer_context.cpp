@@ -404,6 +404,8 @@ bool RunLayerContext::isGradientFirstAccess(unsigned int idx) const {
 }
 
 bool RunLayerContext::isGradientLastAccess(unsigned int idx) const {
+  std::cerr <<"HERE!!!\n";
+  std::cerr << "weights size : " << weights.size() << " , idx : " << idx << "\n";
   return weights[idx]->isGradientLastAccess();
 }
 

@@ -23,6 +23,7 @@
 #include <tensor_dim.h>
 #include <tensor_wrap_specs.h>
 #include <weight.h>
+#include <typeinfo>
 
 #ifdef ENABLE_OPENCL
 #include <opencl_command_queue_manager.h>
@@ -673,15 +674,8 @@ public:
    * @return unsigned int number of output tensors
    */
   unsigned int getNumOutputs() const {
-    // if (&outputs != &(this->outputs)) {
-    //   std::cerr << "input address : " << &outputs << " VS " << &(this->outputs)
-    //             << "\t\t";
-    // }
-    // std::cerr << " (getNumOutputs()'s outputs.size(): " << &outputs << "\t"
-    //           << outputs.size() << " AND addr of this is : " << this << " ) \t";
-    // std::cerr << " (getNumOutputs()'s this->outputs.size(): "
-    //           << &(this->outputs) << "\t" << (this->outputs).size()
-    //           << " AND addr of this is : " << this << " ) \t";
+    std::cerr << " (getNumOutputs()'s outputs.size(): " << &outputs << "\t"
+              << outputs.size() << " AND addr of this is : " << this << " ) \t";
 
     return outputs.size();
   }
@@ -692,8 +686,14 @@ public:
    * @return unsigned int number of input tensors
    */
   unsigned int getNumInputs() const {
+
+    //     std::cerr << " (getNumInputs()'s inputs.size(): " << &inputs << "\t"<<
+    // inputs.size() << " AND addr of this is : " << this  << " ) \t";
+
+    std::cerr << " ( class type of current rc : " << typeid(*this).name()  << " )";
+
     // std::cerr << " (getNumInputs()'s inputs.size(): " << &inputs << "\t"<<
-    // inputs.size() << " AND addr of this is : " << this  << " ) \t"; 
+    // inputs.size() << " AND addr of this is : " << this  <<" which is class type of : "<< typeid(*this).name() << " ) \t"; 
     
     // std::cerr << " (getNumInputs()'s this->inputs.size(): " << &(this->inputs) <<
     // "\t"<< (this->inputs).size() << " AND addr of this is : " << this  << " )\t";

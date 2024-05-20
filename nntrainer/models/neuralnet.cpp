@@ -240,6 +240,9 @@ int NeuralNetwork::initialize(ExecutionMode mode) {
   status = model_graph.initialize(
     mode, input_conn,
     std::vector<Connection>(label_layers.begin(), label_layers.end()));
+  /*BUG !*/
+  // std::cerr<< " status = model_graph.initialize | " << model_graph.cbegin()->getName() << " |  weight num : " << model_graph.cbegin()->getNumWeights() << "\n"; 
+
   NN_RETURN_STATUS();
 
   model_graph.setBatchSize(
@@ -261,6 +264,8 @@ int NeuralNetwork::initialize(ExecutionMode mode) {
 
   // Allocate weights
   model_graph.allocateWeights();
+  /*BUG ! */
+  // std::cerr << model_graph.cbegin()->getName() << " |  weight num : " << model_graph.cbegin()->getNumWeights() << "\n"; 
 
   initialized = true;
 
@@ -596,6 +601,7 @@ void NeuralNetwork::load(const std::string &file_path,
     break;
   }
   case ml::train::ModelFormat::MODEL_FORMAT_INI: {
+  std::cerr << "  format MODEL_FORMAT_INI : "<< (unsigned int)format << "\n";
     int ret = loadFromConfig(file_path);
     throw_status(ret);
     break;

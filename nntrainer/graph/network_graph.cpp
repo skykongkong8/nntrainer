@@ -324,6 +324,7 @@ void NetworkGraph::applyGradients(
 
   auto &rc = node->getRunContext();
   auto num_weight = rc.getNumWeights();
+  // std::cerr << "node name : " << node->getName() << " , " << num_weight << " VS " << node->getRunContext().getNumWeights() << "\n";
   for (unsigned i = 0; i < num_weight; ++i) {
     if (!rc.weightHasGradient(i)) {
       continue;
@@ -876,7 +877,11 @@ NetworkGraph::finalizeContext(const std::shared_ptr<LayerNode> &lnode,
       shared_weight_names.emplace_back(std::get<8>(w_specs.at(i)));
     }
   }
-
+/**
+ * @note Runcontext constructor is being started from here.
+ * weights, tensor -> requested from other
+ * input, output -> already formulated from somewhere else 
+ */
   lnode->configureRunContext(
     // TODO: update weights spec for trainable based on layer trainable prop
     tensor_manager->requestWeights(gnode, init_context.getWeightsSpec(),
@@ -1173,6 +1178,7 @@ int NetworkGraph::initialize(ExecutionMode mode,
     auto &rc = lnode->getRunContext();
     auto first_grad_access = std::get<1>(lnode->getExecutionOrder());
     auto last_grad_access = std::get<3>(lnode->getExecutionOrder());
+    std::cerr << lnode->getName() << " | weight num : " << lnode->getRunContext().getNumWeights() << "\n";
     for (unsigned i = 0; i < rc.getNumWeights(); ++i) {
       if (!rc.weightHasGradient(i)) {
         /// @todo this is duck taping that MUST BE REMOVED. We will need to
@@ -1229,8 +1235,8 @@ int NetworkGraph::initialize(ExecutionMode mode,
 
   auto identify_as_model_label = [this](LayerNode *node) {
     /// @todo change this as lnode->getNumLabels of sorts
-    // auto num_label = node->getRunContext().getNumOutputs();
-    auto num_label = node->getNumOutputs();
+    auto num_label = node->getRunContext().getNumOutputs();
+    // auto num_label = node->getNumOutputs();
     NNTR_THROW_IF(!node->getOutputConnections().empty(), std::invalid_argument)
       << "label layer is supposed to be a leaf for now";
     NNTR_THROW_IF(num_label != 1, std::invalid_argument)
@@ -1299,6 +1305,8 @@ int NetworkGraph::initialize(ExecutionMode mode,
     return w->hasGradient() && w->isGradientLastAccess() &&
            w->isGradientClipByGlobalNorm();
   });
+
+  // std::cerr <<"SEGFAULT | NOT HERE!\n";
 
   return ML_ERROR_NONE;
 }
@@ -1381,6 +1389,7 @@ int NetworkGraph::reinitialize(
     auto &rc = lnode->getRunContext();
     auto first_grad_access = std::get<1>(lnode->getExecutionOrder());
     auto last_grad_access = std::get<3>(lnode->getExecutionOrder());
+  // std::cerr << "node name : " << lnode->getName() << " , " << rc.getNumWeights() << " VS " << lnode->getRunContext().getNumWeights() << "\n";
     for (unsigned i = 0; i < rc.getNumWeights(); ++i) {
       if (!rc.weightHasGradient(i)) {
         /// @todo this is duck taping that MUST BE REMOVED. We will need to

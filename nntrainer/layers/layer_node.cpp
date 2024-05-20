@@ -869,11 +869,19 @@ void LayerNode::configureRunContext(const std::vector<Weight *> &weights,
     getName(), getTrainable(), 0.0f, executeInPlace() != InPlace::NONE, weights,
     inputs, outputs, tensors);
     
-  std::cerr << "=======MAKE UNIQUE RUNLAYERCONTEXT !==========\n";
-  std::cerr << "configureRunContext | run_context after make_unique : " << run_context->getNumInputs()
-            << "\n";
-  std::cerr << "configureRunContext | this after make_unique : " << this->getNumInputs() << "\n";
-  std::cerr << "configureRunContext | this->run_context after make_unique : " << this->run_context->getNumInputs() << "\n";
+  std::cerr << "=========RIGHT AFTER MAKE_UNIQUE<RUNLAYERCONTEXT> INIT==========\n";
+  std::cerr << "INPUTS\n";
+  std::cerr << "configureRunContext | run_context->getNumInputs() : " << run_context->getNumInputs() << "\n";
+  std::cerr << "configureRunContext | this->getNumInputs() : " << this->getNumInputs() << "\n";
+  std::cerr << "configureRunContext | this->run_context->getNumInputs() " << this->run_context->getNumInputs() << "\n";
+  std::cerr << "OUTPUTS\n";
+  std::cerr << "configureRunContext | run_context->getNumOutputs() : " << run_context->getNumOutputs() << "\n";
+  std::cerr << "configureRunContext | this->getNumOutputs() : " << this->getNumOutputs() << "\n";
+  std::cerr << "configureRunContext | this->run_context->getNumOutputs() " << this->run_context->getNumOutputs() << "\n";
+  std::cerr << "WEIGHTS\n";
+  std::cerr << "configureRunContext | run_context->getNumWeights() : " << run_context->getNumWeights() << "\n";
+  std::cerr << "configureRunContext | this->getNumWeights() : " << this->getNumWeights() << "\n";
+  std::cerr << "configureRunContext | this->run_context->getNumWeights() " << this->run_context->getNumWeights() << "\n";
 }
 
 /**

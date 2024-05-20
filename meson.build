@@ -7,7 +7,8 @@ project('nntrainer', 'c', 'cpp',
     'warning_level=1',
     'c_std=gnu89',
     'cpp_std=c++17',
-    'buildtype=release'
+    'buildtype=debugoptimized'
+#    'buildtype=release'
   ]
 )
 

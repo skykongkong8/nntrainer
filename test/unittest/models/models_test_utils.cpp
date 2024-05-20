@@ -179,26 +179,29 @@ private:
 };
 
 NodeWatcher::NodeWatcher(const NodeType &node) : node(node) {
+  /*SAME*/
+  // std::cerr << "num_weights : " << node->getRunContext().getNumWeights() << " VS " << node->getNumWeights() << "\n";
   unsigned int num_weights = node->getNumWeights();
   try {
     node->setProperty({"trainable=true"});
   } catch (...) {
     std::cout << "Cannot set layer " << node->getType() << " trainable";
   }
-
   auto &rc = node->getRunContext();
   for (unsigned int i = 0; i < num_weights; ++i) {
     // const nntrainer::Weight &w = node->getWeightObject(i);
     // expected_weights.push_back(w.clone());
+    std::cerr << "HERE!!\n";
+    std::cerr << "node info : " << node->getName() << " , weight num : " << node->getNumWeights() << " VS " << node->getRunContext().getNumWeights() << "\n";
     if (rc.isGradientLastAccess(i)) {
       expected_weights.push_back(node->getWeightWrapper(i).clone());
     }
   }
-
+std::cerr << "NodeWatcher::NodeWatcher |node->getOutputDimensioni\n";
   for (auto &out_dim : node->getOutputDimensions()) {
     expected_output.emplace_back(out_dim);
   }
-
+std::cerr << "NodeWatcher::NodeWatcher |nn_dim : node->getInputDimensi\n";
   for (auto &in_dim : node->getInputDimensions()) {
     expected_dx.emplace_back(in_dim);
   }
@@ -338,6 +341,7 @@ void GraphWatcher::initialize() {
 
   for (auto it = model_graph.cbegin(); it != model_graph.cend(); ++it) {
     auto const &lnode = *it;
+    std::cerr << "lnode : " << lnode->getName() << " , weight num : " << lnode->getNumWeights()<< "\n";
     if (it->requireLabel()) {
       loss_nodes.push_back(NodeWatcher(lnode));
       expected_losses.push_back(0);
