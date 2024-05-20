@@ -559,7 +559,7 @@ if __name__ == "__main__":
     fc_mixed_training = LinearMixedPrecision()
     record_v2(
         fc_mixed_training,
-        iteration=3,
+        iteration=1,
         input_dims=[(1,3)],
         input_dtype=[float],
         label_dims=[(1,10)],

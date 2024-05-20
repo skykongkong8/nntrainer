@@ -347,6 +347,22 @@ float mse(Ta *A, Tb *B, uint32_t size) {
   return mse;
 }
 
+template <typename Ta = float, typename Tb = float>
+float mse(const Ta *A, const Tb *B, uint32_t size) {
+  float pred;
+  float ref;
+  float mse_error = 0;
+  for (uint32_t i = 0; i < size; i++) {
+    pred = A[i];
+    ref = B[i];
+    float diff = pred - ref;
+    mse_error += pow(diff, 2);
+  }
+  float mse = mse_error / size;
+  return mse;
+}
+
+
 /**
  * @brief A helper struct for performing static_cast operations on types.
  *
