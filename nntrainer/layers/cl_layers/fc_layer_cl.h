@@ -117,7 +117,7 @@ public:
    */
   void setProperty(const std::vector<std::string> &values) override;
 
-  inline static const std::string type = "fully_connected";
+  inline static const std::string type = "fully_connected_cl";
 
 private:
   std::tuple<props::Unit>

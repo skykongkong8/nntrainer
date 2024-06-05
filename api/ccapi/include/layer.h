@@ -75,6 +75,7 @@ enum LayerType {
     ML_TRAIN_LAYER_TYPE_POSITIONAL_ENCODING, /**< Positional Encoding Layer type
                                               */
   LAYER_IDENTITY = ML_TRAIN_LAYER_TYPE_IDENTITY, /**< Identity Layer type */
+  LAYER_FC_CL = ML_TRAIN_LAYER_TYPE_FC_CL, /**< Identity Layer type */
   LAYER_PREPROCESS_FLIP =
     ML_TRAIN_LAYER_TYPE_PREPROCESS_FLIP, /**< Preprocess flip Layer type */
   LAYER_PREPROCESS_TRANSLATE =
@@ -293,6 +294,12 @@ inline std::unique_ptr<Layer> FullyConnected(
   const std::vector<std::string> &properties = {},
   const LayerComputeEngine &compute_engine = LayerComputeEngine::CPU) {
   return createLayer(LayerType::LAYER_FC, properties, compute_engine);
+}
+
+inline std::unique_ptr<Layer> FullyConnectedCL(
+  const std::vector<std::string> &properties = {},
+  const LayerComputeEngine &compute_engine = LayerComputeEngine::GPU) {
+  return createLayer(LayerType::LAYER_FC_CL, properties, compute_engine);
 }
 
 /**

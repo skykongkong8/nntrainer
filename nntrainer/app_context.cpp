@@ -75,6 +75,7 @@
 #include <time_dist.h>
 #include <zoneout_lstmcell.h>
 
+#include <fc_layer_cl.h>
 #ifdef ENABLE_TFLITE_BACKBONE
 #include <tflite_layer.h>
 #endif
@@ -246,6 +247,9 @@ static void add_default_object(AppContext &ac) {
                      LayerType::LAYER_IN);
   ac.registerFactory(nntrainer::createLayer<FullyConnectedLayer>,
                      FullyConnectedLayer::type, LayerType::LAYER_FC);
+  // ac.registerFactory(nntrainer::createLayer<FullyConnectedLayerCl>,
+  //                    FullyConnectedLayerCl::type,
+  //                    ml::train::LayerType::LAYER_FC_CL);
   ac.registerFactory(nntrainer::createLayer<BatchNormalizationLayer>,
                      BatchNormalizationLayer::type, LayerType::LAYER_BN);
   ac.registerFactory(nntrainer::createLayer<LayerNormalizationLayer>,

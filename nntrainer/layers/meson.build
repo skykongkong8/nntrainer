@@ -71,6 +71,14 @@ if get_option('enable-tflite-backbone')
   layer_sources += 'tflite_layer.cpp'
 endif
 
+if get_option('enable-opencl')
+  subdir('cl_layers')
+  nntrainer_inc += include_directories('cl_layers')
+  nntrainer_inc_abs += meson.current_source_dir() / 'cl_layers'
+endif
+
+
+
 # dependency for data augmentation, if present
 layer_deps += opencv_dep
 

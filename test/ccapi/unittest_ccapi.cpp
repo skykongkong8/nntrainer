@@ -64,6 +64,9 @@ TEST(ccapi_layer, construct_02_p) {
   EXPECT_NO_THROW(layer = ml::train::layer::FullyConnected());
   EXPECT_EQ(layer->getType(), "fully_connected");
 
+  EXPECT_NO_THROW(layer = ml::train::layer::FullyConnectedCL());
+  EXPECT_EQ(layer->getType(), "fully_connected_cl");
+
   EXPECT_NO_THROW(layer = ml::train::layer::BatchNormalization());
   EXPECT_EQ(layer->getType(), "batch_normalization");
 

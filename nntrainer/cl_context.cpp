@@ -25,7 +25,7 @@ static void add_default_object(ClContext &cc) {
 
   cc.registerFactory(nntrainer::createLayer<FullyConnectedLayerCl>,
                      FullyConnectedLayerCl::type,
-                     ml::train::LayerType::LAYER_FC);
+                     ml::train::LayerType::LAYER_FC_CL);
 }
 
 static void registerer(ClContext &cc) noexcept {
