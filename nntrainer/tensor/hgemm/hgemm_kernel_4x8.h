@@ -258,7 +258,7 @@
 void hgemm_kernel_4x8(unsigned int M, unsigned int N, unsigned int K,
                       __fp16 *sa, __fp16 *sb, __fp16 *sc, unsigned int ldc) {
   assert(M > 0 && N > 0 && K > 0);
-  assert(M % 4 == 0 && N % 8 == 0);
+  assert(M % 4 == 0 && N % 8 == 0 && K % 4 == 0);
 
   __fp16 *a = sa, *b = sb, *c = sc;
   unsigned int K8 = (K >> 3) << 3;
@@ -306,7 +306,7 @@ void hgemm_kernel_4x8(unsigned int M, unsigned int N, unsigned int K,
 void hgemm_kernel_4x8(unsigned int M, unsigned int N, unsigned int K,
                       __fp16 *sa, __fp16 *sb, float *sc, unsigned int ldc) {
   assert(M > 0 && N > 0 && K > 0);
-  assert(M % 4 == 0 && N % 8 == 0);
+  assert(M % 4 == 0 && N % 8 == 0 && K % 4 == 0);
 
   __fp16 *a = sa, *b = sb;
   float *c = sc;

@@ -23,6 +23,8 @@
 #include <hgemm_kernel_pack.h>
 #include <hgemm_util.h>
 #include <limits>
+#include <iostream>
+#include <matrix_transpose_neon.h>
 
 #define HGEMM_KERNEL_1x4 hgemm_kernel_1x4
 #define HGEMM_KERNEL_4x4 hgemm_kernel_4x4
@@ -39,7 +41,8 @@ void hgemm_noTrans(const __fp16 *A, const __fp16 *B, float *C32, unsigned int M,
     // e.g (M % 8) is same as (M & 0x7) which will extract last 3 bits of M
     if ((M & 0x7) == 0 && (N & 0xF) == 0 && (K & 0x7) == 0) {
       hgemm_noTrans_8x16(M, N, K, A, K, B, N, C32, N, alpha, beta);
-    } else if ((M & 0x7) == 0 && (N & 0x7) == 0 && (K & 0x7) == 0) {
+    } else 
+    if ((M & 0x7) == 0 && (N & 0x7) == 0 && (K & 0x7) == 0) {
       hgemm_noTrans_8x8(M, N, K, A, K, B, N, C32, N, alpha, beta);
     } else if ((M & 0x3) == 0 && (N & 0x7) == 0 && (K & 0x3) == 0) {
       hgemm_noTrans_4x8(M, N, K, A, K, B, N, C32, N, alpha, beta);
@@ -73,6 +76,54 @@ void hgemm_noTrans(const __fp16 *A, const __fp16 *B, __fp16 *C, unsigned int M,
       hgemm_noTrans_1x4(M, N, K, A, K, B, N, C, N, alpha, beta);
     }
   }
+}
+
+void hgemm_noTrans_split(const __fp16 *A, const __fp16 *B, float *C,
+                         unsigned int M, unsigned int N, unsigned int K,
+                         float alpha, float beta) {
+ // When K is not 4-divisible
+  assert((M & 0x7) == 0 && (N & 0x7) == 0);
+  const unsigned int K8_high = ((K - 1) / 8 + 1) * 8;
+  const unsigned int K8_low = (K >> 3) << 3;
+
+  const unsigned int lda = K;
+  const unsigned int ldb = N;
+
+  __fp16 *A8 = new __fp16[M * K8_high];
+  __fp16 *B8 = new __fp16[K8_high * N];
+
+  float16x8_t ZEROS = vmovq_n_f16(0.F);
+
+  // Step 1. Make zero-padded A and B
+  for (unsigned int m = 0; m < M; ++m) {
+    unsigned int k = 0;
+    for (; k < K8_low; k += 8) {
+      vst1q_f16(&A8[m * K8_high + k], vld1q_f16(&A[m * K + k]));
+    }
+    for (; k < K; ++k) {
+      A8[m * K8_high + k] = A[m * K + k];
+    }
+    for (; k < K8_high; ++k) {
+      A8[m * K8_high + k] = 0.F;
+    }
+  }
+
+  unsigned int k = 0;
+  for (; k < K; ++k){
+    for (unsigned int n = 0; n < N; n += 8){
+      vst1q_f16(&B8[k * N + n], vld1q_f16(&B[k*N + n]));
+    }
+  }
+  for (; k < K8_high; ++k){
+     for (unsigned int n = 0; n < N; n += 8){
+      vst1q_f16(&B8[k * N + n], ZEROS);
+    }
+  }
+
+  hgemm_noTrans(A8, B8, C, M, N, K8_high, alpha, beta);
+
+  free(A8);
+  free(B8);
 }
 
 void hgemm_noTrans_1x4(unsigned int M, unsigned int N, unsigned int K,
@@ -1184,4 +1235,44 @@ void hgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
       }
     }
   }
+}
+
+
+void hgemm_transB(const __fp16 *A, const __fp16 *B, float *C, unsigned int M,
+                  unsigned int N, unsigned int K, float alpha, float beta) {
+  __fp16 *B_T = new __fp16[K * N];
+
+  transpose_neon<__fp16>(N, K, B, K, B_T, N);
+
+    if (K % 8 != 0) hgemm_noTrans_split(A, B_T, C, M, N, K, alpha, beta);
+    else hgemm_noTrans(A, B_T, C, M, N, K, alpha, beta);
+
+  free(B_T);
+}
+
+void hgemm_transA(const __fp16 *A, const __fp16 *B, float *C, unsigned int M,
+                  unsigned int N, unsigned int K, float alpha, float beta) {
+  __fp16 *A_T = new __fp16[M * K];
+
+  transpose_neon<__fp16>(K, M, A, M, A_T, K);
+
+  if (K % 8 != 0) hgemm_noTrans_split(A_T, B, C, M, N, K, alpha, beta);
+  else hgemm_noTrans(A_T, B, C, M, N, K, alpha, beta);
+
+  free(A_T);
+}
+
+void hgemm_transAB(const __fp16 *A, const __fp16 *B, float *C, unsigned int M,
+                   unsigned int N, unsigned int K, float alpha, float beta) {
+  __fp16 *A_T = new __fp16[M * K];
+  __fp16 *B_T = new __fp16[K * N];
+
+  transpose_neon<__fp16>(K, M, A, M, A_T, K);
+  transpose_neon<__fp16>(N, K, B, K, B_T, N);
+
+    if (K % 8 != 0) hgemm_noTrans_split(A_T, B_T, C, M, N, K, alpha, beta);
+    else hgemm_noTrans(A_T, B_T, C, M, N, K, alpha, beta);
+
+  free(A_T);
+  free(B_T);
 }
