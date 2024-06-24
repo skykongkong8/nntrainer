@@ -15,6 +15,7 @@
 #include <blas_neon.h>
 #include <blas_neon_setting.h>
 #include <hgemm.h>
+#include <matrix_transpose_neon.h>
 #include <memory>
 #include <nntrainer_error.h>
 
@@ -1764,6 +1765,66 @@ void inv_sqrt_inplace(const unsigned int N, __fp16 *X) {
   while (i < N) {
     X[i] = (1 / std::sqrt(static_cast<float>(X[i])));
     ++i;
+  }
+}
+
+void concat_width_with_transpose(const unsigned int h, const unsigned int w1,
+                                 const unsigned int w2, const __fp16 *A, const __fp16 *B,
+                                 __fp16 *res) {
+  __fp16 *A_T = new __fp16[h * w1];
+  __fp16 *B_T = new __fp16[h * w2];
+  __fp16 *AB_T = new __fp16[h * (w1 + w2)];
+
+  // h * w1 -> w1 * h
+  transpose_neon<__fp16>(h, w1, A, w1, A_T, h);
+  // h * w2-> w2 * h
+  transpose_neon<__fp16>(h, w2, B, w2, B_T, h);
+
+  // Formulate (w1 + w2) * h
+  unsigned int a8 = ((h * w1) >> 3) << 3;
+  for (unsigned int idx = 0; idx < a8; idx += 8) {
+    vst1q_f16(&AB_T[0 + idx], vld1q_f16(&A_T[idx]));
+  }
+  for (unsigned int idx = a8; idx < (h * w1); ++idx) {
+    AB_T[idx] = A_T[idx];
+  }
+  unsigned int b8 = ((h * w2) >> 3) << 3;
+  for (unsigned int idx = 0; idx < b8; idx += 8) {
+    vst1q_f16(&AB_T[h * w1 + idx], vld1q_f16(&B_T[idx]));
+  }
+  for (unsigned int idx = b8; idx < (h * w2); ++idx) {
+    AB_T[h * w1 + idx] = B_T[idx];
+  }
+
+  // (w1 + w2) * h ->  h * (w1 + w2)
+  transpose_neon<__fp16>(w1 + w2, h, AB_T, h, res, w1 + w2);
+
+  free(A_T);
+  free(B_T);
+  free(AB_T);
+}
+
+void concat_width_without_transpose(const unsigned int h, const unsigned int w1,
+                                    const unsigned int w2, const __fp16 *A, const __fp16 *B,
+                                    __fp16 *res) {
+  unsigned int h8 = (h >> 3) << 3;
+  unsigned int w1_8 = (w1 >> 3) << 3;
+  unsigned int w2_8 = (w2 >> 3) << 3;
+  unsigned int w3 = w1 + w2;
+
+  for (unsigned int h_idx = 0; h_idx < h; ++h_idx) {
+    for (unsigned int w_idx = 0; w_idx < w1_8; w_idx+= 8) {
+      vst1q_f16(&res[h_idx * w3 + w_idx], vld1q_f16(&A[h_idx * w1 + w_idx]));
+    }
+    for (unsigned int w_idx = w1_8; w_idx < w1; ++w_idx) {
+      res[h_idx * w3 + w_idx] = A[h_idx * w1 + w_idx];
+    }
+    for (unsigned int w_idx = 0; w_idx < w2_8; w_idx+= 8) {
+      vst1q_f16(&res[h_idx * w3 + w1 + w_idx], vld1q_f16(&B[h_idx * w2 + w_idx]));
+    }
+    for (unsigned int w_idx = w2_8; w_idx < w2; ++w_idx) {
+      res[h_idx * w3 + w1 + w_idx] = B[h_idx * w2 + w_idx];
+    }
   }
 }
 

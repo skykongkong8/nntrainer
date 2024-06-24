@@ -1606,6 +1606,32 @@ void Tensor::makeSharedDataTensor(const Tensor &src, size_t offset) {
   createSharedDataTensor(src, *this, offset);
 }
 
+Tensor Tensor::concat_w_trans(const Tensor &tensor) {
+  Tensor ret_Tensor(1, 1, height(), width() + tensor.width(), getTensorType());
+#ifdef ENABLE_FP16
+  const _FP16 *in1 = getData<_FP16>();
+  const _FP16 *in2 = tensor.getData<_FP16>();
+  _FP16 *out = ret_Tensor.getData<_FP16>();
+  concat_width_with_transpose(height(), width(), tensor.width(), in1, in2, out);
+#else
+  throw std::invalid_argument("Error: enable-fp16 is not enabled");
+#endif
+  return ret_Tensor;
+}
+Tensor Tensor::concat_wo_trans(const Tensor &tensor) {
+  Tensor ret_Tensor(1, 1, height(), width() + tensor.width(), getTensorType());
+#ifdef ENABLE_FP16
+  const _FP16 *in1 = getData<_FP16>();
+  const _FP16 *in2 = tensor.getData<_FP16>();
+  _FP16 *out = ret_Tensor.getData<_FP16>();
+  concat_width_without_transpose(height(), width(), tensor.width(), in1, in2,
+                                 out);
+#else
+  throw std::invalid_argument("Error: enable-fp16 is not enabled");
+#endif
+  return ret_Tensor;
+}
+
 void Tensor::apply_broadcast(
   Tensor const &m,
   std::function<void(const BroadcastInfo &e, const float *, const float *,

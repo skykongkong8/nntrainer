@@ -551,6 +551,29 @@ void transpose_matrix(const unsigned int M, const unsigned int N,
   transpose_fallback<_FP16>(M, N, src, ld_src, dst, ld_dst);
 #endif
 }
+
+void concat_width_with_transpose(const unsigned int h, const unsigned int w1,
+                                 const unsigned int w2, const _FP16 *A, const _FP16 *B,
+                                 _FP16 *res) {
+#ifdef USE_NEON
+nntrainer::neon::concat_width_with_transpose(h, w1, w2, A, B, res);
+#else
+    throw std::invalid_argument(
+      "Error: concat_width_with_transpose NYI");
+#endif
+}
+
+void concat_width_without_transpose(const unsigned int h, const unsigned int w1,
+                                    const unsigned int w2, const _FP16 *A, const _FP16 *B,
+                                    _FP16 *res) {
+#ifdef USE_NEON
+nntrainer::neon::concat_width_without_transpose(h, w1, w2, A, B, res);
+#else
+    throw std::invalid_argument(
+      "Error:concat_width_without_transpose NYI");
+#endif
+}
+
 #endif
 
 #ifndef USE_BLAS

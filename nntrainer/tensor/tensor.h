@@ -1678,6 +1678,9 @@ public:
    */
   static Tensor cat(const std::vector<Tensor> &tensors, int axis = 0);
 
+  Tensor concat_w_trans(const Tensor& tensor);
+  Tensor concat_wo_trans(const Tensor& tensor);
+
   /**
    * @brief make this tensor share memory with given tensor
    *

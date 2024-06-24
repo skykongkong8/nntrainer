@@ -337,6 +337,13 @@ void hgemm(const __fp16 *A, const __fp16 *B, __fp16 *C, uint32_t M, uint32_t N,
  * @param X __fp16 * for Vector X
  */
 void inv_sqrt_inplace(const unsigned int N, __fp16 *X);
+
+void concat_width_with_transpose(const unsigned int h, const unsigned int w1,
+                                 const unsigned int w2, const __fp16 *A, const __fp16 *B,
+                                 __fp16 *res);
+void concat_width_without_transpose(const unsigned int h, const unsigned int w1,
+                                    const unsigned int w2, const __fp16 *A, const __fp16 *B,
+                                    __fp16 *res);
 #endif
 
 } // namespace nntrainer::neon
