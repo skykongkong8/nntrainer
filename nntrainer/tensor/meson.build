@@ -56,6 +56,14 @@ if get_option('enable-fp16')
   endif
 endif
 
+if arch == 'x86_64'
+  if get_option('enable-avx')
+    subdir('fbgemm')
+    nntrainer_inc += include_directories('fbgemm')
+    nntrainer_inc_abs += meson.current_source_dir() / 'fbgemm'
+  endif
+endif
+
 if get_option('enable-fp16')
   tensor_headers += 'half_tensor.h'
   tensor_sources += 'half_tensor.cpp'

@@ -21,6 +21,7 @@
 #endif
 
 #if USE_AVX
+#include "./fbgemm/fbgemm_interface.h"
 #include <blas_avx.h>
 #endif
 
@@ -330,18 +331,30 @@ static void sgemm_FP16(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA,
                          TransB == CblasTrans);
 #else
   float *A_ = new float[M * K];
-  float *B_ = new float[N * K];
   float *C_ = new float[M * N];
-
   scopy(M * K, A, 1, A_, 1);
-  scopy(N * K, B, 1, B_, 1);
   scopy(M * N, C, 1, C_, 1);
-  sgemm(order, TransA, TransB, M, N, K, alpha, A_, lda, B_, ldb, beta, C_, ldc);
-  scopy(M * N, C_, 1, C, 1);
+
+  Fbgemm_GEMM_interface<uint16_t>(0, K, N, alpha, (uint16_t *)B, 0, M, A_, beta,
+                                  C_, 1, 1);
+  // Fbgemm_GEMM_interface<uint16_t>(TransB == CblasTrans, K, N, alpha, (uint16_t*)B,  TransA == CblasTrans, M, A_, beta, C_, 1,1);
 
   delete[] A_;
-  delete[] B_;
   delete[] C_;
+
+  // float *A_ = new float[M * K];
+  // float *B_ = new float[N * K];
+  // float *C_ = new float[M * N];
+
+  // scopy(M * K, A, 1, A_, 1);
+  // scopy(N * K, B, 1, B_, 1);
+  // scopy(M * N, C, 1, C_, 1);
+  // sgemm(order, TransA, TransB, M, N, K, alpha, A_, lda, B_, ldb, beta, C_,
+  // ldc); scopy(M * N, C_, 1, C, 1);
+
+  // delete[] A_;
+  // delete[] B_;
+  // delete[] C_;
 #endif
 }
 
