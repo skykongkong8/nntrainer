@@ -9,7 +9,10 @@ hgemm_headers = [
 ]
 
 hgemm_sources = [
-    'hgemm.cpp'
+    'hgemm.cpp',
+    'hgemm_kernel_pack.cpp',
+    'hgemm_padding_a.cpp',
+    'hgemm_padding_b.cpp',
 ]
 
 foreach s : hgemm_sources

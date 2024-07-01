@@ -19,7 +19,7 @@
 
 #define N_BLOCKING (768)
 #define K_BLOCKING (256)
-#define M_BLOCKING (4096)
+#define M_BLOCKING (4096) // PAGESIZE
 #define GEMM_UNROLLING_16 (16)
 #define GEMM_UNROLLING_8 (8)
 #define GEMM_UNROLLING_4 (4)
