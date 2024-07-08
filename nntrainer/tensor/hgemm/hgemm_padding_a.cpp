@@ -48,17 +48,31 @@ void hgemm_padding_A_noTrans_wrt_M(const __fp16 *A, const __fp16 *Ap,
 
   // padding for M
   A8 = alignedMalloc(M8 * K);
+  const unsigned int K8_low = (K >> 3) << 3;
 
-  for (unsigned int m = 0; m < M; ++m) {
-    for (unsigned int k = 0; k < K; k += 8) {
-      vst1q_f16(&A8[m * K + k], vld1q_f16(&A8[m * K + k]));
+for (unsigned int m = 0; m < M; ++m) {
+    unsigned int k = 0;
+    for (; k < K8_low; k += 8) {
+      vst1q_f16(&A8[m * K8 + k], vld1q_f16(&A[m * K + k]));
+    }
+    for (; k < K; ++k) {
+      A8[m * K8 + k] = A[m * K + k];
+    }
+    for (; k < K8; ++k) {
+      A8[m * K8 + k] = 0.F;
     }
   }
-  for (unsigned int m = 0; m < M8; ++m) {
-    for (unsigned int k = 0; k < K; k += 8) {
-      vst1q_f16(&A8[m * K + k], ZEROS);
-    }
-  }
+
+//   for (unsigned int m = 0; m < M; ++m) {
+//     for (unsigned int k = 0; k < K; k += 8) {
+//       vst1q_f16(&A8[m * K + k], vld1q_f16(&A8[m * K + k]));
+//     }
+//   }
+//   for (unsigned int m = 0; m < M8; ++m) {
+//     for (unsigned int k = 0; k < K; k += 8) {
+//       vst1q_f16(&A8[m * K + k], ZEROS);
+//     }
+//   }
 }
 
 void hgemm_padding_A_noTrans_wrt_K(const __fp16 *A, const __fp16 *Ap,

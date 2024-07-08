@@ -54,16 +54,37 @@ void hgemm_padding_B_noTrans_wrt_K(const __fp16 *B, const __fp16 *Bp,
 
   B8 = alignedMalloc(K8 * N);
 
-  for (unsigned int k = 0; k < K; ++k) {
-    for (unsigned int n = 0; n < N; n += 8) {
+    unsigned int k = 0;
+  unsigned int N8 = (N >> 3) << 3;
+  for (; k < K; ++k) {
+    unsigned int n = 0;
+    for (; n < N8; n += 8) {
       vst1q_f16(&B8[k * N + n], vld1q_f16(&B[k * N + n]));
     }
-  }
-  for (unsigned int k = K; k < K8; ++k) {
-    for (unsigned int n = 0; n < N; n += 8) {
-      vst1q_f16(&B8[k * N + n], ZEROS);
+    for (; n < N; ++n) {
+      B8[k * N + n] = B[k * N + n];
     }
   }
+  for (; k < K8; ++k) {
+    unsigned int n = 0;
+    for (; n < N8; n += 8) {
+      vst1q_f16(&B8[k * N + n], ZEROS);
+    }
+    for (; n < N; ++n) {
+      B8[k * N + n] = 0.F;
+    }
+  }
+
+//   for (unsigned int k = 0; k < K; ++k) {
+//     for (unsigned int n = 0; n < N; n += 8) {
+//       vst1q_f16(&B8[k * N + n], vld1q_f16(&B[k * N + n]));
+//     }
+//   }
+//   for (unsigned int k = K; k < K8; ++k) {
+//     for (unsigned int n = 0; n < N; n += 8) {
+//       vst1q_f16(&B8[k * N + n], ZEROS);
+//     }
+//   }
 
 /*MATRIX PRINT DEBUG*/
 //   std::cout << "B Matrix\n";
