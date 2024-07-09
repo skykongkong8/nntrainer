@@ -817,6 +817,8 @@ void hgemm_kernel_8x16(unsigned int M, unsigned int N, unsigned int K,
   unsigned int K4 = (K >> 2) << 2;
   unsigned int K8 = (K >> 3) << 3;
   unsigned int K16 = (K >> 4) << 4;
+  unsigned int K32 = (K >> 5) << 5;
+  unsigned int K64 = (K >> 6) << 6;
   for (i = 0; i < M; i += 8) {
     for (j = 0; j < N; j += 16) {
       __builtin_prefetch(b, 0, 3);
@@ -832,6 +834,20 @@ void hgemm_kernel_8x16(unsigned int M, unsigned int N, unsigned int K,
       float16x8_t vb1, vb2;
       float16x8_t va0;
       l = 0;
+      for (; l < K64;) {
+        INIT_KERNEL_8X16();
+        for(unsigned int z = 0; z < 4; ++z){
+          KERNEL_8x16_ACC16();
+        }
+        SAVE_KERNEL_8X16_F16_F32();
+      }
+      for (; l < K32;) {
+        INIT_KERNEL_8X16();
+        for(unsigned int z = 0; z < 2; ++z){
+          KERNEL_8x16_ACC16();
+        }
+        SAVE_KERNEL_8X16_F16_F32();
+      }
       for (; l < K16;) {
         INIT_KERNEL_8X16();
         KERNEL_8x16_ACC16();
