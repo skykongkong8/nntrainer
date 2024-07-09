@@ -14,7 +14,6 @@
 #include <assert.h>
 #include <hgemm_common.h>
 #include <hgemm_kernel_pack.h>
-// #include <hgemm_util.h>
 #include <matrix_transpose_neon.h>
 
 void packing_A1(unsigned int m, unsigned int k, const __fp16 *from,

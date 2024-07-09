@@ -95,41 +95,53 @@ void hgemm_noTrans_strict(const __fp16 *A, const __fp16 *B, __fp16 *C,
 }
 
 void hgemm_ensure_divisibility(const __fp16 *A, const __fp16 *B, float *C32,
-                               unsigned int M, unsigned int N, unsigned int K, float alpha,
-                               float beta, bool TransA, bool TransB) {
+                               unsigned int M, unsigned int N, unsigned int K,
+                               float alpha, float beta, bool TransA,
+                               bool TransB) {
   /// @note Padding standard : 8x16 is the only KERNEL that outperforms single
-  /// precision GEMM 'so far'. Padding will forcibly make every GEMM cases to use
-  /// it. Note that addin
+  /// precision GEMM 'so far'. Padding will forcibly make every GEMM cases to
+  /// use it. Note that padding is not the optimal way here, but just an option
+  /// that is easier to implement. Fine-grained packing should be supported on
+  /// the future for optimal performance.
 
-  const __fp16 *A_ = A, *B_ = B;
+  __fp16 *A_ = (__fp16 *)A, *B_ = (__fp16 *)B;
   unsigned int M_ = M, N_ = N, K_ = K;
- 
+  bool pad_A = false, pad_B = false;
+
   // Case 2 : smaller than 8, 16 | padding would be redundant?
   if (M < 8 && K < 16 && N < 16)
     return hgemm_classify(A_, B_, C32, M_, N_, K_, alpha, beta, TransA, TransB);
 
-  const __fp16 *Ap;
-  const __fp16 *Bp;
+  __fp16 *Ap;
+  __fp16 *Bp;
 
   const unsigned int M8_high = ((M - 1) / 8 + 1) * 8;
   const unsigned int K8_high = ((K - 1) / 8 + 1) * 8;
   const unsigned int N16_high = ((N - 1) / 16 + 1) * 16;
 
   if ((M8_high != M) || (K8_high != K)) {
+    pad_A = true;
+    Ap = alignedMalloc(M8_high * K8_high);
     hgemm_padding_A(A, Ap, M, K, M8_high, K8_high, TransA);
-    A_ = (const __fp16*)Ap;
+    A_ = Ap;
     M_ = M8_high;
     K_ = K8_high;
   }
-  // std:: cout << "M8_high : " << M8_high << ", M : " << M << ", K8_high : " << K8_high << ", K : " << K << ", N16_high : " << N16_high << ", N : " << N << std::endl;
   if ((K8_high != K) || (N16_high != N)) {
+    pad_B = true;
+    Bp = alignedMalloc(K8_high * N16_high);
     hgemm_padding_B(B, Bp, K, N, K8_high, N16_high, TransB);
-    B_ = (const __fp16*)Bp;
+    B_ = Bp;
     K_ = K8_high;
     N_ = N16_high;
   }
 
   hgemm_classify(A_, B_, C32, M_, N_, K_, alpha, beta, TransA, TransB);
+
+  if (pad_A)
+    free(Ap);
+  if (pad_B)
+    free(Bp);
 }
 
 void hgemm_classify(const __fp16 *A, const __fp16 *B, float *C32,
@@ -972,8 +984,6 @@ void hgemm_noTrans_8x16(unsigned int M, unsigned int N, unsigned int K,
                         const __fp16 *A, unsigned int lda, const __fp16 *B,
                         unsigned int ldb, float *C, unsigned int ldc,
                         float alpha, float beta) {
-  std::cout << "M : " << M << ", K : " << K << ", N : " << N << std::endl;
-
   __fp16 *sA = alignedMalloc(M * K);
   __fp16 *sB = alignedMalloc(K * N);
 
@@ -1412,13 +1422,7 @@ void hgemm_transB_8x16(unsigned int M, unsigned int N, unsigned int K,
       } else {
         stride_l1 = 0;
       }
-      // packing_B16(k_min, n_min, B + ks * ldb, ldb, sB);
-      // auto t1 = high_resolution_clock::now();
       packing_transB16(k_min, n_min, B + (ks), ldb, sB);
-      // auto t2 = high_resolution_clock::now();
-      // auto dt = duration_cast<nanoseconds>(t2 - t1);
-      // std::cout << "first packing_B16: " << dt.count() << " ns " <<
-      // std::endl;
 
       for (ms2 = ms; ms2 < ms + m_min; ms2 += m2_min) {
         m2_min = (ms + m_min) - ms2;
@@ -1429,21 +1433,11 @@ void hgemm_transB_8x16(unsigned int M, unsigned int N, unsigned int K,
         } else if (m2_min > GEMM_UNROLLING_8) {
           m2_min = GEMM_UNROLLING_8;
         }
-        // t1 = high_resolution_clock::now();
         packing_A8(m2_min, k_min, A + ms2 * lda + ks, lda,
                    sA + k_min * (ms2 - ms) * stride_l1);
-        // t2 = high_resolution_clock::now();
-        // dt = duration_cast<nanoseconds>(t2 - t1);
-        // std::cout << "packing_A8 : " << dt.count() << " ns " << std::endl;
-
-        // t1 = high_resolution_clock::now();
         HGEMM_KERNEL_8x16(m2_min, n_min, k_min,
                           sA + k_min * (ms2 - ms) * stride_l1, sB,
                           C + ms2 * ldc, ldc);
-        // t2 = high_resolution_clock::now();
-        // dt = duration_cast<nanoseconds>(t2 - t1);
-        // std::cout << "HGEMM_KERNEL_8x16 : " << dt.count() << " ns "
-        //           << std::endl;
       }
 
       for (ns = n_min; ns < N; ns += n_min) {
@@ -1453,20 +1447,8 @@ void hgemm_transB_8x16(unsigned int M, unsigned int N, unsigned int K,
         } else if (n_min > N_BLOCKING) {
           n_min = (n_min / 2 + GEMM_UNROLLING_8 - 1) & ~(GEMM_UNROLLING_8 - 1);
         }
-        // packing_B16(k_min, n_min, B + ns + ldb * ks, ldb, sB);
-        // t1 = high_resolution_clock::now();
         packing_transB16(k_min, n_min, B + ks + ldb * ns, ldb, sB);
-        // t2 = high_resolution_clock::now();
-        // dt = duration_cast<nanoseconds>(t2 - t1);
-        // std::cout << "second packing_transB16 : " << dt.count() << " ns "
-        //           << std::endl;
-
-        // t1 = high_resolution_clock::now();
         HGEMM_KERNEL_8x16(m_min, n_min, k_min, sA, sB, C + ms * ldc + ns, ldc);
-        // t2 = high_resolution_clock::now();
-        // dt = duration_cast<nanoseconds>(t2 - t1);
-        // std::cout << "second HGEMM_KERNEL_8x16 : " << dt.count() << " ns "
-        //           << std::endl;
       }
     }
   }

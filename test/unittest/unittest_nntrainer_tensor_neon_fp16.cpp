@@ -769,106 +769,18 @@ TEST(nntrainer_Tensor, sum_gemv_2_10) {
 //   EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
 // }
 
-// TEST(nntrainer_Tensor, dot_gemm_conv) {
-//   /// @note GEMM : A X B = C
-//   int batch = 1;
-//   int channel = 1;
-//   int height = 256; // N
-//   int width = 110; // K
-
-//   int height_b = 784; // N
-//   int width_b = 110; // K
-
-//   bool transA = false;
-//   bool transB = true;
-
-//   nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
-//     nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
-
-//   nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
-//     nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
-
-//   nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
-//   nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
-
-//   nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
-//   nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
-//   t_type_nchw_fp32);
-
-//   const float alpha = 1e-1;
-//   const int MOD = 10;
-
-//   GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
-//                       k * (width) + l + 1) %
-//                      MOD) *
-//                       alpha);
-//   GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
-//                         j * (batch * height_b) + k * (width_b) + l + 1) %
-//                        MOD) *
-//                         alpha);
-//   GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
-//                            j * (batch * height) + k * (width) + l + 1) %
-//                           MOD) *
-//                            alpha);
-//   GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
-//                              j * (batch * height_b) + k * (width_b) + l + 1)
-//                              %
-//                             MOD) *
-//                              alpha);
-// double  gflops = 2.0 * height * width_b * width * 1.0e-09;
-
-// const int TC = 1;
-
-//   nntrainer::Tensor C;
-//   nntrainer::Tensor C_fp32;
-// auto t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C = A.dot(B, transA, transB);
-// }
-// auto t2 = high_resolution_clock::now();
-// auto dt = duration_cast<nanoseconds>(t2 - t1);
-// auto dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp16 : " << dt.count() / TC
-//         << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//         <<std::endl;
-
-// t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C_fp32 = A_fp32.dot(B_fp32, transA, transB);
-// }
-// t2 = high_resolution_clock::now();
-// dt = duration_cast<nanoseconds>(t2 - t1);
-// dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp32 : " << dt.count() / TC
-//                 << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//                 <<std::endl;
-// C_fp32.print(std::cout);
-// C.print(std::cout);
-//   float mseErrorNeon =
-//     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-//   double cosSimNeon = cosine_similarity<__fp16>(
-//     C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-//   const float epsilon = 1e-3 * width;
-
-//   EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
-//   EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
-// }
-
-TEST(nntrainer_Tensor, dot_gemm_conv_debug) {
+TEST(nntrainer_Tensor, dot_gemm_conv) {
   /// @note GEMM : A X B = C
   int batch = 1;
   int channel = 1;
-  int height = 16; // M
-  // int height = 8; // M
-  int width = 10; // K
+  int height = 256; // N
+  int width = 110; // K
 
-  int height_b = 10; // K
-  int width_b = 16;  // N
+  int height_b = 784; // N
+  int width_b = 110; // K
 
   bool transA = false;
-  bool transB = false;
+  bool transB = true;
 
   nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
     nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
@@ -880,94 +792,58 @@ TEST(nntrainer_Tensor, dot_gemm_conv_debug) {
   nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
 
   nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
-  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b, t_type_nchw_fp32);
+  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
+  t_type_nchw_fp32);
 
   const float alpha = 1e-1;
   const int MOD = 10;
 
   GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
-                      (k * l + 1) * (width) + l + 1) %
+                      k * (width) + l + 1) %
                      MOD) *
                       alpha);
-  GEN_TEST_INPUT_B(B,
-                   ((i * (batch * height_b * channel) + j * (batch * height_b) +
-                     (k * l + 1) * (width_b) + l + 1) %
-                    MOD) *
-                     alpha);
-  GEN_TEST_INPUT(A_fp32,
-                 ((i * (batch * height * channel) + j * (batch * height) +
-                   (k * l + 1) * (width) + l + 1) %
-                  MOD) *
-                   alpha);
-  GEN_TEST_INPUT_B(B_fp32,
-                   ((i * (batch * height_b * channel) + j * (batch * height_b) +
-                     (k * l + 1) * (width_b) + l + 1) %
-                    MOD) *
-                     alpha);
-  double gflops = 2.0 * height * width_b * width * 1.0e-09;
+  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
+                        j * (batch * height_b) + k * (width_b) + l + 1) %
+                       MOD) *
+                        alpha);
+  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
+                           j * (batch * height) + k * (width) + l + 1) %
+                          MOD) *
+                           alpha);
+  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
+                             j * (batch * height_b) + k * (width_b) + l + 1)
+                             %
+                            MOD) *
+                             alpha);
+double  gflops = 2.0 * height * width_b * width * 1.0e-09;
 
-  const int TC = 1;
+const int TC = 100;
 
   nntrainer::Tensor C;
   nntrainer::Tensor C_fp32;
-  auto t1 = high_resolution_clock::now();
-  for (int tc = 0; tc < TC; ++tc) {
-    C = A.dot(B, transA, transB);
-  }
-  auto t2 = high_resolution_clock::now();
-  auto dt = duration_cast<nanoseconds>(t2 - t1);
-  auto dts = duration_cast<seconds>(t2 - t1);
-  std::cout << "fp16 : " << dt.count() / TC << " ns "
-            << ", gflops : " << gflops / (dts.count() / TC) << std::endl;
+auto t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C = A.dot(B, transA, transB);
+}
+auto t2 = high_resolution_clock::now();
+auto dt = duration_cast<nanoseconds>(t2 - t1);
+auto dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp16 : " << dt.count() / TC
+        << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+        <<std::endl;
 
-  t1 = high_resolution_clock::now();
-  for (int tc = 0; tc < TC; ++tc) {
-    C_fp32 = A_fp32.dot(B_fp32, transA, transB);
-  }
-  t2 = high_resolution_clock::now();
-  dt = duration_cast<nanoseconds>(t2 - t1);
-  dts = duration_cast<seconds>(t2 - t1);
-  std::cout << "fp32 : " << dt.count() / TC << " ns "
-            << ", gflops : " << gflops / (dts.count() / TC) << std::endl;
-  C_fp32.print(std::cout);
-  C.print(std::cout);
-
-  for (int b = 0; b < batch; b++) {
-    for (int c = 0; c < channel; c++) {
-      for (int h = 0; h < height; h++) {
-        for (int w = 0; w < width; w++) {
-          std::cout << C_fp32.getValue<float>(b, c, h, w) << "\t";
-          // std::cout << C.getValue<__fp16>(b, c, h, w) << "\t";
-        }
-        std::cout << std::endl;
-      }
-      std::cout << std::endl;
-    }
-    std::cout << std::endl;
-  }
-  std::cout << std::endl;
-  std::cout << std::endl;
-  std::cout << std::endl;
-  std::cout << std::endl;
-
-
-    for (int b = 0; b < batch; b++) {
-    for (int c = 0; c < channel; c++) {
-      for (int h = 0; h < height; h++) {
-        for (int w = 0; w < width; w++) {
-          std::cout << C.getValue<__fp16>(b, c, h, w) << "\t";
-        }
-        std::cout << std::endl;
-      }
-      std::cout << std::endl;
-    }
-    std::cout << std::endl;
-  }
-  std::cout << std::endl;
-  std::cout << std::endl;
-  std::cout << std::endl;
-
-
+t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+}
+t2 = high_resolution_clock::now();
+dt = duration_cast<nanoseconds>(t2 - t1);
+dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp32 : " << dt.count() / TC
+                << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+                <<std::endl;
+C_fp32.print(std::cout);
+C.print(std::cout);
   float mseErrorNeon =
     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
 
@@ -980,15 +856,16 @@ TEST(nntrainer_Tensor, dot_gemm_conv_debug) {
   EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
 }
 
-// TEST(nntrainer_Tensor, dot_gemm_conv21) {
+// TEST(nntrainer_Tensor, dot_gemm_conv_debug_transB) {
 //   /// @note GEMM : A X B = C
 //   int batch = 1;
 //   int channel = 1;
-//   int height = 21;
-//   int width = 768;
+//   int height = 16; // M
+//   // int height = 8; // M
+//   int width = 10; // K
 
-//   int height_b = 1280;
-//   int width_b = 768;
+//   int height_b = 16; // N
+//   int width_b = 10;  // K
 
 //   bool transA = false;
 //   bool transB = true;
@@ -1003,56 +880,129 @@ TEST(nntrainer_Tensor, dot_gemm_conv_debug) {
 //   nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
 
 //   nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
-//   nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
-//   t_type_nchw_fp32);
+//   nntrainer::Tensor B_fp32(batch, channel, height_b, width_b, t_type_nchw_fp32);
 
 //   const float alpha = 1e-1;
 //   const int MOD = 10;
 
 //   GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
-//                       k * (width) + l + 1) %
+//                       (k * l + 1) * (width) + l + 1) %
 //                      MOD) *
 //                       alpha);
-//   GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
-//                         j * (batch * height_b) + k * (width_b) + l + 1) %
-//                        MOD) *
-//                         alpha);
-//   GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
-//                            j * (batch * height) + k * (width) + l + 1) %
-//                           MOD) *
-//                            alpha);
-//   GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
-//                              j * (batch * height_b) + k * (width_b) + l + 1)
-//                              %
-//                             MOD) *
-//                              alpha);
-// double  gflops = 2.0 * height * width_b * width * 1.0e-09;
+//   GEN_TEST_INPUT_B(B,
+//                    ((i * (batch * height_b * channel) + j * (batch * height_b) +
+//                      (k * l + 1) * (width_b) + l + 1) %
+//                     MOD) *
+//                      alpha);
+//   GEN_TEST_INPUT(A_fp32,
+//                  ((i * (batch * height * channel) + j * (batch * height) +
+//                    (k * l + 1) * (width) + l + 1) %
+//                   MOD) *
+//                    alpha);
+//   GEN_TEST_INPUT_B(B_fp32,
+//                    ((i * (batch * height_b * channel) + j * (batch * height_b) +
+//                      (k * l + 1) * (width_b) + l + 1) %
+//                     MOD) *
+//                      alpha);
+//   double gflops = 2.0 * height * width_b * width * 1.0e-09;
 
-// const int TC = 1;
+//   const int TC = 100;
 
 //   nntrainer::Tensor C;
 //   nntrainer::Tensor C_fp32;
-// auto t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C = A.dot(B, transA, transB);
-// }
-// auto t2 = high_resolution_clock::now();
-// auto dt = duration_cast<nanoseconds>(t2 - t1);
-// auto dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp16 : " << dt.count() / TC
-//         << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//         <<std::endl;
+//   auto t1 = high_resolution_clock::now();
+//   for (int tc = 0; tc < TC; ++tc) {
+//     C = A.dot(B, transA, transB);
+//   }
+//   auto t2 = high_resolution_clock::now();
+//   auto dt = duration_cast<nanoseconds>(t2 - t1);
+//   auto dts = duration_cast<seconds>(t2 - t1);
+//   std::cout << "fp16 : " << dt.count() / TC << " ns "
+//             << ", gflops : " << gflops / (dts.count() / TC) << std::endl;
 
-// t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C_fp32 = A_fp32.dot(B_fp32, transA, transB);
-// }
-// t2 = high_resolution_clock::now();
-// dt = duration_cast<nanoseconds>(t2 - t1);
-// dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp32 : " << dt.count() / TC
-//                 << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//                 <<std::endl;
+//   t1 = high_resolution_clock::now();
+//   for (int tc = 0; tc < TC; ++tc) {
+//     C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+//   }
+//   t2 = high_resolution_clock::now();
+//   dt = duration_cast<nanoseconds>(t2 - t1);
+//   dts = duration_cast<seconds>(t2 - t1);
+//   std::cout << "fp32 : " << dt.count() / TC << " ns "
+//             << ", gflops : " << gflops / (dts.count() / TC) << std::endl;
+//   C_fp32.print(std::cout);
+//   C.print(std::cout);
+// std::cout << "A Matrix\n";
+//     for (int b = 0; b < A.batch(); b++) {
+//     for (int c = 0; c < A.channel(); c++) {
+//       for (int h = 0; h < A.height(); h++) {
+//         for (int w = 0; w < A.width(); w++) {
+//           std::cout << A.getValue<__fp16>(b, c, h, w) << "\t";
+//           // std::cout << C.getValue<__fp16>(b, c, h, w) << "\t";
+//         }
+//         std::cout << std::endl;
+//       }
+//       std::cout << std::endl;
+//     }
+//     std::cout << std::endl;
+//   }
+//   std::cout << std::endl;
+//   std::cout << std::endl;
+//   std::cout << std::endl;
+//   std::cout << std::endl;
+// std::cout << "B Matrix\n";
+//       for (int b = 0; b < B.batch(); b++) {
+//     for (int c = 0; c < B.channel(); c++) {
+//       for (int h = 0; h < B.height(); h++) {
+//         for (int w = 0; w < B.width(); w++) {
+//           std::cout << B.getValue<__fp16>(b, c, h, w) << "\t";
+//           // std::cout << C.getValue<__fp16>(b, c, h, w) << "\t";
+//         }
+//         std::cout << std::endl;
+//       }
+//       std::cout << std::endl;
+//     }
+//     std::cout << std::endl;
+//   }
+//   std::cout << std::endl;
+//   std::cout << std::endl;
+//   std::cout << std::endl;
+//   std::cout << std::endl;
+
+//   // for (int b = 0; b < C_fp32.batch(); b++) {
+//   //   for (int c = 0; c < C_fp32.channel(); c++) {
+//   //     for (int h = 0; h < C_fp32.height(); h++) {
+//   //       for (int w = 0; w < C_fp32.width(); w++) {
+//   //         std::cout << C_fp32.getValue<float>(b, c, h, w) << "\t";
+//   //         // std::cout << C.getValue<__fp16>(b, c, h, w) << "\t";
+//   //       }
+//   //       std::cout << std::endl;
+//   //     }
+//   //     std::cout << std::endl;
+//   //   }
+//   //   std::cout << std::endl;
+//   // }
+//   // std::cout << std::endl;
+//   // std::cout << std::endl;
+//   // std::cout << std::endl;
+//   // std::cout << std::endl;
+
+
+//   //   for (int b = 0; b < C.batch(); b++) {
+//   //   for (int c = 0; c < C.channel(); c++) {
+//   //     for (int h = 0; h < C.height(); h++) {
+//   //       for (int w = 0; w < C.width(); w++) {
+//   //         std::cout << C.getValue<__fp16>(b, c, h, w) << "\t";
+//   //       }
+//   //       std::cout << std::endl;
+//   //     }
+//   //     std::cout << std::endl;
+//   //   }
+//   //   std::cout << std::endl;
+//   // }
+//   // std::cout << std::endl;
+//   // std::cout << std::endl;
+//   // std::cout << std::endl;
+
 
 //   float mseErrorNeon =
 //     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
@@ -1066,187 +1016,17 @@ TEST(nntrainer_Tensor, dot_gemm_conv_debug) {
 //   EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
 // }
 
-// TEST(nntrainer_Tensor, dot_gemm_conv22) {
+
+// TEST(nntrainer_Tensor, dot_gemm_conv_debug_noTrans) {
 //   /// @note GEMM : A X B = C
 //   int batch = 1;
 //   int channel = 1;
-//   int height = 22;
-//   int width = 768;
+//   int height = 16; // M
+//   // int height = 8; // M
+//   int width = 10; // K
 
-//   int height_b = 1280;
-//   int width_b = 768;
-
-//   bool transA = false;
-//   bool transB = true;
-
-//   nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
-//     nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
-
-//   nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
-//     nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
-
-//   nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
-//   nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
-
-//   nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
-//   nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
-//   t_type_nchw_fp32);
-
-//   const float alpha = 1e-1;
-//   const int MOD = 10;
-
-//   GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
-//                       k * (width) + l + 1) %
-//                      MOD) *
-//                       alpha);
-//   GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
-//                         j * (batch * height_b) + k * (width_b) + l + 1) %
-//                        MOD) *
-//                         alpha);
-//   GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
-//                            j * (batch * height) + k * (width) + l + 1) %
-//                           MOD) *
-//                            alpha);
-//   GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
-//                              j * (batch * height_b) + k * (width_b) + l + 1)
-//                              %
-//                             MOD) *
-//                              alpha);
-// double  gflops = 2.0 * height * width_b * width * 1.0e-09;
-
-// const int TC = 100;
-
-//   nntrainer::Tensor C;
-//   nntrainer::Tensor C_fp32;
-// auto t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C = A.dot(B, transA, transB);
-// }
-// auto t2 = high_resolution_clock::now();
-// auto dt = duration_cast<nanoseconds>(t2 - t1);
-// auto dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp16 : " << dt.count() / TC
-//         << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//         <<std::endl;
-
-// t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C_fp32 = A_fp32.dot(B_fp32, transA, transB);
-// }
-// t2 = high_resolution_clock::now();
-// dt = duration_cast<nanoseconds>(t2 - t1);
-// dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp32 : " << dt.count() / TC
-//                 << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//                 <<std::endl;
-
-//   float mseErrorNeon =
-//     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-//   double cosSimNeon = cosine_similarity<__fp16>(
-//     C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-//   const float epsilon = 1e-3 * width;
-
-//   EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
-//   EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
-// }
-
-// TEST(nntrainer_Tensor, dot_gemm_conv23) {
-//   /// @note GEMM : A X B = C
-//   int batch = 1;
-//   int channel = 1;
-//   int height = 23;
-//   int width = 768;
-
-//   int height_b = 1280;
-//   int width_b = 768;
-
-//   bool transA = false;
-//   bool transB = true;
-
-//   nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
-//     nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
-
-//   nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
-//     nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
-
-//   nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
-//   nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
-
-//   nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
-//   nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
-//   t_type_nchw_fp32);
-
-//   const float alpha = 1e-1;
-//   const int MOD = 10;
-
-//   GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
-//                       k * (width) + l + 1) %
-//                      MOD) *
-//                       alpha);
-//   GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
-//                         j * (batch * height_b) + k * (width_b) + l + 1) %
-//                        MOD) *
-//                         alpha);
-//   GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
-//                            j * (batch * height) + k * (width) + l + 1) %
-//                           MOD) *
-//                            alpha);
-//   GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
-//                              j * (batch * height_b) + k * (width_b) + l + 1)
-//                              %
-//                             MOD) *
-//                              alpha);
-// double  gflops = 2.0 * height * width_b * width * 1.0e-09;
-
-// const int TC = 1;
-
-//   nntrainer::Tensor C;
-//   nntrainer::Tensor C_fp32;
-// auto t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C = A.dot(B, transA, transB);
-// }
-// auto t2 = high_resolution_clock::now();
-// auto dt = duration_cast<nanoseconds>(t2 - t1);
-// auto dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp16 : " << dt.count() / TC
-//         << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//         <<std::endl;
-
-// t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C_fp32 = A_fp32.dot(B_fp32, transA, transB);
-// }
-// t2 = high_resolution_clock::now();
-// dt = duration_cast<nanoseconds>(t2 - t1);
-// dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp32 : " << dt.count() / TC
-//                 << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//                 <<std::endl;
-
-//   float mseErrorNeon =
-//     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-//   double cosSimNeon = cosine_similarity<__fp16>(
-//     C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-
-//   const float epsilon = 1e-3 * width;
-
-//   EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
-//   EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
-// }
-
-// TEST(nntrainer_Tensor, dot_gemm_conv24_noTrans) {
-//   /// @note GEMM : A X B = C
-//   int batch = 1;
-//   int channel = 1;
-//   int height = 24;
-//   int width = 768;
-
-//   int height_b = 768;
-//   int width_b = 1280;
+//   int height_b = 10; // K
+//   int width_b = 16;  // N
 
 //   bool transA = false;
 //   bool transB = false;
@@ -1261,56 +1041,93 @@ TEST(nntrainer_Tensor, dot_gemm_conv_debug) {
 //   nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
 
 //   nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
-//   nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
-//   t_type_nchw_fp32);
+//   nntrainer::Tensor B_fp32(batch, channel, height_b, width_b, t_type_nchw_fp32);
 
 //   const float alpha = 1e-1;
 //   const int MOD = 10;
 
 //   GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
-//                       k * (width) + l + 1) %
+//                       (k * l + 1) * (width) + l + 1) %
 //                      MOD) *
 //                       alpha);
-//   GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
-//                         j * (batch * height_b) + k * (width_b) + l + 1) %
-//                        MOD) *
-//                         alpha);
-//   GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
-//                            j * (batch * height) + k * (width) + l + 1) %
-//                           MOD) *
-//                            alpha);
-//   GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
-//                              j * (batch * height_b) + k * (width_b) + l + 1)
-//                              %
-//                             MOD) *
-//                              alpha);
-// double  gflops = 2.0 * height * width_b * width * 1.0e-09;
+//   GEN_TEST_INPUT_B(B,
+//                    ((i * (batch * height_b * channel) + j * (batch * height_b) +
+//                      (k * l + 1) * (width_b) + l + 1) %
+//                     MOD) *
+//                      alpha);
+//   GEN_TEST_INPUT(A_fp32,
+//                  ((i * (batch * height * channel) + j * (batch * height) +
+//                    (k * l + 1) * (width) + l + 1) %
+//                   MOD) *
+//                    alpha);
+//   GEN_TEST_INPUT_B(B_fp32,
+//                    ((i * (batch * height_b * channel) + j * (batch * height_b) +
+//                      (k * l + 1) * (width_b) + l + 1) %
+//                     MOD) *
+//                      alpha);
+//   double gflops = 2.0 * height * width_b * width * 1.0e-09;
 
-// const int TC = 100;
+//   const int TC = 100;
 
 //   nntrainer::Tensor C;
 //   nntrainer::Tensor C_fp32;
-// auto t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C = A.dot(B, transA, transB);
-// }
-// auto t2 = high_resolution_clock::now();
-// auto dt = duration_cast<nanoseconds>(t2 - t1);
-// auto dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp16 : " << dt.count() / TC
-//         << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//         <<std::endl;
+//   auto t1 = high_resolution_clock::now();
+//   for (int tc = 0; tc < TC; ++tc) {
+//     C = A.dot(B, transA, transB);
+//   }
+//   auto t2 = high_resolution_clock::now();
+//   auto dt = duration_cast<nanoseconds>(t2 - t1);
+//   auto dts = duration_cast<seconds>(t2 - t1);
+//   std::cout << "fp16 : " << dt.count() / TC << " ns "
+//             << ", gflops : " << gflops / (dts.count() / TC) << std::endl;
 
-// t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C_fp32 = A_fp32.dot(B_fp32, transA, transB);
-// }
-// t2 = high_resolution_clock::now();
-// dt = duration_cast<nanoseconds>(t2 - t1);
-// dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp32 : " << dt.count() / TC
-//                 << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//                 <<std::endl;
+//   t1 = high_resolution_clock::now();
+//   for (int tc = 0; tc < TC; ++tc) {
+//     C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+//   }
+//   t2 = high_resolution_clock::now();
+//   dt = duration_cast<nanoseconds>(t2 - t1);
+//   dts = duration_cast<seconds>(t2 - t1);
+//   std::cout << "fp32 : " << dt.count() / TC << " ns "
+//             << ", gflops : " << gflops / (dts.count() / TC) << std::endl;
+//   C_fp32.print(std::cout);
+//   C.print(std::cout);
+
+//   for (int b = 0; b < C_fp32.batch(); b++) {
+//     for (int c = 0; c < C_fp32.channel(); c++) {
+//       for (int h = 0; h < C_fp32.height(); h++) {
+//         for (int w = 0; w < C_fp32.width(); w++) {
+//           std::cout << C_fp32.getValue<float>(b, c, h, w) << "\t";
+//           // std::cout << C.getValue<__fp16>(b, c, h, w) << "\t";
+//         }
+//         std::cout << std::endl;
+//       }
+//       std::cout << std::endl;
+//     }
+//     std::cout << std::endl;
+//   }
+//   std::cout << std::endl;
+//   std::cout << std::endl;
+//   std::cout << std::endl;
+//   std::cout << std::endl;
+
+
+//     for (int b = 0; b < C.batch(); b++) {
+//     for (int c = 0; c < C.channel(); c++) {
+//       for (int h = 0; h < C.height(); h++) {
+//         for (int w = 0; w < C.width(); w++) {
+//           std::cout << C.getValue<__fp16>(b, c, h, w) << "\t";
+//         }
+//         std::cout << std::endl;
+//       }
+//       std::cout << std::endl;
+//     }
+//     std::cout << std::endl;
+//   }
+//   std::cout << std::endl;
+//   std::cout << std::endl;
+//   std::cout << std::endl;
+
 
 //   float mseErrorNeon =
 //     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
@@ -1324,160 +1141,505 @@ TEST(nntrainer_Tensor, dot_gemm_conv_debug) {
 //   EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
 // }
 
-// TEST(nntrainer_Tensor, dot_gemm_conv24) {
-//   /// @note GEMM : A X B = C
-//   int batch = 1;
-//   int channel = 1;
-//   int height = 24;
-//   int width = 768;
 
-//   int height_b = 1280;
-//   int width_b = 768;
+TEST(nntrainer_Tensor, dot_gemm_conv21) {
+  /// @note GEMM : A X B = C
+  int batch = 1;
+  int channel = 1;
+  int height = 21; // M
+  int width = 768; // K
 
-//   bool transA = false;
-//   bool transB = true;
+  int height_b = 1280; // N
+  int width_b = 768; // K
 
-//   nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
-//     nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
+  bool transA = false;
+  bool transB = true;
 
-//   nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
-//     nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
+  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
 
-//   nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
-//   nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
+  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
 
-//   nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
-//   nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
-//   t_type_nchw_fp32);
+  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
+  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
 
-//   const float alpha = 1e-1;
-//   const int MOD = 10;
+  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
+  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
+  t_type_nchw_fp32);
 
-//   GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
-//                       k * (width) + l + 1) %
-//                      MOD) *
-//                       alpha);
-//   GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
-//                         j * (batch * height_b) + k * (width_b) + l + 1) %
-//                        MOD) *
-//                         alpha);
-//   GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
-//                            j * (batch * height) + k * (width) + l + 1) %
-//                           MOD) *
-//                            alpha);
-//   GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
-//                              j * (batch * height_b) + k * (width_b) + l + 1)
-//                              %
-//                             MOD) *
-//                              alpha);
-// double  gflops = 2.0 * height * width_b * width * 1.0e-09;
+  const float alpha = 1e-1;
+  const int MOD = 10;
 
-// const int TC = 100;
+  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
+                      k * (width) + l + 1) %
+                     MOD) *
+                      alpha);
+  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
+                        j * (batch * height_b) + k * (width_b) + l + 1) %
+                       MOD) *
+                        alpha);
+  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
+                           j * (batch * height) + k * (width) + l + 1) %
+                          MOD) *
+                           alpha);
+  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
+                             j * (batch * height_b) + k * (width_b) + l + 1)
+                             %
+                            MOD) *
+                             alpha);
+double  gflops = 2.0 * height * width_b * width * 1.0e-09;
 
-//   nntrainer::Tensor C;
-//   nntrainer::Tensor C_fp32;
-// auto t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C = A.dot(B, transA, transB);
-// }
-// auto t2 = high_resolution_clock::now();
-// auto dt = duration_cast<nanoseconds>(t2 - t1);
-// auto dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp16 : " << dt.count() / TC
-//         << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//         <<std::endl;
+const int TC = 100;
 
-// t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C_fp32 = A_fp32.dot(B_fp32, transA, transB);
-// }
-// t2 = high_resolution_clock::now();
-// dt = duration_cast<nanoseconds>(t2 - t1);
-// dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp32 : " << dt.count() / TC
-//                 << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//                 <<std::endl;
+  nntrainer::Tensor C;
+  nntrainer::Tensor C_fp32;
+auto t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C = A.dot(B, transA, transB);
+}
+auto t2 = high_resolution_clock::now();
+auto dt = duration_cast<nanoseconds>(t2 - t1);
+auto dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp16 : " << dt.count() / TC
+        << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+        <<std::endl;
 
-//   float mseErrorNeon =
-//     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+}
+t2 = high_resolution_clock::now();
+dt = duration_cast<nanoseconds>(t2 - t1);
+dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp32 : " << dt.count() / TC
+                << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+                <<std::endl;
 
-//   double cosSimNeon = cosine_similarity<__fp16>(
-//     C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+  float mseErrorNeon =
+    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
 
-//   const float epsilon = 1e-3 * width;
+  double cosSimNeon = cosine_similarity<__fp16>(
+    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
 
-//   EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
-//   EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
-// }
+  const float epsilon = 1e-3 * width;
 
-// TEST(nntrainer_Tensor, dot_gemm_conv768) {
-//   /// @note GEMM : A X B = C
-//   int batch = 1;
-//   int channel = 1;
-//   int height = 768;
-//   int width = 768;
-//   int height_b = 1280;
-//   int width_b = 768;
-//   bool transA = false;
-//   bool transB = true;
-//   nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
-//     nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
-//   nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
-//     nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
-//   nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
-//   nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
-//   nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
-//   nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
-//   t_type_nchw_fp32); const float alpha = 1e-1; const int MOD = 10;
-//   GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
-//                       k * (width) + l + 1) %
-//                      MOD) *
-//                       alpha);
-//   GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
-//                         j * (batch * height_b) + k * (width_b) + l + 1) %
-//                        MOD) *
-//                         alpha);
-//   GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
-//                            j * (batch * height) + k * (width) + l + 1) %
-//                           MOD) *
-//                            alpha);
-//   GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
-//                              j * (batch * height_b) + k * (width_b) + l + 1)
-//                              %
-//                             MOD) *
-//                              alpha);
-// double  gflops = 2.0 * height * width_b * width * 1.0e-09;
-// const int TC = 100;
-//   nntrainer::Tensor C;
-//   nntrainer::Tensor C_fp32;
-// auto t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C = A.dot(B, transA, transB);
-// }
-// auto t2 = high_resolution_clock::now();
-// auto dt = duration_cast<nanoseconds>(t2 - t1);
-// auto dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp16 : " << dt.count() / TC
-//         << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//         <<std::endl;
-// t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C_fp32 = A_fp32.dot(B_fp32, transA, transB);
-// }
-// t2 = high_resolution_clock::now();
-// dt = duration_cast<nanoseconds>(t2 - t1);
-// dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp32 : " << dt.count() / TC
-//                 << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//                 <<std::endl;
-//   float mseErrorNeon =
-//     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-//   double cosSimNeon = cosine_similarity<__fp16>(
-//     C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
-//   const float epsilon = 1e-3 * width;
-//   EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
-//   EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
-// }
+  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
+  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
+}
+
+TEST(nntrainer_Tensor, dot_gemm_conv22) {
+  /// @note GEMM : A X B = C
+  int batch = 1;
+  int channel = 1;
+  int height = 22;
+  int width = 768;
+
+  int height_b = 1280;
+  int width_b = 768;
+
+  bool transA = false;
+  bool transB = true;
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
+
+  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
+  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
+
+  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
+  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
+  t_type_nchw_fp32);
+
+  const float alpha = 1e-1;
+  const int MOD = 10;
+
+  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
+                      k * (width) + l + 1) %
+                     MOD) *
+                      alpha);
+  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
+                        j * (batch * height_b) + k * (width_b) + l + 1) %
+                       MOD) *
+                        alpha);
+  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
+                           j * (batch * height) + k * (width) + l + 1) %
+                          MOD) *
+                           alpha);
+  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
+                             j * (batch * height_b) + k * (width_b) + l + 1)
+                             %
+                            MOD) *
+                             alpha);
+double  gflops = 2.0 * height * width_b * width * 1.0e-09;
+
+const int TC = 100;
+
+  nntrainer::Tensor C;
+  nntrainer::Tensor C_fp32;
+auto t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C = A.dot(B, transA, transB);
+}
+auto t2 = high_resolution_clock::now();
+auto dt = duration_cast<nanoseconds>(t2 - t1);
+auto dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp16 : " << dt.count() / TC
+        << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+        <<std::endl;
+
+t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+}
+t2 = high_resolution_clock::now();
+dt = duration_cast<nanoseconds>(t2 - t1);
+dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp32 : " << dt.count() / TC
+                << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+                <<std::endl;
+
+  float mseErrorNeon =
+    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+  double cosSimNeon = cosine_similarity<__fp16>(
+    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+  const float epsilon = 1e-3 * width;
+
+  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
+  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
+}
+
+TEST(nntrainer_Tensor, dot_gemm_conv23) {
+  /// @note GEMM : A X B = C
+  int batch = 1;
+  int channel = 1;
+  int height = 23;
+  int width = 768;
+
+  int height_b = 1280;
+  int width_b = 768;
+
+  bool transA = false;
+  bool transB = true;
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
+
+  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
+  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
+
+  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
+  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
+  t_type_nchw_fp32);
+
+  const float alpha = 1e-1;
+  const int MOD = 10;
+
+  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
+                      k * (width) + l + 1) %
+                     MOD) *
+                      alpha);
+  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
+                        j * (batch * height_b) + k * (width_b) + l + 1) %
+                       MOD) *
+                        alpha);
+  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
+                           j * (batch * height) + k * (width) + l + 1) %
+                          MOD) *
+                           alpha);
+  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
+                             j * (batch * height_b) + k * (width_b) + l + 1)
+                             %
+                            MOD) *
+                             alpha);
+double  gflops = 2.0 * height * width_b * width * 1.0e-09;
+
+const int TC = 100;
+
+  nntrainer::Tensor C;
+  nntrainer::Tensor C_fp32;
+auto t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C = A.dot(B, transA, transB);
+}
+auto t2 = high_resolution_clock::now();
+auto dt = duration_cast<nanoseconds>(t2 - t1);
+auto dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp16 : " << dt.count() / TC
+        << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+        <<std::endl;
+
+t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+}
+t2 = high_resolution_clock::now();
+dt = duration_cast<nanoseconds>(t2 - t1);
+dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp32 : " << dt.count() / TC
+                << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+                <<std::endl;
+
+  float mseErrorNeon =
+    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+  double cosSimNeon = cosine_similarity<__fp16>(
+    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+  const float epsilon = 1e-3 * width;
+
+  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
+  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
+}
+
+TEST(nntrainer_Tensor, dot_gemm_conv24_noTrans) {
+  /// @note GEMM : A X B = C
+  int batch = 1;
+  int channel = 1;
+  int height = 24;
+  int width = 768;
+
+  int height_b = 768;
+  int width_b = 1280;
+
+  bool transA = false;
+  bool transB = false;
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
+
+  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
+  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
+
+  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
+  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
+  t_type_nchw_fp32);
+
+  const float alpha = 1e-1;
+  const int MOD = 10;
+
+  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
+                      k * (width) + l + 1) %
+                     MOD) *
+                      alpha);
+  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
+                        j * (batch * height_b) + k * (width_b) + l + 1) %
+                       MOD) *
+                        alpha);
+  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
+                           j * (batch * height) + k * (width) + l + 1) %
+                          MOD) *
+                           alpha);
+  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
+                             j * (batch * height_b) + k * (width_b) + l + 1)
+                             %
+                            MOD) *
+                             alpha);
+double  gflops = 2.0 * height * width_b * width * 1.0e-09;
+
+const int TC = 100;
+
+  nntrainer::Tensor C;
+  nntrainer::Tensor C_fp32;
+auto t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C = A.dot(B, transA, transB);
+}
+auto t2 = high_resolution_clock::now();
+auto dt = duration_cast<nanoseconds>(t2 - t1);
+auto dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp16 : " << dt.count() / TC
+        << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+        <<std::endl;
+
+t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+}
+t2 = high_resolution_clock::now();
+dt = duration_cast<nanoseconds>(t2 - t1);
+dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp32 : " << dt.count() / TC
+                << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+                <<std::endl;
+
+  float mseErrorNeon =
+    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+  double cosSimNeon = cosine_similarity<__fp16>(
+    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+  const float epsilon = 1e-3 * width;
+
+  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
+  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
+}
+
+TEST(nntrainer_Tensor, dot_gemm_conv24) {
+  /// @note GEMM : A X B = C
+  int batch = 1;
+  int channel = 1;
+  int height = 24;
+  int width = 768;
+
+  int height_b = 1280;
+  int width_b = 768;
+
+  bool transA = false;
+  bool transB = true;
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
+
+  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
+  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
+
+  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
+  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
+  t_type_nchw_fp32);
+
+  const float alpha = 1e-1;
+  const int MOD = 10;
+
+  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
+                      k * (width) + l + 1) %
+                     MOD) *
+                      alpha);
+  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
+                        j * (batch * height_b) + k * (width_b) + l + 1) %
+                       MOD) *
+                        alpha);
+  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
+                           j * (batch * height) + k * (width) + l + 1) %
+                          MOD) *
+                           alpha);
+  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
+                             j * (batch * height_b) + k * (width_b) + l + 1)
+                             %
+                            MOD) *
+                             alpha);
+double  gflops = 2.0 * height * width_b * width * 1.0e-09;
+
+const int TC = 100;
+
+  nntrainer::Tensor C;
+  nntrainer::Tensor C_fp32;
+auto t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C = A.dot(B, transA, transB);
+}
+auto t2 = high_resolution_clock::now();
+auto dt = duration_cast<nanoseconds>(t2 - t1);
+auto dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp16 : " << dt.count() / TC
+        << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+        <<std::endl;
+
+t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+}
+t2 = high_resolution_clock::now();
+dt = duration_cast<nanoseconds>(t2 - t1);
+dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp32 : " << dt.count() / TC
+                << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+                <<std::endl;
+
+  float mseErrorNeon =
+    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+  double cosSimNeon = cosine_similarity<__fp16>(
+    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+
+  const float epsilon = 1e-3 * width;
+
+  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
+  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
+}
+
+TEST(nntrainer_Tensor, dot_gemm_conv768) {
+  /// @note GEMM : A X B = C
+  int batch = 1;
+  int channel = 1;
+  int height = 768;
+  int width = 768;
+  int height_b = 1280;
+  int width_b = 768;
+  bool transA = false;
+  bool transB = true;
+  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
+  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
+  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
+  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
+  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
+  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
+  t_type_nchw_fp32); const float alpha = 1e-1; const int MOD = 10;
+  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
+                      k * (width) + l + 1) %
+                     MOD) *
+                      alpha);
+  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
+                        j * (batch * height_b) + k * (width_b) + l + 1) %
+                       MOD) *
+                        alpha);
+  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
+                           j * (batch * height) + k * (width) + l + 1) %
+                          MOD) *
+                           alpha);
+  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
+                             j * (batch * height_b) + k * (width_b) + l + 1)
+                             %
+                            MOD) *
+                             alpha);
+double  gflops = 2.0 * height * width_b * width * 1.0e-09;
+const int TC = 100;
+  nntrainer::Tensor C;
+  nntrainer::Tensor C_fp32;
+auto t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C = A.dot(B, transA, transB);
+}
+auto t2 = high_resolution_clock::now();
+auto dt = duration_cast<nanoseconds>(t2 - t1);
+auto dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp16 : " << dt.count() / TC
+        << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+        <<std::endl;
+t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+}
+t2 = high_resolution_clock::now();
+dt = duration_cast<nanoseconds>(t2 - t1);
+dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp32 : " << dt.count() / TC
+                << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+                <<std::endl;
+  float mseErrorNeon =
+    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+  double cosSimNeon = cosine_similarity<__fp16>(
+    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+  const float epsilon = 1e-3 * width;
+  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
+  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
+}
 
 // TEST(nntrainer_Tensor, dot_gemm_fc) {
 //   /// @note GEMM : A X B = C
@@ -1527,7 +1689,7 @@ TEST(nntrainer_Tensor, dot_gemm_conv_debug) {
 //                              alpha);
 // double  gflops = 2.0 * height * width_b * width * 1.0e-09;
 
-// const int TC = 1;
+// const int TC = 100;
 
 //   nntrainer::Tensor C;
 //   nntrainer::Tensor C_fp32;
@@ -1565,91 +1727,92 @@ TEST(nntrainer_Tensor, dot_gemm_conv_debug) {
 //   EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
 // }
 
-// TEST(nntrainer_Tensor, dot_gemm_example) {
-//   /// @note GEMM : A X B = C
-//   int batch = 1;
-//   int channel = 1;
-//   int height = 32;
-//   int width = 512;
+TEST(nntrainer_Tensor, dot_gemm_fc_err) {
+  /// @note GEMM : A X B = C
+  int batch = 1;
+  int channel = 1;
+  int height = 15;
+  int width = 8;
 
-//   int height_b = 512;
-//   int width_b = 1024;
+  int height_b = 15;
+  int width_b = 16;
 
-//   bool transA = false;
-//   bool transB = false;
+  bool transA = true;
+  bool transB = false;
 
-//   nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
-//     nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
+  nntrainer::TensorDim::TensorType t_type_nchw_fp16 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP16};
 
-//   nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
-//     nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
+  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
 
-//   nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
-//   nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
+  nntrainer::Tensor A(batch, channel, height, width, t_type_nchw_fp16);
+  nntrainer::Tensor B(batch, channel, height_b, width_b, t_type_nchw_fp16);
 
-//   nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
-//   nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
-//   t_type_nchw_fp32);
+  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
+  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b,
+  t_type_nchw_fp32);
 
-//   const float alpha = 1e-1;
-//   const int MOD = 10;
+  const float alpha = 1e-1;
+  const int MOD = 10;
 
-//   GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
-//                       k * (width) + l + 1) %
-//                      MOD) *
-//                       alpha);
-//   GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
-//                         j * (batch * height_b) + k * (width_b) + l + 1) %
-//                        MOD) *
-//                         alpha);
-//   GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
-//                            j * (batch * height) + k * (width) + l + 1) %
-//                           MOD) *
-//                            alpha);
-//   GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
-//                              j * (batch * height_b) + k * (width_b) + l + 1)
-//                              %
-//                             MOD) *
-//                              alpha);
-// double  gflops = 2.0 * height * width_b * width * 1.0e-09;
+  GEN_TEST_INPUT(A, ((i * (batch * height * channel) + j * (batch * height) +
+                      k * (width) + l + 1) %
+                     MOD) *
+                      alpha);
+  GEN_TEST_INPUT_B(B, ((i * (batch * height_b * channel) +
+                        j * (batch * height_b) + k * (width_b) + l + 1) %
+                       MOD) *
+                        alpha);
+  GEN_TEST_INPUT(A_fp32, ((i * (batch * height * channel) +
+                           j * (batch * height) + k * (width) + l + 1) %
+                          MOD) *
+                           alpha);
+  GEN_TEST_INPUT_B(B_fp32, ((i * (batch * height_b * channel) +
+                             j * (batch * height_b) + k * (width_b) + l + 1)
+                             %
+                            MOD) *
+                             alpha);
+double  gflops = 2.0 * height * width_b * width * 1.0e-09;
 
-// const int TC = 1;
+const int TC = 100;
 
-//   nntrainer::Tensor C;
-//   nntrainer::Tensor C_fp32;
-// auto t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C = A.dot(B, transA, transB);
-// }
-// auto t2 = high_resolution_clock::now();
-// auto dt = duration_cast<nanoseconds>(t2 - t1);
-// auto dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp16 : " << dt.count() / TC
-//         << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//         <<std::endl;
+  nntrainer::Tensor C;
+  nntrainer::Tensor C_fp32;
+auto t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C = A.dot(B, transA, transB);
+}
+auto t2 = high_resolution_clock::now();
+auto dt = duration_cast<nanoseconds>(t2 - t1);
+auto dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp16 : " << dt.count() / TC
+        << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+        <<std::endl;
 
-// t1 = high_resolution_clock::now();
-// for (int tc = 0; tc < TC; ++tc){
-//   C_fp32 = A_fp32.dot(B_fp32, transA, transB);
-// }
-// t2 = high_resolution_clock::now();
-// dt = duration_cast<nanoseconds>(t2 - t1);
-// dts = duration_cast<seconds>(t2 - t1);
-// std::cout << "fp32 : " << dt.count() / TC
-//                 << " ns " << ", gflops : " << gflops / (dts.count() / TC)
-//                 <<std::endl;
+t1 = high_resolution_clock::now();
+for (int tc = 0; tc < TC; ++tc){
+  C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+}
+t2 = high_resolution_clock::now();
+dt = duration_cast<nanoseconds>(t2 - t1);
+dts = duration_cast<seconds>(t2 - t1);
+std::cout << "fp32 : " << dt.count() / TC
+                << " ns " << ", gflops : " << gflops / (dts.count() / TC)
+                <<std::endl;
 
-//   float mseErrorNeon =
-//     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+  float mseErrorNeon =
+    mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
 
-//   double cosSimNeon = cosine_similarity<__fp16>(
-//     C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
+  double cosSimNeon = cosine_similarity<__fp16>(
+    C.getData<__fp16>(), C_fp32.getData<float>(), C.size());
 
-//   const float epsilon = 1e-3 * width;
+  const float epsilon = 1e-3 * width;
 
-//   EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
-//   EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
-// }
+  EXPECT_IN_RANGE(mseErrorNeon, 0, epsilon);
+  EXPECT_IN_RANGE((float)cosSimNeon, 0.99, 1);
+}
+
 
 GTEST_API_ int main(int argc, char **argv) {
   int result = -1;

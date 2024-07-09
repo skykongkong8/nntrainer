@@ -11,36 +11,36 @@
  *
  */
 
-void hgemm_padding_B(const __fp16 *B, const __fp16 *Bp, unsigned int K,
+void hgemm_padding_B(const __fp16 *B, __fp16 *Bp, unsigned int K,
                      unsigned int N, unsigned int K8, unsigned int N16,
                      bool transB);
 
-void hgemm_padding_B_noTrans(const __fp16 *B, const __fp16 *Bp, unsigned int K,
+void hgemm_padding_B_noTrans(const __fp16 *B, __fp16 *Bp, unsigned int K,
                              unsigned int N, unsigned int K8, unsigned int N16);
 
-void hgemm_padding_B_noTrans_wrt_N(const __fp16 *B, const __fp16 *Bp,
+void hgemm_padding_B_noTrans_wrt_N(const __fp16 *B, __fp16 *Bp,
                                    unsigned int K, unsigned int N,
                                    unsigned int K8, unsigned int N16);
 
-void hgemm_padding_B_noTrans_wrt_K(const __fp16 *B, const __fp16 *Bp,
+void hgemm_padding_B_noTrans_wrt_K(const __fp16 *B, __fp16 *Bp,
                                    unsigned int K, unsigned int N,
                                    unsigned int K8, unsigned int N16);
 
-void hgemm_padding_B_noTrans_wrt_KN(const __fp16 *B, const __fp16 *Bp,
+void hgemm_padding_B_noTrans_wrt_KN(const __fp16 *B, __fp16 *Bp,
                                     unsigned int K, unsigned int N,
                                     unsigned int K8, unsigned int N16);
 
-void hgemm_padding_B_Trans(const __fp16 *B, const __fp16 *Bp, unsigned int K,
+void hgemm_padding_B_Trans(const __fp16 *B, __fp16 *Bp, unsigned int K,
                            unsigned int N, unsigned int K8, unsigned int N16);
 
-void hgemm_padding_B_Trans_wrt_N(const __fp16 *B, const __fp16 *Bp,
+void hgemm_padding_B_Trans_wrt_N(const __fp16 *B, __fp16 *Bp,
                                  unsigned int K, unsigned int N,
                                  unsigned int K8, unsigned int N16);
 
-void hgemm_padding_B_Trans_wrt_K(const __fp16 *B, const __fp16 *Bp,
+void hgemm_padding_B_Trans_wrt_K(const __fp16 *B, __fp16 *Bp,
                                  unsigned int K, unsigned int N,
                                  unsigned int K8, unsigned int N16);
 
-void hgemm_padding_B_Trans_wrt_KN(const __fp16 *B, const __fp16 *Bp,
+void hgemm_padding_B_Trans_wrt_KN(const __fp16 *B, __fp16 *Bp,
                                   unsigned int K, unsigned int N,
                                   unsigned int K8, unsigned int N16);
