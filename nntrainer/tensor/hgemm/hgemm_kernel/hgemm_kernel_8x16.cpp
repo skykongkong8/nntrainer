@@ -13,7 +13,6 @@
 
 #include <arm_neon.h>
 #include <assert.h>
-#include <iostream>
 #include <hgemm_kernel.h>
 #include <stdlib.h>
 
@@ -726,17 +725,6 @@
                         vcvt_f32_f16(vget_high_f16(v120_127))));               \
   } while (0)
 
-/**
- * @brief hgemm 8x16 kernel sc = sa * sb
- *
- * @param M length of the row of matrix A
- * @param N length of the col of matrix B
- * @param K length of the col of matrix A
- * @param sa sub-matrix of input matrix A
- * @param sb sub-matrix of input matrix B
- * @param sc sub-matrix of output matrix C
- * @param ldc leading-dimension of matrix C
- */
 void hgemm_kernel_8x16(unsigned int M, unsigned int N, unsigned int K,
                        __fp16 *sa, __fp16 *sb, __fp16 *sc, unsigned int ldc) {
   assert(M > 0 && N > 0 && K > 0);
@@ -795,17 +783,6 @@ void hgemm_kernel_8x16(unsigned int M, unsigned int N, unsigned int K,
   }
 }
 
-/**
- * @brief hgemm 8x16 kernel sc = sa * sb
- *
- * @param M length of the row of matrix A
- * @param N length of the col of matrix B
- * @param K length of the col of matrix A
- * @param sa sub-matrix of input matrix A
- * @param sb sub-matrix of input matrix B
- * @param sc sub-matrix of output matrix C
- * @param ldc leading-dimension of matrix C
- */
 void hgemm_kernel_8x16(unsigned int M, unsigned int N, unsigned int K,
                        __fp16 *sa, __fp16 *sb, float *sc, unsigned int ldc) {
   assert(M > 0 && N > 0 && K > 0);
