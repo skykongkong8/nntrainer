@@ -17,6 +17,7 @@
  * @brief	This is util functions for test
  * @see		https://github.com/nnstreamer/nntrainer
  * @author	Jijoong Moon <jijoong.moon@samsung.com>
+ * @author	Sungsik Kong <ss.moon@samsung.com>
  * @bug		No known bugs except for NYI items
  *
  */
@@ -25,20 +26,20 @@
 #define __NNTRAINER_TEST_UTIL_H__
 #ifdef __cplusplus
 
+#include <compiler_fwd.h>
 #include <errno.h>
 #include <fstream>
-#include <string.h>
-#include <unordered_map>
-#include <utility>
-
-#include <compiler_fwd.h>
 #include <ini_wrapper.h>
+#include <iostream>
 #include <neuralnet.h>
 #include <nntrainer_error.h>
 #include <nntrainer_log.h>
 #include <realizer.h>
+#include <string.h>
 #include <tensor.h>
 #include <tensor_v2.h>
+#include <unordered_map>
+#include <utility>
 
 /** tolerance is reduced for packaging, but CI runs at full tolerance */
 #ifdef REDUCE_TOLERANCE
@@ -317,7 +318,7 @@ double cosine_similarity(Ta *A, Tb *B, uint32_t size) {
     denom_b += ref * ref;
   }
 
-  if (sqrt(denom_a) == 0 && sqrt(denom_b) == 0)
+  if (std::fpclassify(sqrt(denom_a) * sqrt(denom_b)) == FP_ZERO)
     return 1;
 
   double cosine_sim = dot / (sqrt(denom_a) * sqrt(denom_b));
@@ -345,6 +346,27 @@ float mse(Ta *A, Tb *B, uint32_t size) {
   }
   float mse = mse_error / size;
   return mse;
+}
+
+template <typename Ta = float, typename Tb = float, typename Tc1 = float,
+          typename Tc2 = float>
+float max_componentwise_relative_error(Ta *A, Tb *B, Tc1 *C_gt, Tc2 *C_hat,
+                                       uint32_t a_size, uint32_t b_size,
+                                       uint32_t c_size) {
+  float ret = 0.F;
+  float a_sum = 0.F;
+  float b_sum = 0.F;
+  for (uint_t i = 0; i < a_size; ++i) {
+    a_sum += A[i];
+  }
+  for (uint_t i = 0; i < b_size; ++i) {
+    b_sum += B[i];
+  }
+  for (uint32_t i = 0; i < c_size; ++i) {
+    double tmp = std::abs(C_gt[i] - C_hat[i]) / std::abs(a_sum * b_sum);
+    ret = std::fmax(ret, static_cast<float>(tmp));
+  }
+  return ret;
 }
 
 /**
