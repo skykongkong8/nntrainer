@@ -20,6 +20,7 @@
 #include <hgemm_util.h>
 #include <limits>
 #include <matrix_transpose_neon.h>
+#include <iostream>
 
 void hgemm_noTrans(const __fp16 *A, const __fp16 *B, float *C32, unsigned int M,
                    unsigned int N, unsigned int K, float alpha, float beta) {
@@ -37,6 +38,7 @@ void hgemm_noTrans_strict(const __fp16 *A, const __fp16 *B, float *C32,
   // used bitwise operator instead of modulo for performance
   // e.g (M % 8) is same as (M & 0x7) which will extract last 3 bits of M
   if ((M & 0x7) == 0 && (N & 0xF) == 0 && (K & 0x7) == 0) {
+  std::cout << "hgemm_noTrans_strict perspective | M : " << M << " K : " << K << " N : " << N<<std::endl;
     hgemm_noTrans_8x16(M, N, K, A, K, B, N, C32, N, alpha, beta);
   } else if ((M & 0x7) == 0 && (N & 0x7) == 0 && (K & 0x7) == 0) {
     hgemm_noTrans_8x8(M, N, K, A, K, B, N, C32, N, alpha, beta);

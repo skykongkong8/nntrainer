@@ -131,6 +131,20 @@ private:
     }                                          \
   } while (0)
 
+#define GEN_TEST_INPUT_RAND(input, min, max)  \
+  do {                                        \
+    for (int i = 0; i < batch; ++i) {         \
+      for (int j = 0; j < channel; ++j) {     \
+        for (int k = 0; k < height; ++k) {    \
+          for (int l = 0; l < width; ++l) {   \
+            float val = rand() % range + min; \
+            input.setValue(i, j, k, l, val);  \
+          }                                   \
+        }                                     \
+      }                                       \
+    }                                         \
+  } while (0)
+
 #define GEN_TEST_INPUT_B(input, equation_i_j_k_l) \
   do {                                            \
     for (int i = 0; i < batch; ++i) {             \
