@@ -18,6 +18,14 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <chrono>
+using std::chrono::nanoseconds; // or microseconds
+using std::chrono::microseconds; // or microseconds
+using std::chrono::milliseconds; // or microseconds
+using std::chrono::seconds; // or microseconds
+using std::chrono::high_resolution_clock;
+using std::chrono::duration_cast;
+
 #include <nntrainer_error.h>
 #include <tensor.h>
 #include <tensor_dim.h>
@@ -676,8 +684,22 @@ TEST(nntrainer_Tensor, dot_gemm_1024_1024_1024) {
   A.copyData(A_fp32);
   B.copyData(B_fp32);
 
+auto t1 = high_resolution_clock::now();
+// function_to_assess
   nntrainer::Tensor C = A.dot(B, transA, transB);
+auto t2 = high_resolution_clock::now();
+auto dt = duration_cast<nanoseconds>(t2 - t1);
+std::cout << "fp16 : " << dt.count()
+        << " ns " << std::endl;
+
+t1 = high_resolution_clock::now();
+// next function to assess
   nntrainer::Tensor C_fp32 = A_fp32.dot(B_fp32, transA, transB);
+t2 = high_resolution_clock::now();
+dt = duration_cast<nanoseconds>(t2 - t1);
+std::cout << "fp32 : " << dt.count()
+        << " ns " << std::endl;
+
 
   float mseErrorNeon =
     mse<__fp16>(C.getData<__fp16>(), C_fp32.getData<float>(), C.size());

@@ -16,6 +16,7 @@
 #include <hgemm_util.h>
 #include <matrix_transpose_neon.h>
 
+template<>
 void hgemm_transA(const __fp16 *A, const __fp16 *B, float *C, unsigned int M,
                   unsigned int N, unsigned int K, float alpha, float beta) {
   __fp16 *A_T = alignedMalloc(M * K);
@@ -26,3 +27,16 @@ void hgemm_transA(const __fp16 *A, const __fp16 *B, float *C, unsigned int M,
 
   free(A_T);
 }
+
+template<>
+void hgemm_transA(const __fp16 *A, const __fp16 *B, __fp16 *C, unsigned int M,
+                  unsigned int N, unsigned int K, float alpha, float beta) {
+  __fp16 *A_T = alignedMalloc(M * K);
+
+  transpose_neon<__fp16>(K, M, A, M, A_T, K);
+
+  hgemm_noTrans(A_T, B, C, M, N, K, alpha, beta);
+
+  free(A_T);
+}
+

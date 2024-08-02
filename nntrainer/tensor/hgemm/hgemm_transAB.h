@@ -24,3 +24,7 @@
  */
 void hgemm_transAB(const __fp16 *A, const __fp16 *B, float *C, unsigned int M,
                    unsigned int N, unsigned int K, float alpha, float beta);
+
+void hgemm_transAB(const __fp16 *A, const __fp16 *B, __fp16 *C, unsigned int M,
+                   unsigned int N, unsigned int K, float alpha, float beta);
+

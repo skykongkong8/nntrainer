@@ -284,7 +284,9 @@ void hgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
 void hgemm_noTrans(const __fp16 *A, const __fp16 *B, float *C, unsigned int M,
                    unsigned int N, unsigned int K, float alpha = 1.F,
                    float beta = 0.F);
-
+void hgemm_noTrans(const __fp16 *A, const __fp16 *B, __fp16 *C, unsigned int M,
+                   unsigned int N, unsigned int K, float alpha = 1.F,
+                   float beta = 0.F);
 /**
  * @brief     hgemm computation with neon : Y = alpha*op(A)*op(B) + beta*C,
  * where M, N, K are divisible by at least 4

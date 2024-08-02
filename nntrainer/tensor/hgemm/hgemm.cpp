@@ -90,6 +90,15 @@ void hgemm(const __fp16 *A, const __fp16 *B, __fp16 *C, unsigned int M,
   free(C32);
 }
 
+void hgemm_fullfp16(const __fp16 *A, const __fp16 *B, __fp16 *C, unsigned int M,
+           unsigned int N, unsigned int K, float alpha, float beta, bool TransA,
+           bool TransB) {
+  if (K == 1) {
+    return hgemm_K1(A, B, C, M, N, K, alpha, beta, TransA, TransB);
+  }
+  hgemm_ensure_divisibility(A, B, C, M, N, K, alpha, beta, TransA, TransB);
+}
+
 void hgemm_ensure_divisibility(const __fp16 *A, const __fp16 *B, float *C32,
                                unsigned int M, unsigned int N, unsigned int K,
                                float alpha, float beta, bool TransA,
@@ -141,6 +150,57 @@ void hgemm_ensure_divisibility(const __fp16 *A, const __fp16 *B, float *C32,
     free(Bp);
 }
 
+void hgemm_ensure_divisibility(const __fp16 *A, const __fp16 *B, __fp16 *C,
+                               unsigned int M, unsigned int N, unsigned int K,
+                               float alpha, float beta, bool TransA,
+                               bool TransB) {
+  /// @note Padding standard : 8x16 is the only KERNEL that outperforms single
+  /// precision GEMM 'so far'. Padding will forcibly make every GEMM cases to
+  /// use it. Note that padding is not an optimal way here, but just an option
+  /// that is easier to implement. Fine-grained packing, blocking, and
+  /// corresponding kernels should be supported in the future for optimal
+  /// performance in terms of both latency and memory.
+
+  __fp16 *A_ = (__fp16 *)A, *B_ = (__fp16 *)B;
+  unsigned int M_ = M, N_ = N, K_ = K;
+  bool pad_A = false, pad_B = false;
+
+  // Smaller than 8, 16 -> padding would be redundant
+  if (M < 8 && K < 16 && N < 16)
+    return hgemm_classify(A_, B_, C, M_, N_, K_, alpha, beta, TransA, TransB);
+
+  __fp16 *Ap;
+  __fp16 *Bp;
+
+  const unsigned int M8_high = ((M - 1) / 8 + 1) * 8;
+  const unsigned int K8_high = ((K - 1) / 16 + 1) * 16;
+  const unsigned int N16_high = ((N - 1) / 16 + 1) * 16;
+
+  if ((M8_high != M) || (K8_high != K)) {
+    pad_A = true;
+    Ap = alignedMalloc(M8_high * K8_high);
+    hgemm_padding_A(A, Ap, M, K, M8_high, K8_high, TransA);
+    A_ = Ap;
+    M_ = M8_high;
+    K_ = K8_high;
+  }
+  if ((K8_high != K) || (N16_high != N)) {
+    pad_B = true;
+    Bp = alignedMalloc(K8_high * N16_high);
+    hgemm_padding_B(B, Bp, K, N, K8_high, N16_high, TransB);
+    B_ = Bp;
+    K_ = K8_high;
+    N_ = N16_high;
+  }
+
+  hgemm_classify(A_, B_, C, M_, N_, K_, alpha, beta, TransA, TransB);
+
+  if (pad_A)
+    free(Ap);
+  if (pad_B)
+    free(Bp);
+}
+
 void hgemm_classify(const __fp16 *A, const __fp16 *B, float *C32,
                     unsigned int M, unsigned int N, unsigned int K, float alpha,
                     float beta, bool TransA, bool TransB) {
@@ -152,6 +212,20 @@ void hgemm_classify(const __fp16 *A, const __fp16 *B, float *C32,
     hgemm_transB(A, B, C32, M, N, K, alpha, beta);
   } else { // TransA && TransB
     hgemm_transAB(A, B, C32, M, N, K, alpha, beta);
+  }
+}
+
+void hgemm_classify(const __fp16 *A, const __fp16 *B, __fp16 *C,
+                    unsigned int M, unsigned int N, unsigned int K, float alpha,
+                    float beta, bool TransA, bool TransB) {
+  if (!TransA && !TransB) {
+    hgemm_noTrans(A, B, C, M, N, K, alpha, beta);
+  } else if (TransA && !TransB) {
+    hgemm_transA(A, B, C, M, N, K, alpha, beta);
+  } else if (!TransA && TransB) {
+    hgemm_transB(A, B, C, M, N, K, alpha, beta);
+  } else { // TransA && TransB
+    hgemm_transAB(A, B, C, M, N, K, alpha, beta);
   }
 }
 

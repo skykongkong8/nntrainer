@@ -27,6 +27,9 @@
 void hgemm(const __fp16 *A, const __fp16 *B, __fp16 *C, unsigned int M,
            unsigned int N, unsigned int K, float alpha, float beta, bool TransA,
            bool TransB);
+           void hgemm_fullfp16(const __fp16 *A, const __fp16 *B, __fp16 *C, unsigned int M,
+           unsigned int N, unsigned int K, float alpha, float beta, bool TransA,
+           bool TransB);
 
 /**
  * @brief     Checking function for whether matrix A or B needs padding for
@@ -41,6 +44,10 @@ void hgemm(const __fp16 *A, const __fp16 *B, __fp16 *C, unsigned int M,
  * @param[in] beta float number
  */
 void hgemm_ensure_divisibility(const __fp16 *A, const __fp16 *B, float *C32,
+                               unsigned int M, unsigned int N, unsigned int K,
+                               float alpha = 1.F, float beta = 0.F,
+                               bool TransA = false, bool TransB = false);
+                               void hgemm_ensure_divisibility(const __fp16 *A, const __fp16 *B, __fp16 *C32,
                                unsigned int M, unsigned int N, unsigned int K,
                                float alpha = 1.F, float beta = 0.F,
                                bool TransA = false, bool TransB = false);
@@ -61,6 +68,12 @@ void hgemm_classify(const __fp16 *A, const __fp16 *B, float *C32,
                     unsigned int M, unsigned int N, unsigned int K,
                     float alpha = 1.F, float beta = 0.F, bool TransA = false,
                     bool TransB = false);
+
+void hgemm_classify(const __fp16 *A, const __fp16 *B, __fp16 *C32,
+                    unsigned int M, unsigned int N, unsigned int K,
+                    float alpha = 1.F, float beta = 0.F, bool TransA = false,
+                    bool TransB = false);
+
 /**
  * @brief     hgemm computation when K = 1. Transpose is mathematically no use
  * for here, and partial accumulation is also not needed.

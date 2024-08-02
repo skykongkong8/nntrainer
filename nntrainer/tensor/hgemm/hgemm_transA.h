@@ -22,5 +22,6 @@
  * @param[in] alpha float number
  * @param[in] beta float number
  */
-void hgemm_transA(const __fp16 *A, const __fp16 *B, float *C, unsigned int M,
+template<typename T>
+void hgemm_transA(const __fp16 *A, const __fp16 *B, T *C, unsigned int M,
                   unsigned int N, unsigned int K, float alpha, float beta);

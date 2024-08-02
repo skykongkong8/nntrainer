@@ -20,6 +20,7 @@
 #include <hgemm_util.h>
 #include <limits>
 #include <matrix_transpose_neon.h>
+#include <iostream>
 
 void hgemm_noTrans(const __fp16 *A, const __fp16 *B, float *C32, unsigned int M,
                    unsigned int N, unsigned int K, float alpha, float beta) {
@@ -30,6 +31,17 @@ void hgemm_noTrans(const __fp16 *A, const __fp16 *B, float *C32, unsigned int M,
     hgemm_noTrans_fallback(M, N, K, A, K, B, N, C32, N, alpha, beta);
   }
 }
+
+void hgemm_noTrans(const __fp16 *A, const __fp16 *B, __fp16 *C, unsigned int M,
+                   unsigned int N, unsigned int K, float alpha, float beta) {
+  const float eps = std::numeric_limits<float>::epsilon();
+  if (std::abs(alpha - 1.F) < eps) {
+    hgemm_noTrans_strict(A, B, C, M, N, K, alpha, beta);
+  } else {
+    std::cerr << "[ERROR] hgemm_noTrans fallback not supprted on full fp16\n";
+  }
+}
+
 
 void hgemm_noTrans_strict(const __fp16 *A, const __fp16 *B, float *C32,
                           unsigned int M, unsigned int N, unsigned int K,
