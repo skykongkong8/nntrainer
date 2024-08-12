@@ -23,7 +23,7 @@
 
 #include <cstddef>
 
-#include <blas_interface.h>
+#include <cpu_backend.h>
 #include <char_tensor.h>
 #include <float_tensor.h>
 #include <nntrainer_log.h>
