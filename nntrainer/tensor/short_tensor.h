@@ -217,6 +217,14 @@ public:
    */
   void print(std::ostream &out) const override;
 
+  /**
+   *  @copydoc Tensor::dot(Tensor const &input, Tensor &output, bool
+   * trans, bool trans_in, float beta)
+   */
+  Tensor &dot(Tensor const &input, Tensor &output, bool trans, bool trans_in,
+              float beta) const override;
+
+
 private:
   /**
    * @brief copy a buffer to @a this, the caller has to ensure that @a this is

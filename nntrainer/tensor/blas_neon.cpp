@@ -15,8 +15,10 @@
 #include <blas_neon.h>
 #include <blas_neon_setting.h>
 #include <hgemm.h>
+#include <iostream>
 #include <memory>
 #include <nntrainer_error.h>
+#include <uhgemm.h>
 
 namespace nntrainer::neon {
 
@@ -1590,6 +1592,13 @@ void custom_hgemm(const __fp16 *A, const __fp16 *B, __fp16 *C, uint32_t M,
                   uint32_t N, uint32_t K, float alpha, float beta, bool TransA,
                   bool TransB) {
   hgemm(A, B, C, M, N, K, alpha, beta, TransA, TransB);
+}
+
+void custom_uhgemm(const uint16_t *A, const uint16_t *B, uint16_t *C,
+                   uint32_t M, uint32_t N, uint32_t K, uint32_t alpha,
+                   uint32_t beta, bool TransA, bool TransB) {
+  uhgemm_pure(A, B, C, M, N, K, alpha, beta, TransA, TransB);
+  // uhgemm(A, B, C, M, N, K, alpha, beta, TransA, TransB);
 }
 
 void ele_mul(const unsigned int N, const __fp16 *X, const __fp16 *Y, __fp16 *Z,

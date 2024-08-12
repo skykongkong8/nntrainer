@@ -25,6 +25,7 @@
 #endif
 
 #include <cmath>
+#include <iostream>
 
 #define sgemv_loop(ci, cj, cM, cN)           \
   do {                                       \
@@ -388,6 +389,14 @@ void sgemm(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA, CBLAS_TRANSPOSE TransB,
            const unsigned int ldc) {
   sgemm_FP16(order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C,
              ldc);
+}
+
+void sgemm(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA, CBLAS_TRANSPOSE TransB,
+           const unsigned int M, const unsigned int N, const unsigned int K,
+           const unsigned int alpha, const uint16_t *A, const unsigned int lda,
+           const uint16_t *B, const unsigned int ldb, const unsigned int beta,
+           uint16_t *C, const unsigned int ldc) {
+  nntrainer::neon::custom_uhgemm(A, B, C, M, N, K, alpha, beta, TransA == CblasTrans, TransB == CblasTrans);
 }
 
 void scopy(const unsigned int N, const _FP16 *X, const int incX, _FP16 *Y,

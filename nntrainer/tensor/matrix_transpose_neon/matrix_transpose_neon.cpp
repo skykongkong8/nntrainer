@@ -14,6 +14,7 @@
 #include <arm_neon.h>
 #include <matrix_transpose_kernels_neon.h>
 #include <matrix_transpose_neon.h>
+#include <stdint.h>
 
 template <>
 void transpose_neon(unsigned int M, unsigned int N, const __fp16 *src,
@@ -120,4 +121,10 @@ void transpose_neon(unsigned int M, unsigned int N, const __fp16 *src,
     }
     break;
   }
+}
+
+template <>
+void transpose_neon(unsigned int M, unsigned int N, const uint16_t *src,
+                    unsigned int ld_src, uint16_t *dst, unsigned int ld_dst) {
+  return;
 }
