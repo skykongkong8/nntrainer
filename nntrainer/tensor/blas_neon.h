@@ -331,6 +331,10 @@ void custom_hgemm(const __fp16 *A, const __fp16 *B, __fp16 *C, uint32_t M,
                   uint32_t N, uint32_t K, float alpha, float beta, bool TransA,
                   bool TransB);
 
+void custom_uhgemm(const uint16_t *A, const uint16_t *B, uint16_t *C, uint32_t M,
+                  uint32_t N, uint32_t K, uint32_t alpha, uint32_t beta, bool TransA,
+                  bool TransB);
+
 /**
  * @brief squared root transformation with neon : X = sqrt(X)
  *

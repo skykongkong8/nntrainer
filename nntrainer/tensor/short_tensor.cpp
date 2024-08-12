@@ -396,4 +396,43 @@ void ShortTensor::copy(const void *buf) {
   }
 }
 
+Tensor &ShortTensor::dot(Tensor const &input, Tensor &output, bool trans,
+                         bool trans_in, float beta) const {
+  // Comment out with intension to support the calculation wrt. batch and height
+  // direction. It supposes to have this->dim as [ BxCxH,W ] and input.dim is
+  // [BxCxH,W] as well if (input.dim.rank() > 2) {
+  //   throw exception::not_supported("Error: support only for rank of dot "
+  //                                  "matrix <= 2");
+  // }
+
+  // Comment out with intension to support the calculation wrt. batch and height
+  // direction of this tensor. It is OK as long as input is 2D
+  if (trans && dim.rank() > 2) {
+    ml_logw("Warning: support only for rank of dot matrix <= 2 with trans");
+  }
+  unsigned int first_three_flat, last_axis, input_first_three_flat,
+    input_last_axis, M, N, K, lda, ldb, ldc;
+
+  calculateFlattenDot(input, output, trans, trans_in, first_three_flat,
+                      last_axis, input_first_three_flat, input_last_axis, M, N,
+                      K, lda, ldb, ldc);
+
+  const uint16_t *data = (uint16_t *)getData();
+  const uint16_t *mdata = input.getData<uint16_t>();
+  uint16_t *rdata = output.getData<uint16_t>();
+  const unsigned int alpha = 1;
+  enum CBLAS_TRANSPOSE transA = trans ? CblasTrans : CblasNoTrans;
+  enum CBLAS_TRANSPOSE transB = trans_in ? CblasTrans : CblasNoTrans;
+
+  // std::cerr << "input.print(std::cout);\n";
+  // input.print(std::cout);
+  // std::cerr << "transA : " << transA << " , transB : " << transB << std::endl;
+
+  sgemm(CblasRowMajor, transA, transB, M, N, K, alpha, data, lda, mdata, ldb,
+          static_cast<const unsigned int>(beta), rdata, ldc);
+  
+  return output;
+}
+
+
 } // namespace nntrainer

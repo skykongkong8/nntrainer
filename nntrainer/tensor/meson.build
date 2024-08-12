@@ -48,6 +48,10 @@ if get_option('enable-fp16')
       nntrainer_inc += include_directories('hgemm')
       nntrainer_inc_abs += meson.current_source_dir() / 'hgemm'
 
+      subdir('uhgemm')
+      nntrainer_inc += include_directories('uhgemm')
+      nntrainer_inc_abs += meson.current_source_dir() / 'uhgemm'
+
       subdir('matrix_transpose_neon')
       nntrainer_inc += include_directories('matrix_transpose_neon')
       nntrainer_inc_abs += meson.current_source_dir() / 'matrix_transpose_neon'

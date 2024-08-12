@@ -492,6 +492,13 @@ void ele_sub(const unsigned N, const float *X, const float *Y, float *Z,
 void ele_div(const unsigned N, const float *X, const float *Y, float *Z,
              float alpha = 1.f, float beta = 0.f, unsigned int i_stride = 1,
              unsigned int o_stride = 1);
+
+void sgemm(CBLAS_ORDER order, CBLAS_TRANSPOSE TransA, CBLAS_TRANSPOSE TransB,
+           const unsigned int M, const unsigned int N, const unsigned int K,
+           const unsigned int alpha, const uint16_t *A, const unsigned int lda,
+           const uint16_t *B, const unsigned int ldb, const unsigned int beta, uint16_t *C,
+           const unsigned int ldc);
+
 } /* namespace nntrainer */
 #endif /* __cplusplus */
 #endif /* __BLAS_INTERFACE_H__ */
