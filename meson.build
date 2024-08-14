@@ -123,6 +123,11 @@ if get_option('enable-fp16')
      error ('FP16 support for this arch is not yet implemented.')
    endif  
 endif
+arch = host_machine.cpu_family()
+
+if arch == 'arm'
+  extra_defines += '-DARMV7=1'
+endif
 
 if get_option('enable-opencl')
   message ('OpenCL build is enabled. Will work only if OpenCL supported GPU is available.')

@@ -10,6 +10,9 @@
 
 #include <neon_single.h>
 #include <util_simd_neon.h>
+#ifdef ARMV7
+#include <armv7_neon.h>
+#endif
 
 namespace nntrainer::neon {
 
