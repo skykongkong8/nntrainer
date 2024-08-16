@@ -8,13 +8,13 @@
  *
  */
 
-/* NEON implementation of sin, cos, exp and log
+/** NEON implementation of sin, cos, exp and log
 
    Inspired by Intel Approximate Math library, and based on the
    corresponding algorithms of the cephes math library
 */
 
-/* Copyright (C) 2011  Julien Pommier
+/** gCopyright (C) 2011  Julien Pommier
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages

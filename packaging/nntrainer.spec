@@ -542,7 +542,7 @@ cp -r result %{buildroot}%{_datadir}/nntrainer/unittest/
     %if 0%{?enable_fp16}
     %{_includedir}/nntrainer/blas_avx.h
     %endif
-%elifarch %arm aarch64
+%elifarch aarch64
 %{_includedir}/nntrainer/arm_compute_backend.h
 %{_includedir}/nntrainer/neon_single.h
 %{_includedir}/nntrainer/neon_setting.h
@@ -553,8 +553,6 @@ cp -r result %{buildroot}%{_datadir}/nntrainer/unittest/
     %{_includedir}/nntrainer/hgemm.h
     %{_includedir}/nntrainer/matrix_transpose_neon.h
     %endif
-%elifarch %arm
-%{_includedir}/nntrainer/armv7_neon.h
 %else
 %{_includedir}/nntrainer/fallback.h
 %endif
