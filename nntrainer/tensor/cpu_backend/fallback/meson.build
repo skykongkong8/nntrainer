@@ -3,7 +3,7 @@ fallback_sources = ['fallback_internal.cpp']
 
 arch = host_machine.cpu_family()
 
-if arch != 'arm' and arch != 'aarch64' and arch != 'x86_64' and arch != 'x86'
+if arch != 'arm' and arch != 'aarch64' and arch != 'x86_64'
   fallback_headers += 'fallback.h'
   fallback_sources += 'fallback.cpp'
 endif
