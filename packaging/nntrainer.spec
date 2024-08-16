@@ -539,24 +539,24 @@ cp -r result %{buildroot}%{_datadir}/nntrainer/unittest/
 %{_includedir}/nntrainer/cblas_interface.h
 %ifarch x86_64 i586
 %{_includedir}/nntrainer/x86_64_compute_backend.h
-%if 0%{?enable_fp16}
-%{_includedir}/nntrainer/blas_avx.h
-%endif
-%endif
-%ifarch %arm aarch64
+    %if 0%{?enable_fp16}
+    %{_includedir}/nntrainer/blas_avx.h
+    %endif
+%elifarch %arm aarch64
 %{_includedir}/nntrainer/arm_compute_backend.h
 %{_includedir}/nntrainer/neon_single.h
 %{_includedir}/nntrainer/neon_setting.h
 %{_includedir}/nntrainer/neon_mathfun.h
 %{_includedir}/nntrainer/neon_mathfun.hxx
-%if 0%{?enable_fp16}
-%{_includedir}/nntrainer/neon_half.h
-%{_includedir}/nntrainer/hgemm.h
-%{_includedir}/nntrainer/matrix_transpose_neon.h
-%endif
-%endif
-%ifarch %arm
+    %if 0%{?enable_fp16}
+    %{_includedir}/nntrainer/neon_half.h
+    %{_includedir}/nntrainer/hgemm.h
+    %{_includedir}/nntrainer/matrix_transpose_neon.h
+    %endif
+%elifarch %arm
 %{_includedir}/nntrainer/armv7_neon.h
+%else
+%{_includedir}/nntrainer/fallback.h
 %endif
 %{_includedir}/nntrainer/var_grad.h
 %{_includedir}/nntrainer/weight.h

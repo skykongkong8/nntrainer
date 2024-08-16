@@ -1,3 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
+ *
+ * @file   cpu_backend.h
+ * @date   16 August 2024
+ * @see    https://github.com/nnstreamer/nntrainer
+ * @author Sungsik Kong <ss.kong@samsung.com>
+ * @bug    No known bugs except for NYI items
+ * @brief  Conditional header file to support unsupported intrinsics on armv7l
+ *
+ */
+
 #include <arm_neon.h>
 #include <cmath>
 
