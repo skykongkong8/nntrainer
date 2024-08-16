@@ -42,7 +42,7 @@
 #include <arm_neon.h>
 /**
  * @brief typedef for vector register.
- * 
+ *
  */
 typedef float32x4_t v4sf; // vector of 4 float
 
