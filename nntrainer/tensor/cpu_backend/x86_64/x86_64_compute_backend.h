@@ -15,7 +15,6 @@
 #define __X86_64_COMPUTE_BACKEND_H__
 #ifdef __cplusplus
 
-
 #include <cstdint>
 #include <tensor_dim.h>
 
@@ -266,7 +265,8 @@ void scopy(const unsigned int N, const uint8_t *X, const unsigned int incX,
  * @param[in] Y float * for Vector Y
  */
 void scopy_int4_to_float32(const unsigned int N, const uint8_t *X,
-                           const unsigned int incX, float *Y, const unsigned int incY);
+                           const unsigned int incX, float *Y,
+                           const unsigned int incY);
 
 /**
  * @brief     copy function : Y = X
@@ -275,7 +275,8 @@ void scopy_int4_to_float32(const unsigned int N, const uint8_t *X,
  * @param[in] Y float * for Vector Y
  */
 void scopy_int8_to_float32(const unsigned int N, const uint8_t *X,
-                           const unsigned int incX, float *Y, const unsigned int incY);
+                           const unsigned int incX, float *Y,
+                           const unsigned int incY);
 
 /**
  * @brief     sdot computation : sum of all X * Y

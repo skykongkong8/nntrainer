@@ -3,7 +3,7 @@
 
 /**
  * @brief macro for vfmaq_n_f32
- * 
+ *
  */
 #define vfmaq_n_f32(a, b, c, n) vaddq_f32(a, vmulq_f32(b, vmovq_n_f32(c[n])))
 

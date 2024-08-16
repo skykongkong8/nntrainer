@@ -234,8 +234,8 @@ extern void inv_sqrt_inplace(const unsigned int N, _FP16 *X);
  * @param ld_dst data offset of output matrix
  */
 extern void transpose_matrix(const unsigned int M, const unsigned int N,
-                      const _FP16 *src, unsigned int ld_src, _FP16 *dst,
-                      unsigned int ld_dst);
+                             const _FP16 *src, unsigned int ld_src, _FP16 *dst,
+                             unsigned int ld_dst);
 #endif
 /**
  * @brief     sscal computation : X = alpha * X
