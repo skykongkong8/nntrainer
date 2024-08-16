@@ -25,7 +25,7 @@ endif
 
 arch = host_machine.cpu_family()
 message('BUILD DEBUG arch ' + arch)
-if arch == 'aarch64' or get_option('platform') == 'android'
+if arch == 'arm' or arch == 'aarch64' or get_option('platform') == 'android'
   # if get_option('enable-neon')
     subdir('arm')
     nntrainer_inc += include_directories('arm')
