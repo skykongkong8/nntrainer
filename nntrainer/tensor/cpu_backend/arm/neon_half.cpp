@@ -16,6 +16,9 @@
 #include <memory>
 #include <neon_half.h>
 #include <neon_setting.h>
+#ifdef ARMV7
+#include <armv7_neon.h>
+#endif
 
 namespace nntrainer::neon {
 

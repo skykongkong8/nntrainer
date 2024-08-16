@@ -17,6 +17,9 @@
 #include <hgemm_util.h>
 #include <stdexcept>
 #include <stdlib.h>
+#ifdef ARMV7
+#include <armv7_neon.h>
+#endif
 
 #define INIT_KERNEL_8X16()       \
   do {                           \

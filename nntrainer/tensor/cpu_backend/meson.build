@@ -24,7 +24,6 @@ endif
 # case 4 : full fallback 
 
 arch = host_machine.cpu_family()
-message('arch is:' + arch)
 if arch == 'arm' or arch == 'aarch64' or get_option('platform') == 'android'
   # if get_option('enable-neon')
     subdir('arm')
