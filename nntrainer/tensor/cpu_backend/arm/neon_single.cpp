@@ -15,6 +15,9 @@
 #include <neon_setting.h>
 #include <neon_single.h>
 #include <nntrainer_error.h>
+#ifdef ARMV7
+#include <armv7_neon.h>
+#endif
 
 namespace nntrainer::neon {
 
