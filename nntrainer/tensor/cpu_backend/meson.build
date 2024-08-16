@@ -31,7 +31,7 @@ if arch == 'arm' or arch == 'aarch64' or get_option('platform') == 'android'
     nntrainer_inc += include_directories('arm')
     nntrainer_inc_abs += meson.current_source_dir() / 'arm'
   # endif
-elif arch == 'x86_64'
+elif arch == 'x86_64' or arch == 'x86'
   # if get_option('enable-avx')
     subdir('x86_64')
     nntrainer_inc += include_directories('x86_64')
