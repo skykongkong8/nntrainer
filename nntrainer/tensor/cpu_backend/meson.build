@@ -12,7 +12,7 @@ if get_option('enable-blas')
   nntrainer_inc_abs += meson.current_source_dir() / 'cblas_interface'
 endif
 
-# x86_64 (=avx)
+# x86 (=avx)
 # case 1 : cblas(fp32 avx) + fallback
 # case 2 : cblas(fp32 avx) + fallback + fp16 avx2
 # case 3 : full fallback 

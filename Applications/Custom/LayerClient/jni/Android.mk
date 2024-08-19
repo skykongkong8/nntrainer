@@ -22,6 +22,7 @@ NNTRAINER_INCLUDES := $(NNTRAINER_ROOT)/nntrainer \
 	$(NNTRAINER_ROOT)/nntrainer/utils \
 	$(NNTRAINER_ROOT)/nntrainer/optimizers \
 	$(NNTRAINER_ROOT)/nntrainer/tensor \
+	$(NNTRAINER_ROOT)/nntrainer/tensor/cpu_backend \
 	$(NNTRAINER_ROOT)/api \
 	$(NNTRAINER_ROOT)/api/ccapi/include \
 	${ML_API_COMMON_INCLUDES}

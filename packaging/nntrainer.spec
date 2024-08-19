@@ -537,13 +537,7 @@ cp -r result %{buildroot}%{_datadir}/nntrainer/unittest/
 %{_includedir}/nntrainer/cpu_backend.h
 %{_includedir}/nntrainer/fallback_internal.h
 %{_includedir}/nntrainer/cblas_interface.h
-%ifarch x86_64
-%{_includedir}/nntrainer/x86_64_compute_backend.h
-%if 0%{?enable_fp16}
-%{_includedir}/nntrainer/blas_avx.h
-%endif
-%endif
-%ifarch i586
+%ifarch %{ix86} x86_64
 %{_includedir}/nntrainer/x86_64_compute_backend.h
 %if 0%{?enable_fp16}
 %{_includedir}/nntrainer/blas_avx.h
@@ -569,7 +563,7 @@ cp -r result %{buildroot}%{_datadir}/nntrainer/unittest/
     %{_includedir}/nntrainer/neon_mathfun.h
     %{_includedir}/nntrainer/neon_mathfun.hxx
 %endif
-%ifnarch %arm aarch64 x86_64 i586
+%ifnarch %{ix86} %arm x86_64 aarch64
 %{_includedir}/nntrainer/fallback.h
 %endif
 %{_includedir}/nntrainer/var_grad.h
