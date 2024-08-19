@@ -70,11 +70,13 @@ warning_c_flags = [
 
 arch = host_machine.cpu_family()
 if arch == 'arm' or arch == 'aarch64' or get_option('platform') == 'android'
+  message('Build for ARM architecture')
   extra_defines += '-DARM=1'
   if arch == 'arm'
     extra_defines += '-DARMV7=1'
   endif
 elif arch == 'x86' or arch == 'x86_64'
+  message('Build for X86 architecture')
   extra_defines += '-DX86=1'
 endif
 

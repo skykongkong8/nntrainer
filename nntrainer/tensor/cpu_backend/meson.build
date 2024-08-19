@@ -13,7 +13,6 @@ if get_option('enable-blas')
 endif
 
 arch = host_machine.cpu_family()
-message('BUILD DEBUG arch ' + arch)
 if arch == 'arm' or arch == 'aarch64' or get_option('platform') == 'android'
     subdir('arm')
     nntrainer_inc += include_directories('arm')
