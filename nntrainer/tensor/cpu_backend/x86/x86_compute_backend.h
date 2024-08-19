@@ -2,17 +2,17 @@
 /**
  * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
  *
- * @file   x86_64_compute_backend.h
+ * @file   x86_compute_backend.h
  * @date   23 April 2024
  * @see    https://github.com/nnstreamer/nntrainer
  * @author Sungsik Kong <ss.kong@samsung.com>
  * @bug    No known bugs except for NYI items
- * @brief  Compute backend for x86_64
+ * @brief  Compute backend for x86
  *
  */
 
-#ifndef __X86_64_COMPUTE_BACKEND_H__
-#define __X86_64_COMPUTE_BACKEND_H__
+#ifndef __x86_COMPUTE_BACKEND_H__
+#define __x86_COMPUTE_BACKEND_H__
 #ifdef __cplusplus
 
 #include <cstdint>
@@ -424,4 +424,4 @@ void ele_div(const unsigned N, const float *X, const float *Y, float *Z,
              unsigned int o_stride = 1);
 } /* namespace nntrainer */
 #endif /* __cplusplus */
-#endif /* __X86_64_COMPUTE_BACKEND_H__ */
+#endif /* __x86_COMPUTE_BACKEND_H__ */

@@ -18,7 +18,7 @@
 #ifdef USE_NEON
 #include <arm_compute_backend.h>
 #elif USE_AVX
-#include <x86_64_compute_backend.h>
+#include <x86_compute_backend.h>
 #else
 #include <fallback.h>
 #endif

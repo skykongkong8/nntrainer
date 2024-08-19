@@ -2,12 +2,12 @@
 /**
  * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
  *
- * @file   x86_64_compute_backend.cpp
+ * @file   x86_compute_backend.cpp
  * @date   23 April 2024
  * @see    https://github.com/nnstreamer/nntrainer
  * @author Sungsik Kong <ss.kong@samsung.com>
  * @bug    No known bugs except for NYI items
- * @brief  Compute backend for x86_64
+ * @brief  Compute backend for x86
  *
  */
 
@@ -16,7 +16,7 @@
 #include <cblas_interface.h>
 #include <fallback_internal.h>
 #include <nntrainer_error.h>
-#include <x86_64_compute_backend.h>
+#include <x86_compute_backend.h>
 
 #ifdef ENABLE_FP16
 #include <blas_avx.h>
