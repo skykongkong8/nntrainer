@@ -15,9 +15,9 @@
 #define __CPU_BACKEND_H__
 #ifdef __cplusplus
 
-#ifdef USE_NEON
+#ifdef ARM
 #include <arm_compute_backend.h>
-#elif USE_AVX
+#elif X86
 #include <x86_compute_backend.h>
 #else
 #include <fallback.h>

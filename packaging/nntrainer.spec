@@ -538,7 +538,7 @@ cp -r result %{buildroot}%{_datadir}/nntrainer/unittest/
 %{_includedir}/nntrainer/fallback_internal.h
 %{_includedir}/nntrainer/cblas_interface.h
 %ifarch %{ix86} x86_64
-%{_includedir}/nntrainer/x86_64_compute_backend.h
+%{_includedir}/nntrainer/x86_compute_backend.h
 %if 0%{?enable_fp16}
 %{_includedir}/nntrainer/blas_avx.h
 %endif

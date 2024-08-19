@@ -15,8 +15,6 @@
 #define __CBLAS_INTERFACE_H__
 #ifdef __cplusplus
 
-// #include <cblas.h>
-
 namespace nntrainer {
 /**
  * @brief     saxpy computation : Y = alpha*X + Y

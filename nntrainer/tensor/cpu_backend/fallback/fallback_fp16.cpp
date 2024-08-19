@@ -32,9 +32,7 @@ _FP16 snrm2(const unsigned int N, const _FP16 *X, const unsigned int incX) {
 
 void scopy(const unsigned int N, const _FP16 *X, const unsigned int incX,
            _FP16 *Y, const unsigned int incY) {
-  if (incX == 1 && incY == 1) {
-    __fallback_scopy(N, X, incX, Y, incY);
-  }
+  __fallback_scopy(N, X, incX, Y, incY);
 }
 
 void scopy(const unsigned int N, const float *X, const unsigned int incX,
@@ -50,9 +48,7 @@ void scopy(const unsigned int N, const _FP16 *X, const unsigned int incX,
 void scopy_int4_to_float16(const unsigned int N, const uint8_t *X,
                            const unsigned int incX, _FP16 *Y,
                            const unsigned int incY) {
-  if (incX == 1 && incY == 1) {
-    __fallback_scopy_int4_to_float16(N, X, incX, Y, incY);
-  }
+  __fallback_scopy_int4_to_float16(N, X, incX, Y, incY);
 }
 
 void scopy_int8_to_float16(const unsigned int N, const uint8_t *X,
@@ -130,6 +126,5 @@ void transpose_matrix(const unsigned int M, const unsigned int N,
                       unsigned int ld_dst) {
   __fallback_transpose_matrix(M, N, src, ld_src, dst, ld_dst);
 }
-
 
 } /* namespace nntrainer */
