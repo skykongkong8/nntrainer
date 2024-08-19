@@ -8,7 +8,7 @@
  * @bug		No known bugs except for NYI items
  */
 
-#include <neon_single.h>
+#include <neon_impl.h>
 #include <util_simd_neon.h>
 #ifdef ARMV7
 #include <armv7_neon.h>

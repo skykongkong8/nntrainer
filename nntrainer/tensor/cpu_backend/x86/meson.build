@@ -8,6 +8,7 @@ simd_interface_x86_sources = [
 if get_option('enable-fp16')
     simd_interface_x86_headers += 'blas_avx.h'
     simd_interface_x86_sources += 'blas_avx.cpp'
+    simd_interface_x86_sources += 'x86_compute_backend_fp16.cpp'
 endif
 
 foreach s : simd_interface_x86_sources

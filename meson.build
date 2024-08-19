@@ -68,9 +68,17 @@ warning_c_flags = [
   '-Wno-error=varargs'
 ]
 
+arch = host_machine.cpu_family()
+if arch == 'arm' or arch == 'aarch64' or get_option('platform') == 'android'
+  extra_defines += '-DARM=1'
+  if arch == 'arm'
+    extra_defines += '-DARMV7=1'
+  endif
+elif arch == 'x86' or arch == 'x86_64'
+  extra_defines += '-DX86=1'
+endif
 
 if get_option('enable-fp16')
-   arch = host_machine.cpu_family()
    if get_option('platform') == 'android'
      add_project_arguments('-mfp16-format=ieee', language: ['c', 'cpp'])
      extra_defines += '-DENABLE_FP16=1'
@@ -122,11 +130,6 @@ if get_option('enable-fp16')
    else
      error ('FP16 support for this arch is not yet implemented.')
    endif  
-endif
-arch = host_machine.cpu_family()
-
-if arch == 'arm'
-  extra_defines += '-DARMV7=1'
 endif
 
 if get_option('enable-opencl')

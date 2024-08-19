@@ -2,7 +2,7 @@
 /**
  * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
  *
- * @file neon_single.cpp
+ * @file neon_impl.cpp
  * @date   23 April 2024
  * @see    https://github.com/nnstreamer/nntrainer
  * @author Sungsik Kong <ss.kong@samsung.com>
@@ -12,8 +12,8 @@
  */
 
 #include <memory>
+#include <neon_impl.h>
 #include <neon_setting.h>
-#include <neon_single.h>
 #include <nntrainer_error.h>
 #ifdef ARMV7
 #include <armv7_neon.h>

@@ -2,7 +2,7 @@
 /**
  * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
  *
- * @file neon_half.cpp
+ * @file neon_fp16.cpp
  * @date   23 April 2024
  * @see    https://github.com/nnstreamer/nntrainer
  * @author Sungsik Kong <ss.kong@samsung.com>
@@ -14,7 +14,7 @@
 #include <hgemm.h>
 #include <matrix_transpose_neon.h>
 #include <memory>
-#include <neon_half.h>
+#include <neon_impl.h>
 #include <neon_setting.h>
 #ifdef ARMV7
 #include <armv7_neon.h>

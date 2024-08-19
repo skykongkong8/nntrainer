@@ -1,21 +1,22 @@
 arm_compute_backend_headers = [
     'arm_compute_backend.h',
-    'neon_single.h',
+    'neon_impl.h',
     'neon_setting.h',
     'neon_mathfun.h',
     'neon_mathfun.hxx'
 ]
 arm_compute_backend_sources = [
     'arm_compute_backend.cpp',
-    'neon_single.cpp'
+    'neon_impl.cpp'
 ]
 
 if get_option('enable-fp16')
+    arm_compute_backend_sources += 'arm_compute_backend_fp16.cpp'
+    arm_compute_backend_sources += 'neon_impl_fp16.cpp'
+
     subdir('hgemm')
     nntrainer_inc += include_directories('hgemm')
     nntrainer_inc_abs += meson.current_source_dir() / 'hgemm'
-    arm_compute_backend_headers += 'neon_half.h'
-    arm_compute_backend_sources += 'neon_half.cpp'
 
     subdir('matrix_transpose_neon')
     nntrainer_inc += include_directories('matrix_transpose_neon')
