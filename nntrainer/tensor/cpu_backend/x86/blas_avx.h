@@ -18,7 +18,7 @@
 #include <cmath>
 #include <immintrin.h>
 
-namespace nntrainer::avx {
+namespace nntrainer {
 
 #ifdef ENABLE_FP16
 /**
@@ -70,7 +70,7 @@ bool isValid(const size_t N, const float *X);
 void custom_scopy(const unsigned int N, const float *X, const int incX,
                   float *Y, const int incY);
 
-} // namespace nntrainer::avx
+} // namespace nntrainer
 
 #endif /* __cplusplus */
 #endif /* __BLAS_AVX_H_ */

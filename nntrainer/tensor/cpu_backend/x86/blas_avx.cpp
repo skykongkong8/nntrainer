@@ -6,6 +6,7 @@
  * @date   20 Feb 2024
  * @see    https://github.com/nnstreamer/nntrainer
  * @author Donghyeon Jeong <dhyeon.jeong@samsung.com>
+ * @author Sungsik Kong <ss.kong@samsung.com>
  * @bug    No known bugs except for NYI items
  * @brief  This is a source for AVX implementation
  *
@@ -18,7 +19,7 @@
 
 #include <blas_avx.h>
 
-namespace nntrainer::avx {
+namespace nntrainer {
 
 #ifdef ENABLE_FP16
 void vcvt_f16_f32(size_t N, const void *input, float *output) {
@@ -289,4 +290,4 @@ void custom_scopy(const unsigned int N, const float *X, const int incX,
   }
 }
 
-} // namespace nntrainer::avx
+} // namespace nntrainer

@@ -69,19 +69,20 @@ warning_c_flags = [
 ]
 
 arch = host_machine.cpu_family()
-
-target = target_machine.cpu_family()
-
-if get_option('enable-avx')
-   if get_option('platform') != 'android'
-      if target == 'x86_64' or target == 'x86'
-         extra_defines += '-DUSE_AVX=1'
-	 add_project_arguments(['-march=native'], language: ['c','cpp'])
-	 add_project_arguments(['-mavx2'], language: ['c','cpp'])
-         message('-march=native added for AVX hardware acceleration.')
-      endif
-      message('This arch does not support avx2')
+if arch == 'arm' or arch == 'aarch64' or get_option('platform') == 'android'
+  message('Build for ARM architecture')
+  extra_defines += '-DARM=1'
+  if arch == 'arm'
+    extra_defines += '-DARMV7=1'
   endif
+elif arch == 'x86' or arch == 'x86_64'
+  message('Build for X86 architecture')
+  if get_option('enable-fp16')
+    add_project_arguments(['-march=native'], language: ['c','cpp'])
+    add_project_arguments(['-mavx2'], language: ['c','cpp'])
+    message('-march=native added for AVX hardware acceleration.')
+  endif
+  extra_defines += '-DX86=1'
 endif
 
 if get_option('enable-fp16')
