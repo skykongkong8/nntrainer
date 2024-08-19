@@ -113,7 +113,7 @@ void uhgemm_kernel_1x4(unsigned int M, unsigned int N, unsigned int K,
         b += 16;
         a += 4;
 
-        vst1q_u32(c, vaddq_u32(vld1q_u32(c), vcvt_u32_u16(v24)));
+        vst1q_u32(c, vaddq_u32(vld1q_u32(c), vmovl_u16(v24)));
       }
       c += 4;
       a -= K;

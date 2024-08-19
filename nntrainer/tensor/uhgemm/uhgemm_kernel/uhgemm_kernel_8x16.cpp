@@ -154,100 +154,100 @@
 
 #define SAVE_KERNEL_8X16_u16_u32()                                             \
   do {                                                                         \
-    vst1q_u32(c, vaddq_u32(vld1q_u32(c), vcvt_u32_u16(vget_low_u16(v0_7))));   \
+    vst1q_u32(c, vaddq_u32(vld1q_u32(c), vmovl_u16(vget_low_u16(v0_7))));   \
     vst1q_u32(c + 4,                                                           \
-              vaddq_u32(vld1q_u32(c + 4), vcvt_u32_u16(vget_high_u16(v0_7)))); \
+              vaddq_u32(vld1q_u32(c + 4), vmovl_u16(vget_high_u16(v0_7)))); \
                                                                                \
     vst1q_u32(                                                                 \
-      c + 8, vaddq_u32(vld1q_u32(c + 8), vcvt_u32_u16(vget_low_u16(v64_71)))); \
+      c + 8, vaddq_u32(vld1q_u32(c + 8), vmovl_u16(vget_low_u16(v64_71)))); \
     vst1q_u32(c + 8 + 4, vaddq_u32(vld1q_u32(c + 8 + 4),                       \
-                                   vcvt_u32_u16(vget_high_u16(v64_71))));      \
+                                   vmovl_u16(vget_high_u16(v64_71))));      \
                                                                                \
     vst1q_u32(c + ldc, vaddq_u32(vld1q_u32(c + ldc),                           \
-                                 vcvt_u32_u16(vget_low_u16(v8_15))));          \
+                                 vmovl_u16(vget_low_u16(v8_15))));          \
     vst1q_u32(c + ldc + 4, vaddq_u32(vld1q_u32(c + ldc + 4),                   \
-                                     vcvt_u32_u16(vget_high_u16(v8_15))));     \
+                                     vmovl_u16(vget_high_u16(v8_15))));     \
                                                                                \
     vst1q_u32(c + ldc + 8, vaddq_u32(vld1q_u32(c + ldc + 8),                   \
-                                     vcvt_u32_u16(vget_low_u16(v72_79))));     \
+                                     vmovl_u16(vget_low_u16(v72_79))));     \
     vst1q_u32(c + ldc + 8 + 4,                                                 \
               vaddq_u32(vld1q_u32(c + ldc + 8 + 4),                            \
-                        vcvt_u32_u16(vget_high_u16(v72_79))));                 \
+                        vmovl_u16(vget_high_u16(v72_79))));                 \
                                                                                \
     vst1q_u32(c + 2 * ldc, vaddq_u32(vld1q_u32(c + 2 * ldc),                   \
-                                     vcvt_u32_u16(vget_low_u16(v16_23))));     \
+                                     vmovl_u16(vget_low_u16(v16_23))));     \
     vst1q_u32(c + 2 * ldc + 4,                                                 \
               vaddq_u32(vld1q_u32(c + 2 * ldc + 4),                            \
-                        vcvt_u32_u16(vget_high_u16(v16_23))));                 \
+                        vmovl_u16(vget_high_u16(v16_23))));                 \
                                                                                \
     vst1q_u32(c + 2 * ldc + 8, vaddq_u32(vld1q_u32(c + 2 * ldc + 8),           \
-                                         vcvt_u32_u16(vget_low_u16(v80_87)))); \
+                                         vmovl_u16(vget_low_u16(v80_87)))); \
     vst1q_u32(c + 2 * ldc + 8 + 4,                                             \
               vaddq_u32(vld1q_u32(c + 2 * ldc + 8 + 4),                        \
-                        vcvt_u32_u16(vget_high_u16(v80_87))));                 \
+                        vmovl_u16(vget_high_u16(v80_87))));                 \
                                                                                \
     vst1q_u32(c + 3 * ldc, vaddq_u32(vld1q_u32(c + 3 * ldc),                   \
-                                     vcvt_u32_u16(vget_low_u16(v24_31))));     \
+                                     vmovl_u16(vget_low_u16(v24_31))));     \
     vst1q_u32(c + 3 * ldc + 4,                                                 \
               vaddq_u32(vld1q_u32(c + 3 * ldc + 4),                            \
-                        vcvt_u32_u16(vget_high_u16(v24_31))));                 \
+                        vmovl_u16(vget_high_u16(v24_31))));                 \
                                                                                \
     vst1q_u32(c + 3 * ldc + 8, vaddq_u32(vld1q_u32(c + 3 * ldc + 8),           \
-                                         vcvt_u32_u16(vget_low_u16(v88_95)))); \
+                                         vmovl_u16(vget_low_u16(v88_95)))); \
     vst1q_u32(c + 3 * ldc + 8 + 4,                                             \
               vaddq_u32(vld1q_u32(c + 3 * ldc + 8 + 4),                        \
-                        vcvt_u32_u16(vget_high_u16(v88_95))));                 \
+                        vmovl_u16(vget_high_u16(v88_95))));                 \
                                                                                \
     vst1q_u32(c + 4 * ldc, vaddq_u32(vld1q_u32(c + 4 * ldc),                   \
-                                     vcvt_u32_u16(vget_low_u16(v32_39))));     \
+                                     vmovl_u16(vget_low_u16(v32_39))));     \
     vst1q_u32(c + 4 * ldc + 4,                                                 \
               vaddq_u32(vld1q_u32(c + 4 * ldc + 4),                            \
-                        vcvt_u32_u16(vget_high_u16(v32_39))));                 \
+                        vmovl_u16(vget_high_u16(v32_39))));                 \
                                                                                \
     vst1q_u32(c + 4 * ldc + 8,                                                 \
               vaddq_u32(vld1q_u32(c + 4 * ldc + 8),                            \
-                        vcvt_u32_u16(vget_low_u16(v96_103))));                 \
+                        vmovl_u16(vget_low_u16(v96_103))));                 \
     vst1q_u32(c + 4 * ldc + 8 + 4,                                             \
               vaddq_u32(vld1q_u32(c + 4 * ldc + 8 + 4),                        \
-                        vcvt_u32_u16(vget_high_u16(v96_103))));                \
+                        vmovl_u16(vget_high_u16(v96_103))));                \
                                                                                \
     vst1q_u32(c + 5 * ldc, vaddq_u32(vld1q_u32(c + 5 * ldc),                   \
-                                     vcvt_u32_u16(vget_low_u16(v40_47))));     \
+                                     vmovl_u16(vget_low_u16(v40_47))));     \
     vst1q_u32(c + 5 * ldc + 4,                                                 \
               vaddq_u32(vld1q_u32(c + 5 * ldc + 4),                            \
-                        vcvt_u32_u16(vget_high_u16(v40_47))));                 \
+                        vmovl_u16(vget_high_u16(v40_47))));                 \
     vst1q_u32(c + 5 * ldc + 8,                                                 \
               vaddq_u32(vld1q_u32(c + 5 * ldc + 8),                            \
-                        vcvt_u32_u16(vget_low_u16(v104_111))));                \
+                        vmovl_u16(vget_low_u16(v104_111))));                \
     vst1q_u32(c + 5 * ldc + 8 + 4,                                             \
               vaddq_u32(vld1q_u32(c + 5 * ldc + 8 + 4),                        \
-                        vcvt_u32_u16(vget_high_u16(v104_111))));               \
+                        vmovl_u16(vget_high_u16(v104_111))));               \
                                                                                \
     vst1q_u32(c + 6 * ldc, vaddq_u32(vld1q_u32(c + 6 * ldc),                   \
-                                     vcvt_u32_u16(vget_low_u16(v48_55))));     \
+                                     vmovl_u16(vget_low_u16(v48_55))));     \
     vst1q_u32(c + 6 * ldc + 4,                                                 \
               vaddq_u32(vld1q_u32(c + 6 * ldc + 4),                            \
-                        vcvt_u32_u16(vget_high_u16(v48_55))));                 \
+                        vmovl_u16(vget_high_u16(v48_55))));                 \
                                                                                \
     vst1q_u32(c + 6 * ldc + 8,                                                 \
               vaddq_u32(vld1q_u32(c + 6 * ldc + 8),                            \
-                        vcvt_u32_u16(vget_low_u16(v112_119))));                \
+                        vmovl_u16(vget_low_u16(v112_119))));                \
     vst1q_u32(c + 6 * ldc + 8 + 4,                                             \
               vaddq_u32(vld1q_u32(c + 6 * ldc + 8 + 4),                        \
-                        vcvt_u32_u16(vget_high_u16(v112_119))));               \
+                        vmovl_u16(vget_high_u16(v112_119))));               \
                                                                                \
     vst1q_u32(c + 7 * ldc, vaddq_u32(vld1q_u32(c + 7 * ldc),                   \
-                                     vcvt_u32_u16(vget_low_u16(v56_63))));     \
+                                     vmovl_u16(vget_low_u16(v56_63))));     \
     vst1q_u32(c + 7 * ldc + 4,                                                 \
               vaddq_u32(vld1q_u32(c + 7 * ldc + 4),                            \
-                        vcvt_u32_u16(vget_high_u16(v56_63))));                 \
+                        vmovl_u16(vget_high_u16(v56_63))));                 \
                                                                                \
     vst1q_u32(c + 7 * ldc + 8,                                                 \
               vaddq_u32(vld1q_u32(c + 7 * ldc + 8),                            \
-                        vcvt_u32_u16(vget_low_u16(v120_127))));                \
+                        vmovl_u16(vget_low_u16(v120_127))));                \
     vst1q_u32(c + 7 * ldc + 8 + 4,                                             \
               vaddq_u32(vld1q_u32(c + 7 * ldc + 8 + 4),                        \
-                        vcvt_u32_u16(vget_high_u16(v120_127))));               \
+                        vmovl_u16(vget_high_u16(v120_127))));               \
   } while (0)
 
 template <>

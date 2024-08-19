@@ -957,9 +957,9 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         b0_7_0 = vmlaq_n_u16(b0_7_0, vld1q_u16(&B[(k + 15) * N + n]), a[15]);
 
         uint32x4_t c0_7_low_32 = vaddq_u32(vld1q_u32(&C[m * N + n]),
-                                           vcvt_u32_u16(vget_low_u16(b0_7_0)));
+                                           vmovl_u16(vget_low_u16(b0_7_0)));
         uint32x4_t c0_7_high_32 = vaddq_u32(
-          vld1q_u32(&C[m * N + n + 4]), vcvt_u32_u16(vget_high_u16(b0_7_0)));
+          vld1q_u32(&C[m * N + n + 4]), vmovl_u16(vget_high_u16(b0_7_0)));
 
         vst1q_u32(&C[m * N + n], c0_7_low_32);
         vst1q_u32(&C[m * N + n + 4], c0_7_high_32);
@@ -1021,10 +1021,10 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         b = vmlaq_n_u16(b, vld1q_u16(valsB_15), a[15]);
 
         uint32x4_t c0_7_low_32 =
-          vaddq_u32(vld1q_u32(valsC), vcvt_u32_u16(vget_low_u16(b)));
+          vaddq_u32(vld1q_u32(valsC), vmovl_u16(vget_low_u16(b)));
 
         uint32x4_t c0_7_high_32 =
-          vaddq_u32(vld1q_u32(valsC + 4), vcvt_u32_u16(vget_high_u16(b)));
+          vaddq_u32(vld1q_u32(valsC + 4), vmovl_u16(vget_high_u16(b)));
 
         vst1q_u32(valsC, c0_7_low_32);
         vst1q_u32(valsC + 4, c0_7_high_32);
@@ -1051,9 +1051,9 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         b0_7_0 = vmlaq_n_u16(b0_7_0, vld1q_u16(&B[(k + 7) * N + n]), a[7]);
 
         uint32x4_t c0_7_low_32 = vaddq_u32(vld1q_u32(&C[m * N + n]),
-                                           vcvt_u32_u16(vget_low_u16(b0_7_0)));
+                                           vmovl_u16(vget_low_u16(b0_7_0)));
         uint32x4_t c0_7_high_32 = vaddq_u32(
-          vld1q_u32(&C[m * N + n + 4]), vcvt_u32_u16(vget_high_u16(b0_7_0)));
+          vld1q_u32(&C[m * N + n + 4]), vmovl_u16(vget_high_u16(b0_7_0)));
 
         vst1q_u32(&C[m * N + n], c0_7_low_32);
         vst1q_u32(&C[m * N + n + 4], c0_7_high_32);
@@ -1091,10 +1091,10 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         b = vmlaq_n_u16(b, vld1q_u16(valsB_7), a[7]);
 
         uint32x4_t c0_7_low_32 =
-          vaddq_u32(vld1q_u32(valsC), vcvt_u32_u16(vget_low_u16(b)));
+          vaddq_u32(vld1q_u32(valsC), vmovl_u16(vget_low_u16(b)));
 
         uint32x4_t c0_7_high_32 =
-          vaddq_u32(vld1q_u32(valsC + 4), vcvt_u32_u16(vget_high_u16(b)));
+          vaddq_u32(vld1q_u32(valsC + 4), vmovl_u16(vget_high_u16(b)));
 
         vst1q_u32(valsC, c0_7_low_32);
         vst1q_u32(valsC + 4, c0_7_high_32);
@@ -1118,14 +1118,14 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         b0_7_2 = vmlaq_n_u16(b0_7_2, vld1q_u16(&B[(k + 3) * N + n]), a[3]);
 
         uint32x4_t c0_7_low_32 = vaddq_u32(vld1q_u32(&C[m * N + n]),
-                                           vcvt_u32_u16(vget_low_u16(b0_7_0)));
+                                           vmovl_u16(vget_low_u16(b0_7_0)));
         uint32x4_t c0_7_high_32 = vaddq_u32(
-          vld1q_u32(&C[m * N + n + 4]), vcvt_u32_u16(vget_high_u16(b0_7_0)));
+          vld1q_u32(&C[m * N + n + 4]), vmovl_u16(vget_high_u16(b0_7_0)));
 
         c0_7_low_32 =
-          vaddq_u32(c0_7_low_32, vcvt_u32_u16(vget_low_u16(b0_7_2)));
+          vaddq_u32(c0_7_low_32, vmovl_u16(vget_low_u16(b0_7_2)));
         c0_7_high_32 =
-          vaddq_u32(c0_7_high_32, vcvt_u32_u16(vget_high_u16(b0_7_2)));
+          vaddq_u32(c0_7_high_32, vmovl_u16(vget_high_u16(b0_7_2)));
 
         vst1q_u32(&C[m * N + n], c0_7_low_32);
         vst1q_u32(&C[m * N + n + 4], c0_7_high_32);
@@ -1151,10 +1151,10 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         b = vmlaq_n_u16(b, vld1q_u16(valsB_3), a[3]);
 
         uint32x4_t c0_7_low_32 =
-          vaddq_u32(vld1q_u32(valsC), vcvt_u32_u16(vget_low_u16(b)));
+          vaddq_u32(vld1q_u32(valsC), vmovl_u16(vget_low_u16(b)));
 
         uint32x4_t c0_7_high_32 =
-          vaddq_u32(vld1q_u32(valsC + 4), vcvt_u32_u16(vget_high_u16(b)));
+          vaddq_u32(vld1q_u32(valsC + 4), vmovl_u16(vget_high_u16(b)));
 
         vst1q_u32(valsC, c0_7_low_32);
         vst1q_u32(valsC + 4, c0_7_high_32);
@@ -1174,10 +1174,10 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         uint16x8_t b0_7 = vmulq_n_u16(vld1q_u16(&B[k * N + n]), a0);
 
         uint32x4_t c0_7_low_32 =
-          vaddq_u32(vld1q_u32(&C[m * N + n]), vcvt_u32_u16(vget_low_u16(b0_7)));
+          vaddq_u32(vld1q_u32(&C[m * N + n]), vmovl_u16(vget_low_u16(b0_7)));
 
         uint32x4_t c0_7_high_32 = vaddq_u32(vld1q_u32(&C[m * N + n + 4]),
-                                            vcvt_u32_u16(vget_high_u16(b0_7)));
+                                            vmovl_u16(vget_high_u16(b0_7)));
 
         vst1q_u32(&C[m * N + n], c0_7_low_32);
         vst1q_u32(&C[m * N + n + 4], c0_7_high_32);
@@ -1194,10 +1194,10 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         uint16x8_t b = vmulq_n_u16(vld1q_u16(valsB), a0);
 
         uint32x4_t c0_7_low_32 =
-          vaddq_u32(vld1q_u32(valsC), vcvt_u32_u16(vget_low_u16(b)));
+          vaddq_u32(vld1q_u32(valsC), vmovl_u16(vget_low_u16(b)));
 
         uint32x4_t c0_7_high_32 =
-          vaddq_u32(vld1q_u32(valsC + 4), vcvt_u32_u16(vget_high_u16(b)));
+          vaddq_u32(vld1q_u32(valsC + 4), vmovl_u16(vget_high_u16(b)));
 
         vst1q_u32(valsC, c0_7_low_32);
         vst1q_u32(valsC + 4, c0_7_high_32);

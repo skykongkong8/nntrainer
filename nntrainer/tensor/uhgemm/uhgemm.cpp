@@ -52,8 +52,8 @@ void uhgemm(const uint16_t *A, const uint16_t *B, uint16_t *C, unsigned int M,
       for (unsigned int n = 0; n < N8_low; n += 8) {
         uint16x8_t c =
           vmulq_n_u16(vld1q_u16(&C[m * N + n]), static_cast<uint16_t>(beta));
-        vst1q_u32(&C32[m * N16_high + n], vcvt_u32_u16(vget_low_u16(c)));
-        vst1q_u32(&C32[m * N16_high + n + 4], vcvt_u32_u16(vget_high_u16(c)));
+        vst1q_u32(&C32[m * N16_high + n], vmovl_u16(vget_low_u16(c)));
+        vst1q_u32(&C32[m * N16_high + n + 4], vmovl_u16(vget_high_u16(c)));
       }
       for (unsigned int n = N8_low; n < N; ++n) {
         C32[m * N16_high + n] = beta * C[m * N + n];
@@ -83,7 +83,7 @@ void uhgemm(const uint16_t *A, const uint16_t *B, uint16_t *C, unsigned int M,
       uint32x4_t x1 = vld1q_u32(&C32[m * N16_high + n]);
       uint32x4_t x2 = vld1q_u32(&C32[m * N16_high + n + 4]);
       vst1q_u16(&C[m * N + n],
-                vcombine_u16(vcvt_u16_u32(x1), vcvt_u16_u32(x2)));
+                vcombine_u16(vmovn_u32(x1), vmovn_u32(x2)));
     }
     for (unsigned int n = N8_low; n < N; ++n) {
       C[m * N + n] = C32[m * N16_high + n];

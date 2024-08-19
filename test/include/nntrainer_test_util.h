@@ -177,6 +177,38 @@ private:
     }                                             \
   } while (0)
 
+#define GEN_TEST_INPUT_RAND_INT(input, min, max)                       \
+  do {                                                             \
+    for (int i = 0; i < batch; ++i) {                              \
+      for (int j = 0; j < channel; ++j) {                          \
+        for (int k = 0; k < height; ++k) {                         \
+          for (int l = 0; l < width; ++l) {                        \
+            std::uniform_int_distribution<int> dist(min, max); \
+            std::default_random_engine gen((k + 1) * (l + 42));    \
+            int val = dist(gen);                                 \
+            input.setValue(i, j, k, l, val);                       \
+          }                                                        \
+        }                                                          \
+      }                                                            \
+    }                                                              \
+  } while (0)
+
+#define GEN_TEST_INPUT_RAND_INT_B(input, min, max)                     \
+  do {                                                             \
+    for (int i = 0; i < batch; ++i) {                              \
+      for (int j = 0; j < channel; ++j) {                          \
+        for (int k = 0; k < height_b; ++k) {                       \
+          for (int l = 0; l < width_b; ++l) {                      \
+            std::uniform_int_distribution<int> dist(min, max); \
+            std::default_random_engine gen((k + 42) * (l + 1));    \
+            int val = dist(gen);                                 \
+            input.setValue(i, j, k, l, val);                       \
+          }                                                        \
+        }                                                          \
+      }                                                            \
+    }                                                              \
+  } while (0)
+
 /**
  * @brief return a tensor filled with contant value with dimension
  */
