@@ -335,27 +335,12 @@ void uhgemm_kernel_8x16(unsigned int M, unsigned int N, unsigned int K,
       uint16x8_t v112_119, v120_127;
       uint16x8_t va0;
       uint16x8_t vb1, vb2;
+      INIT_KERNEL_8X16();
       l = 0;
-      for (; l < K16;) {
-        INIT_KERNEL_8X16();
-        KERNEL_8x16_ACC_N4(16);
-        SAVE_KERNEL_8X16_u16_u32();
-      }
-      for (; l < K8;) {
-        INIT_KERNEL_8X16();
-        KERNEL_8x16_ACC_N4(8);
-        SAVE_KERNEL_8X16_u16_u32();
-      }
-      for (; l < K4;) {
-        INIT_KERNEL_8X16();
-        KERNEL_8x16_ACC_N4(4);
-        SAVE_KERNEL_8X16_u16_u32();
-      }
       for (; l < K;) {
-        INIT_KERNEL_8X16();
         KERNEL_8x16_ACC1();
-        SAVE_KERNEL_8X16_u16_u32();
       }
+      SAVE_KERNEL_8X16_u16_u32();
       c += 16;
       a -= 8 * K;
     }
@@ -365,3 +350,61 @@ void uhgemm_kernel_8x16(unsigned int M, unsigned int N, unsigned int K,
     b = sb;
   }
 }
+
+
+// template <>
+// void uhgemm_kernel_8x16(unsigned int M, unsigned int N, unsigned int K,
+//                        uint16_t *sa, uint16_t *sb, unsigned int *sc, unsigned int ldc) {
+//   assert(M > 0 && N > 0 && K > 0);
+//   assert(M % 8 == 0 && N % 16 == 0 && K % 4 == 0);
+
+//   uint16_t *a = sa, *b = sb;
+//   unsigned int *c = sc;
+//   unsigned int i, j, l;
+//   unsigned int K4 = get_prev_mltpl_of_2p_n(K, 2);
+//   unsigned int K8 = get_prev_mltpl_of_2p_n(K, 3);
+//   unsigned int K16 = get_prev_mltpl_of_2p_n(K, 4);
+//   for (i = 0; i < M; i += 8) {
+//     for (j = 0; j < N; j += 16) {
+//       __builtin_prefetch(b, 0, 3);
+//       __builtin_prefetch(a, 0, 3);
+//       uint16x8_t v0_7, v8_15;
+//       uint16x8_t v16_23, v24_31;
+//       uint16x8_t v32_39, v40_47;
+//       uint16x8_t v48_55, v56_63;
+//       uint16x8_t v64_71, v72_79;
+//       uint16x8_t v80_87, v88_95;
+//       uint16x8_t v96_103, v104_111;
+//       uint16x8_t v112_119, v120_127;
+//       uint16x8_t va0;
+//       uint16x8_t vb1, vb2;
+//       l = 0;
+//       for (; l < K16;) {
+//         INIT_KERNEL_8X16();
+//         KERNEL_8x16_ACC_N4(16);
+//         SAVE_KERNEL_8X16_u16_u32();
+//       }
+//       for (; l < K8;) {
+//         INIT_KERNEL_8X16();
+//         KERNEL_8x16_ACC_N4(8);
+//         SAVE_KERNEL_8X16_u16_u32();
+//       }
+//       for (; l < K4;) {
+//         INIT_KERNEL_8X16();
+//         KERNEL_8x16_ACC_N4(4);
+//         SAVE_KERNEL_8X16_u16_u32();
+//       }
+//       for (; l < K;) {
+//         INIT_KERNEL_8X16();
+//         KERNEL_8x16_ACC1();
+//         SAVE_KERNEL_8X16_u16_u32();
+//       }
+//       c += 16;
+//       a -= 8 * K;
+//     }
+//     sc += ldc * 8;
+//     c = sc;
+//     a += 8 * K;
+//     b = sb;
+//   }
+// }

@@ -29,3 +29,17 @@ void uhgemm_transAB(const uint16_t *A, const uint16_t *B, unsigned int *C, unsig
   free(A_T);
   free(B_T);
 }
+
+void uhgemm_transAB(const uint16_t *A, const uint16_t *B, uint16_t *C, unsigned int M,
+                   unsigned int N, unsigned int K, unsigned int alpha, unsigned int beta) {
+  uint16_t *A_T = alignedMalloc(M * K);
+  uint16_t *B_T = alignedMalloc(K * N);
+
+  transpose_neon<uint16_t>(K, M, A, M, A_T, K);
+  transpose_neon<uint16_t>(N, K, B, K, B_T, N);
+
+  uhgemm_noTrans(A_T, B_T, C, M, N, K, alpha, beta);
+
+  free(A_T);
+  free(B_T);
+}

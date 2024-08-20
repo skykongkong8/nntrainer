@@ -12,9 +12,9 @@ uhgemm_kernel_sources = [
 ]
 
 # if get_option('false')
- uhgemm_kernel_sources += 'uhgemm_kernel_8x16_experimental.cpp'
+#  uhgemm_kernel_sources += 'uhgemm_kernel_8x16_experimental.cpp'
 # else
-  # uhgemm_kernel_sources += 'uhgemm_kernel_8x16.cpp'
+  uhgemm_kernel_sources += 'uhgemm_kernel_8x16.cpp'
 # endif
 
 foreach s : uhgemm_kernel_sources

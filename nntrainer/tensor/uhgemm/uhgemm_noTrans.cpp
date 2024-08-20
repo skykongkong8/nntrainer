@@ -20,36 +20,25 @@
 #include <uhgemm_noTrans.h>
 #include <uhgemm_pack.h>
 #include <uhgemm_util.h>
-
 #include <iostream>
-template <typename T>
-static inline void print_matrix(unsigned int row, unsigned int col,
-                                unsigned int ldm, T *mat) {
-  for (unsigned int i = 0; i < row; ++i) {
-    for (unsigned int j = 0; j < col; ++j) {
-      std::cerr << mat[i * ldm + j] << "\t";
-    }
-    std::cerr << std::endl;
-  }
-  std::cerr << std::endl;
-}
 
 void uhgemm_noTrans(const uint16_t *A, const uint16_t *B, unsigned int *C32,
                     unsigned int M, unsigned int N, unsigned int K,
                     unsigned int alpha, unsigned int beta) {
-  // std::cerr << "uhgemm_noTrans\n";
-  // for (unsigned int i = 0; i < 5; ++i) {
-  //   std::cerr << A[i] << "\t";
-  // }
-  // std::cerr << "\n";
-  return  uhgemm_noTrans_strict(A, B, C32, M, N, K, alpha, beta);
-
-  if (alpha != 1) {
-    // std::cerr << "call uhgemm_noTrans_strict\n";
+  if (alpha == 1) {
     uhgemm_noTrans_strict(A, B, C32, M, N, K, alpha, beta);
   } else {
-    // std::cerr << "call uhgemm_noTrans_fallback\n";
     uhgemm_noTrans_fallback(M, N, K, A, K, B, N, C32, N, alpha, beta);
+  }
+}
+
+void uhgemm_noTrans(const uint16_t *A, const uint16_t *B, uint16_t *C,
+                    unsigned int M, unsigned int N, unsigned int K,
+                    unsigned int alpha, unsigned int beta) {
+  if (alpha == 1) {
+    uhgemm_noTrans_strict(A, B, C, M, N, K, alpha, beta);
+  } else {
+    std::cerr << "[Error] uhgemm_noTrans without scale factor : should not reach!";
   }
 }
 
@@ -72,8 +61,6 @@ void uhgemm_noTrans_strict(const uint16_t *A, const uint16_t *B,
   } else {
     uhgemm_noTrans_fallback(M, N, K, A, K, B, N, C32, N, alpha, beta);
   }
-  // std::cout << "  print_matrix<unsigned int>(M, N, N, C32);\n";
-  // print_matrix<unsigned int>(M, N, N, C32);
 }
 
 void uhgemm_noTrans_strict(const uint16_t *A, const uint16_t *B, uint16_t *C,

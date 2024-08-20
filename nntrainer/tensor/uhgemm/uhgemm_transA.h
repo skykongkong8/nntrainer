@@ -26,3 +26,6 @@
  */
 void uhgemm_transA(const uint16_t *A, const uint16_t *B, unsigned int *C, unsigned int M,
                   unsigned int N, unsigned int K, unsigned int alpha, unsigned int beta);
+                
+void uhgemm_transA(const uint16_t *A, const uint16_t *B, uint16_t *C, unsigned int M,
+                  unsigned int N, unsigned int K, unsigned int alpha, unsigned int beta);

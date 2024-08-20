@@ -93,6 +93,68 @@ void uhgemm(const uint16_t *A, const uint16_t *B, uint16_t *C, unsigned int M,
   free(C32);
 }
 
+void uhgemm_pure(const uint16_t *A, const uint16_t *B, uint16_t *C, unsigned int M,
+           unsigned int N, unsigned int K, unsigned int alpha, unsigned int beta, bool TransA,
+           bool TransB) {
+  if (K == 1) {
+    return uhgemm_K1(A, B, C, M, N, K, alpha, beta, TransA, TransB);
+  } else if (M < 8 && K < 16 && N < 16) {
+    return uhgemm_small(A, B, C, M, N, K, alpha, beta, TransA, TransB);
+  }
+
+  const unsigned int M8_high = get_next_mltpl_of_n(M, 8);
+  const unsigned int K8_high = get_next_mltpl_of_n(K, 8);
+  const unsigned int N16_high = get_next_mltpl_of_n(N, 16);
+  const unsigned int N8_low = get_prev_mltpl_of_2p_n(N, 3);
+
+  uint16x8_t ZEROS = vmovq_n_u16(0);
+
+  uint16_t *C_tmp = (uint16_t *)malloc(M8_high * N16_high * sizeof(uint16_t));
+
+  unsigned int size = M8_high * N16_high;
+  unsigned int size8 = get_prev_mltpl_of_2p_n(size, 3);
+  unsigned int size4 = get_prev_mltpl_of_2p_n(size, 2);
+
+  if (beta != 0) {
+    for (unsigned int m = 0; m < M; ++m) {
+      for (unsigned int n = 0; n < N8_low; n += 8) {
+        vst1q_u16(&C_tmp[m * N16_high + n], vmulq_n_u16(vld1q_u16(&C[m * N + n]), static_cast<uint16_t>(beta)));
+      }
+      for (unsigned int n = N8_low; n < N; ++n) {
+        C_tmp[m * N16_high + n] = beta * C[m * N + n];
+      }
+      for (unsigned int n = N; n < N16_high; ++n) {
+        C_tmp[m * N16_high + n] = 0;
+      }
+    }
+    for (unsigned m = M; m < M8_high; ++m) {
+      for (unsigned int n = 0; n < N16_high; n += 8) {
+        vst1q_u16(&C_tmp[m * N16_high + n], ZEROS);
+      }
+    }
+  } else {
+    for (unsigned int idx = 0; idx < size4; idx += 4) {
+      vst1q_u16(&C_tmp[idx], ZEROS);
+    }
+    for (unsigned int idx = size4; idx < size; idx++) {
+      C_tmp[idx] = 0;
+    }
+  }
+
+  uhgemm_ensure_divisibility(A, B, C_tmp, M, N, K, alpha, beta, TransA, TransB);
+
+  for (unsigned int m = 0; m < M; ++m) {
+    for (unsigned int n = 0; n < N8_low; n += 8) {
+      vst1q_u16(&C[m * N + n], vld1q_u16(&C_tmp[m * N16_high + n]));
+    }
+    for (unsigned int n = N8_low; n < N; ++n) {
+      C[m * N + n] = C_tmp[m * N16_high + n];
+    }
+  }
+
+  free(C_tmp);
+}
+
 void uhgemm_small(const uint16_t *A, const uint16_t *B, uint16_t *C, unsigned int M,
                  unsigned int N, unsigned int K, unsigned int alpha, unsigned int beta,
                  bool TransA, bool TransB) {
@@ -159,28 +221,71 @@ void uhgemm_ensure_divisibility(const uint16_t *A, const uint16_t *B, unsigned i
     free(Bp);
 }
 
-template <typename T>
-static inline void print_matrix(unsigned int row, unsigned int col,
-                                unsigned int ldm, const T *mat) {
-  for (unsigned int i = 0; i < row; ++i) {
-    for (unsigned int j = 0; j < col; ++j) {
-      std::cerr << mat[i * ldm + j] << "\t";
-    }
-    std::cerr << std::endl;
+void uhgemm_ensure_divisibility(const uint16_t *A, const uint16_t *B, uint16_t *C,
+                               unsigned int M, unsigned int N, unsigned int K,
+                               unsigned int alpha, unsigned int beta, bool TransA,
+                               bool TransB) {
+  /// @note Padding standard : 8x16 is the only KERNEL that outperforms single
+  /// precision GEMM 'so far'. Padding will forcibly make every GEMM cases to
+  /// use it. Note that padding is not an optimal way here, but just an option
+  /// that is easier to implement. Fine-grained packing, blocking, and
+  /// corresponding kernels should be supported in the future for optimal
+  /// performance in terms of both latency and memory.
+
+  uint16_t *A_ = (uint16_t *)A, *B_ = (uint16_t *)B;
+  unsigned int M_ = M, N_ = N, K_ = K;
+  bool pad_A = false, pad_B = false;
+
+  uint16_t *Ap;
+  uint16_t *Bp;
+
+  const unsigned int M8_high = ((M - 1) / 8 + 1) * 8;
+  const unsigned int K8_high = ((K - 1) / 16 + 1) * 16;
+  const unsigned int N16_high = ((N - 1) / 16 + 1) * 16;
+
+  if ((M8_high != M) || (K8_high != K)) {
+    pad_A = true;
+    Ap = alignedMalloc(M8_high * K8_high);
+    uhgemm_padding_A(A, Ap, M, K, M8_high, K8_high, TransA);
+    A_ = Ap;
+    M_ = M8_high;
+    K_ = K8_high;
   }
-  std::cerr << std::endl;
+  if ((K8_high != K) || (N16_high != N)) {
+    pad_B = true;
+    Bp = alignedMalloc(K8_high * N16_high);
+    uhgemm_padding_B(B, Bp, K, N, K8_high, N16_high, TransB);
+    B_ = Bp;
+    K_ = K8_high;
+    N_ = N16_high;
+  }
+
+  uhgemm_classify(A_, B_, C, M_, N_, K_, alpha, beta, TransA, TransB);
+
+  if (pad_A)
+    free(Ap);
+  if (pad_B)
+    free(Bp);
 }
 
 void uhgemm_classify(const uint16_t *A, const uint16_t *B, unsigned int *C32,
                     unsigned int M, unsigned int N, unsigned int K, unsigned int alpha,
                     unsigned int beta, bool TransA, bool TransB) {
-  // std::cerr << "uhgemm_classify\n";
-  // for (unsigned int i = 0; i < 5; ++i) {
-  //   std::cerr << A[i] << "\t";
-  // }
-  // std::cerr << "\n";
   if (!TransA && !TransB) {
-    // std::cerr << "branch fall to uhgemm_noTrans()\n";
+    uhgemm_noTrans(A, B, C32, M, N, K, alpha, beta);
+  } else if (TransA && !TransB) {
+    uhgemm_transA(A, B, C32, M, N, K, alpha, beta);
+  } else if (!TransA && TransB) {
+    uhgemm_transB(A, B, C32, M, N, K, alpha, beta);
+  } else { // TransA && TransB
+    uhgemm_transAB(A, B, C32, M, N, K, alpha, beta);
+  }
+}
+
+void uhgemm_classify(const uint16_t *A, const uint16_t *B, uint16_t *C32,
+                    unsigned int M, unsigned int N, unsigned int K, unsigned int alpha,
+                    unsigned int beta, bool TransA, bool TransB) {
+  if (!TransA && !TransB) {
     uhgemm_noTrans(A, B, C32, M, N, K, alpha, beta);
   } else if (TransA && !TransB) {
     uhgemm_transA(A, B, C32, M, N, K, alpha, beta);

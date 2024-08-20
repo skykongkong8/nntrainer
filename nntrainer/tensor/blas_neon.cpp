@@ -1597,12 +1597,8 @@ void custom_hgemm(const __fp16 *A, const __fp16 *B, __fp16 *C, uint32_t M,
 void custom_uhgemm(const uint16_t *A, const uint16_t *B, uint16_t *C,
                    uint32_t M, uint32_t N, uint32_t K, uint32_t alpha,
                    uint32_t beta, bool TransA, bool TransB) {
-  // std::cerr << "custom_uhgemm\n";
-  // for (unsigned int i = 0; i < 5; ++i) {
-  //   std::cerr << A[i] << "\t";
-  // }
-  // std::cerr << "\n";
-  uhgemm(A, B, C, M, N, K, alpha, beta, TransA, TransB);
+  uhgemm_pure(A, B, C, M, N, K, alpha, beta, TransA, TransB);
+  // uhgemm(A, B, C, M, N, K, alpha, beta, TransA, TransB);
 }
 
 void ele_mul(const unsigned int N, const __fp16 *X, const __fp16 *Y, __fp16 *Z,

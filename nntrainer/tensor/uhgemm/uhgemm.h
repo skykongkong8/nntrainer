@@ -30,7 +30,9 @@
 void uhgemm(const uint16_t *A, const uint16_t *B, uint16_t *C, unsigned int M,
            unsigned int N, unsigned int K, unsigned int alpha, unsigned int beta, bool TransA,
            bool TransB);
-
+void uhgemm_pure(const uint16_t *A, const uint16_t *B, uint16_t *C, unsigned int M,
+           unsigned int N, unsigned int K, unsigned int alpha, unsigned int beta, bool TransA,
+           bool TransB);
 /**
  * @brief     uhgemm computation with neon but with small dim without padding : Y
  * = alpha*op(A)*op(B) + beta*C, where op(X) is one of X or X**T
@@ -68,6 +70,11 @@ void uhgemm_ensure_divisibility(const uint16_t *A, const uint16_t *B, unsigned i
                                unsigned int alpha = 1.F, unsigned int beta = 0,
                                bool TransA = false, bool TransB = false);
 
+void uhgemm_ensure_divisibility(const uint16_t *A, const uint16_t *B, uint16_t *C,
+                               unsigned int M, unsigned int N, unsigned int K,
+                               unsigned int alpha = 1.F, unsigned int beta = 0,
+                               bool TransA = false, bool TransB = false);
+
 /**
  * @brief     Classifying function for GEMM computation case for noTrans,
  * transA, transB, transAB
@@ -83,6 +90,10 @@ void uhgemm_ensure_divisibility(const uint16_t *A, const uint16_t *B, unsigned i
  * @param[in] TransB bool transpose info of rhs matrix
  */
 void uhgemm_classify(const uint16_t *A, const uint16_t *B, unsigned int *C32,
+                    unsigned int M, unsigned int N, unsigned int K,
+                    unsigned int alpha = 1.F, unsigned int beta = 0, bool TransA = false,
+                    bool TransB = false);
+void uhgemm_classify(const uint16_t *A, const uint16_t *B, uint16_t *C,
                     unsigned int M, unsigned int N, unsigned int K,
                     unsigned int alpha = 1.F, unsigned int beta = 0, bool TransA = false,
                     bool TransB = false);

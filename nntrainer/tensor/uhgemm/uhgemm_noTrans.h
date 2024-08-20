@@ -286,7 +286,9 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
 void uhgemm_noTrans(const uint16_t *A, const uint16_t *B, unsigned int *C, unsigned int M,
                    unsigned int N, unsigned int K, unsigned int alpha = 1.F,
                    unsigned int beta = 0);
-
+void uhgemm_noTrans(const uint16_t *A, const uint16_t *B, uint16_t *C, unsigned int M,
+                   unsigned int N, unsigned int K, unsigned int alpha = 1.F,
+                   unsigned int beta = 0);
 /**
  * @brief     uhgemm computation with neon : Y = alpha*op(A)*op(B) + beta*C,
  * where M, N, K are divisible by at least 4
