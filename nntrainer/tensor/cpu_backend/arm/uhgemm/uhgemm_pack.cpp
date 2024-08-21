@@ -3,20 +3,20 @@
  * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
  *
  * @file   uhgemm_pack.cpp
- * @date   02 July 2024
+ * @date   02 August 2024
  * @see    https://github.com/nnstreamer/nntrainer
  * @author Sungsik Kong <ss.kong@samsung.com>
  * @bug    No known bugs except for NYI items
- * @brief  This is a source file for half-precision packing for the matrix
+ * @brief  This is a source file for uint16 packing for the matrix
  * multiplication
  */
 
 #include <arm_neon.h>
 #include <assert.h>
+#include <matrix_transpose_neon.h>
 #include <uhgemm_common.h>
 #include <uhgemm_pack.h>
 #include <uhgemm_util.h>
-#include <matrix_transpose_neon.h>
 
 /// @note Matrix packing strategy is quite similar in terms of normal-tangential
 /// coordinate's point of view. This hint might lead us to re-implement all

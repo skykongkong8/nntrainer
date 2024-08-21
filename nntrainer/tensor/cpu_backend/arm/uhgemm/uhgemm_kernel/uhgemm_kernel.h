@@ -3,7 +3,7 @@
  * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
  *
  * @file   uhgemm_kernel.h
- * @date   10 July 2024
+ * @date   10 August 2024
  * @see    https://github.com/nnstreamer/nntrainer
  * @author Sungsik Kong <ss.kong@samsung.com>
  * @bug    No known bugs except for NYI items

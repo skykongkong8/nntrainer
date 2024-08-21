@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Copyright (C) 2024 Debadri Samaddar <s.debadri@samsung.com>
+ * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
  *
  * @file   uhgemm_kernel_1x8.cpp
- * @date   05 April 2024
+ * @date   05 August 2024
  * @see    https://github.com/nnstreamer/nntrainer
- * @author Debadri Samaddar <s.debadri@samsung.com>
+ * @author Sungsik Kong <ss.kong@samsung.com>
  * @author Sungsik Kong <ss.kong@samsung.com>
  * @bug    No known bugs except for NYI items
- * @brief  This is half-precision GEMM 1x8 kernel
+ * @brief  This is uint16 GEMM 1x8 kernel
  *
  */
 
@@ -142,18 +142,18 @@ void uhgemm_kernel_1x8(unsigned int M, unsigned int N, unsigned int K,
       for (; l < K8;) {
         KERNEL_1x8_ACC8();
 
-        vst1q_u32(c, vaddq_u32(vld1q_u32(c), vcvt_u32_u16(vget_low_u16(v0))));
+        vst1q_u32(c, vaddq_u32(vld1q_u32(c), vmovl_u16(vget_low_u16(v0))));
 
         vst1q_u32(c + 4,
-                  vaddq_u32(vld1q_u32(c + 4), vcvt_u32_u16(vget_high_u16(v0))));
+                  vaddq_u32(vld1q_u32(c + 4), vmovl_u16(vget_high_u16(v0))));
       }
       for (; l < K;) {
         KERNEL_1x8_ACC1();
 
-        vst1q_u32(c, vaddq_u32(vld1q_u32(c), vcvt_u32_u16(vget_low_u16(v0))));
+        vst1q_u32(c, vaddq_u32(vld1q_u32(c), vmovl_u16(vget_low_u16(v0))));
 
         vst1q_u32(c + 4,
-                  vaddq_u32(vld1q_u32(c + 4), vcvt_u32_u16(vget_high_u16(v0))));
+                  vaddq_u32(vld1q_u32(c + 4), vmovl_u16(vget_high_u16(v0))));
       }
       c += 8;
       a -= K;

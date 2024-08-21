@@ -3,16 +3,17 @@
  * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
  *
  * @file   uhgemm_noTrans.cpp
- * @date   10 July 2024
+ * @date   10 August 2024
  * @see    https://github.com/nnstreamer/nntrainer
  * @author Sungsik Kong <ss.kong@samsung.com>
  * @bug    No known bugs except for NYI items
- * @brief  This is half-precision GEMM interface of non-transposed case
+ * @brief  This is uint16 GEMM interface of non-transposed case
  *
  */
 
 #include <arm_neon.h>
 #include <cmath>
+#include <iostream>
 #include <limits>
 #include <matrix_transpose_neon.h>
 #include <uhgemm_common.h>
@@ -21,35 +22,24 @@
 #include <uhgemm_pack.h>
 #include <uhgemm_util.h>
 
-#include <iostream>
-template <typename T>
-static inline void print_matrix(unsigned int row, unsigned int col,
-                                unsigned int ldm, T *mat) {
-  for (unsigned int i = 0; i < row; ++i) {
-    for (unsigned int j = 0; j < col; ++j) {
-      std::cerr << mat[i * ldm + j] << "\t";
-    }
-    std::cerr << std::endl;
-  }
-  std::cerr << std::endl;
-}
-
 void uhgemm_noTrans(const uint16_t *A, const uint16_t *B, unsigned int *C32,
                     unsigned int M, unsigned int N, unsigned int K,
                     unsigned int alpha, unsigned int beta) {
-  // std::cerr << "uhgemm_noTrans\n";
-  // for (unsigned int i = 0; i < 5; ++i) {
-  //   std::cerr << A[i] << "\t";
-  // }
-  // std::cerr << "\n";
-  return  uhgemm_noTrans_strict(A, B, C32, M, N, K, alpha, beta);
-
-  if (alpha != 1) {
-    // std::cerr << "call uhgemm_noTrans_strict\n";
+  if (alpha == 1) {
     uhgemm_noTrans_strict(A, B, C32, M, N, K, alpha, beta);
   } else {
-    // std::cerr << "call uhgemm_noTrans_fallback\n";
     uhgemm_noTrans_fallback(M, N, K, A, K, B, N, C32, N, alpha, beta);
+  }
+}
+
+void uhgemm_noTrans(const uint16_t *A, const uint16_t *B, uint16_t *C,
+                    unsigned int M, unsigned int N, unsigned int K,
+                    unsigned int alpha, unsigned int beta) {
+  if (alpha == 1) {
+    uhgemm_noTrans_strict(A, B, C, M, N, K, alpha, beta);
+  } else {
+    std::cerr
+      << "[Error] uhgemm_noTrans without scale factor : should not reach!";
   }
 }
 
@@ -72,8 +62,6 @@ void uhgemm_noTrans_strict(const uint16_t *A, const uint16_t *B,
   } else {
     uhgemm_noTrans_fallback(M, N, K, A, K, B, N, C32, N, alpha, beta);
   }
-  // std::cout << "  print_matrix<unsigned int>(M, N, N, C32);\n";
-  // print_matrix<unsigned int>(M, N, N, C32);
 }
 
 void uhgemm_noTrans_strict(const uint16_t *A, const uint16_t *B, uint16_t *C,
@@ -956,10 +944,10 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         b0_7_0 = vmlaq_n_u16(b0_7_0, vld1q_u16(&B[(k + 14) * N + n]), a[14]);
         b0_7_0 = vmlaq_n_u16(b0_7_0, vld1q_u16(&B[(k + 15) * N + n]), a[15]);
 
-        uint32x4_t c0_7_low_32 = vaddq_u32(vld1q_u32(&C[m * N + n]),
-                                           vcvt_u32_u16(vget_low_u16(b0_7_0)));
-        uint32x4_t c0_7_high_32 = vaddq_u32(
-          vld1q_u32(&C[m * N + n + 4]), vcvt_u32_u16(vget_high_u16(b0_7_0)));
+        uint32x4_t c0_7_low_32 =
+          vaddq_u32(vld1q_u32(&C[m * N + n]), vmovl_u16(vget_low_u16(b0_7_0)));
+        uint32x4_t c0_7_high_32 = vaddq_u32(vld1q_u32(&C[m * N + n + 4]),
+                                            vmovl_u16(vget_high_u16(b0_7_0)));
 
         vst1q_u32(&C[m * N + n], c0_7_low_32);
         vst1q_u32(&C[m * N + n + 4], c0_7_high_32);
@@ -1021,10 +1009,10 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         b = vmlaq_n_u16(b, vld1q_u16(valsB_15), a[15]);
 
         uint32x4_t c0_7_low_32 =
-          vaddq_u32(vld1q_u32(valsC), vcvt_u32_u16(vget_low_u16(b)));
+          vaddq_u32(vld1q_u32(valsC), vmovl_u16(vget_low_u16(b)));
 
         uint32x4_t c0_7_high_32 =
-          vaddq_u32(vld1q_u32(valsC + 4), vcvt_u32_u16(vget_high_u16(b)));
+          vaddq_u32(vld1q_u32(valsC + 4), vmovl_u16(vget_high_u16(b)));
 
         vst1q_u32(valsC, c0_7_low_32);
         vst1q_u32(valsC + 4, c0_7_high_32);
@@ -1050,10 +1038,10 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         b0_7_0 = vmlaq_n_u16(b0_7_0, vld1q_u16(&B[(k + 6) * N + n]), a[6]);
         b0_7_0 = vmlaq_n_u16(b0_7_0, vld1q_u16(&B[(k + 7) * N + n]), a[7]);
 
-        uint32x4_t c0_7_low_32 = vaddq_u32(vld1q_u32(&C[m * N + n]),
-                                           vcvt_u32_u16(vget_low_u16(b0_7_0)));
-        uint32x4_t c0_7_high_32 = vaddq_u32(
-          vld1q_u32(&C[m * N + n + 4]), vcvt_u32_u16(vget_high_u16(b0_7_0)));
+        uint32x4_t c0_7_low_32 =
+          vaddq_u32(vld1q_u32(&C[m * N + n]), vmovl_u16(vget_low_u16(b0_7_0)));
+        uint32x4_t c0_7_high_32 = vaddq_u32(vld1q_u32(&C[m * N + n + 4]),
+                                            vmovl_u16(vget_high_u16(b0_7_0)));
 
         vst1q_u32(&C[m * N + n], c0_7_low_32);
         vst1q_u32(&C[m * N + n + 4], c0_7_high_32);
@@ -1091,10 +1079,10 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         b = vmlaq_n_u16(b, vld1q_u16(valsB_7), a[7]);
 
         uint32x4_t c0_7_low_32 =
-          vaddq_u32(vld1q_u32(valsC), vcvt_u32_u16(vget_low_u16(b)));
+          vaddq_u32(vld1q_u32(valsC), vmovl_u16(vget_low_u16(b)));
 
         uint32x4_t c0_7_high_32 =
-          vaddq_u32(vld1q_u32(valsC + 4), vcvt_u32_u16(vget_high_u16(b)));
+          vaddq_u32(vld1q_u32(valsC + 4), vmovl_u16(vget_high_u16(b)));
 
         vst1q_u32(valsC, c0_7_low_32);
         vst1q_u32(valsC + 4, c0_7_high_32);
@@ -1117,15 +1105,14 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         uint16x8_t b0_7_2 = vmulq_n_u16(vld1q_u16(&B[(k + 2) * N + n]), a[2]);
         b0_7_2 = vmlaq_n_u16(b0_7_2, vld1q_u16(&B[(k + 3) * N + n]), a[3]);
 
-        uint32x4_t c0_7_low_32 = vaddq_u32(vld1q_u32(&C[m * N + n]),
-                                           vcvt_u32_u16(vget_low_u16(b0_7_0)));
-        uint32x4_t c0_7_high_32 = vaddq_u32(
-          vld1q_u32(&C[m * N + n + 4]), vcvt_u32_u16(vget_high_u16(b0_7_0)));
+        uint32x4_t c0_7_low_32 =
+          vaddq_u32(vld1q_u32(&C[m * N + n]), vmovl_u16(vget_low_u16(b0_7_0)));
+        uint32x4_t c0_7_high_32 = vaddq_u32(vld1q_u32(&C[m * N + n + 4]),
+                                            vmovl_u16(vget_high_u16(b0_7_0)));
 
-        c0_7_low_32 =
-          vaddq_u32(c0_7_low_32, vcvt_u32_u16(vget_low_u16(b0_7_2)));
+        c0_7_low_32 = vaddq_u32(c0_7_low_32, vmovl_u16(vget_low_u16(b0_7_2)));
         c0_7_high_32 =
-          vaddq_u32(c0_7_high_32, vcvt_u32_u16(vget_high_u16(b0_7_2)));
+          vaddq_u32(c0_7_high_32, vmovl_u16(vget_high_u16(b0_7_2)));
 
         vst1q_u32(&C[m * N + n], c0_7_low_32);
         vst1q_u32(&C[m * N + n + 4], c0_7_high_32);
@@ -1151,10 +1138,10 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         b = vmlaq_n_u16(b, vld1q_u16(valsB_3), a[3]);
 
         uint32x4_t c0_7_low_32 =
-          vaddq_u32(vld1q_u32(valsC), vcvt_u32_u16(vget_low_u16(b)));
+          vaddq_u32(vld1q_u32(valsC), vmovl_u16(vget_low_u16(b)));
 
         uint32x4_t c0_7_high_32 =
-          vaddq_u32(vld1q_u32(valsC + 4), vcvt_u32_u16(vget_high_u16(b)));
+          vaddq_u32(vld1q_u32(valsC + 4), vmovl_u16(vget_high_u16(b)));
 
         vst1q_u32(valsC, c0_7_low_32);
         vst1q_u32(valsC + 4, c0_7_high_32);
@@ -1174,10 +1161,10 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         uint16x8_t b0_7 = vmulq_n_u16(vld1q_u16(&B[k * N + n]), a0);
 
         uint32x4_t c0_7_low_32 =
-          vaddq_u32(vld1q_u32(&C[m * N + n]), vcvt_u32_u16(vget_low_u16(b0_7)));
+          vaddq_u32(vld1q_u32(&C[m * N + n]), vmovl_u16(vget_low_u16(b0_7)));
 
         uint32x4_t c0_7_high_32 = vaddq_u32(vld1q_u32(&C[m * N + n + 4]),
-                                            vcvt_u32_u16(vget_high_u16(b0_7)));
+                                            vmovl_u16(vget_high_u16(b0_7)));
 
         vst1q_u32(&C[m * N + n], c0_7_low_32);
         vst1q_u32(&C[m * N + n + 4], c0_7_high_32);
@@ -1194,10 +1181,10 @@ void uhgemm_noTrans_fallback(unsigned int M, unsigned int N, unsigned int K,
         uint16x8_t b = vmulq_n_u16(vld1q_u16(valsB), a0);
 
         uint32x4_t c0_7_low_32 =
-          vaddq_u32(vld1q_u32(valsC), vcvt_u32_u16(vget_low_u16(b)));
+          vaddq_u32(vld1q_u32(valsC), vmovl_u16(vget_low_u16(b)));
 
         uint32x4_t c0_7_high_32 =
-          vaddq_u32(vld1q_u32(valsC + 4), vcvt_u32_u16(vget_high_u16(b)));
+          vaddq_u32(vld1q_u32(valsC + 4), vmovl_u16(vget_high_u16(b)));
 
         vst1q_u32(valsC, c0_7_low_32);
         vst1q_u32(valsC + 4, c0_7_high_32);

@@ -3,11 +3,11 @@
  * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
  *
  * @file   uhgemm_kernel_4x4.cpp
- * @date   01 April 2024
+ * @date   01 August 2024
  * @see    https://github.com/nnstreamer/nntrainer
  * @author Sungsik Kong <ss.kong@samsung.com>
  * @bug    No known bugs except for NYI items
- * @brief  This is half-precision GEMM 4x4 kernel
+ * @brief  This is uint16 GEMM 4x4 kernel
  *
  */
 
@@ -207,12 +207,12 @@
 
 #define SAVE_KERNEL_4X4_u16_u32()                                         \
   do {                                                                    \
-    vst1q_u32(c, vaddq_u32(vld1q_u32(c), vcvt_u32_u16(v24)));             \
-    vst1q_u32(c + ldc, vaddq_u32(vld1q_u32(c + ldc), vcvt_u32_u16(v25))); \
+    vst1q_u32(c, vaddq_u32(vld1q_u32(c), vmovl_u16(v24)));             \
+    vst1q_u32(c + ldc, vaddq_u32(vld1q_u32(c + ldc), vmovl_u16(v25))); \
     vst1q_u32(c + 2 * ldc,                                                \
-              vaddq_u32(vld1q_u32(c + 2 * ldc), vcvt_u32_u16(v26)));      \
+              vaddq_u32(vld1q_u32(c + 2 * ldc), vmovl_u16(v26)));      \
     vst1q_u32(c + 3 * ldc,                                                \
-              vaddq_u32(vld1q_u32(c + 3 * ldc), vcvt_u32_u16(v27)));      \
+              vaddq_u32(vld1q_u32(c + 3 * ldc), vmovl_u16(v27)));      \
   } while (0)
 
 template <>

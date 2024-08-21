@@ -3,11 +3,11 @@
  * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
  *
  * @file   uhgemm_util.h
- * @date   01 April 2024
+ * @date   01 August 2024
  * @see    https://github.com/nnstreamer/nntrainer
  * @author Sungsik Kong <ss.kong@samsung.com>
  * @bug    No known bugs except for NYI items
- * @brief  This is for util functions for half-precision GEMM
+ * @brief  This is for util functions for uint16 GEMM
  */
 
 #include <assert.h>
@@ -49,8 +49,8 @@ unsigned int get_prev_mltpl_of_2p_n(unsigned int x, unsigned int n);
  * @param N col size of matrix
  * @param beta scale factor beta
  */
-void copy_C_to_C32(uint16_t *C, unsigned int *C32, unsigned int M, unsigned int N,
-                   unsigned int beta = 0);
+void copy_C_to_C32(uint16_t *C, unsigned int *C32, unsigned int M,
+                   unsigned int N, unsigned int beta = 0);
 
 /**
  * @brief from matrix C32, copy to matrix C
@@ -61,5 +61,5 @@ void copy_C_to_C32(uint16_t *C, unsigned int *C32, unsigned int M, unsigned int 
  * @param N col size of matrix
  * @param beta scale factor beta
  */
-void copy_C32_to_C(unsigned int *C32, uint16_t *C, unsigned int M, unsigned int N,
-                   unsigned int beta = 0);
+void copy_C32_to_C(unsigned int *C32, uint16_t *C, unsigned int M,
+                   unsigned int N, unsigned int beta = 0);
