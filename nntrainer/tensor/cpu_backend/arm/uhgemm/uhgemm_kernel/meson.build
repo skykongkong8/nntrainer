@@ -11,11 +11,7 @@ uhgemm_kernel_sources = [
     'uhgemm_kernel_8x8.cpp',
 ]
 
-# if get_option('false')
-#  uhgemm_kernel_sources += 'uhgemm_kernel_8x16_experimental.cpp'
-# else
-  uhgemm_kernel_sources += 'uhgemm_kernel_8x16.cpp'
-# endif
+uhgemm_kernel_sources += 'uhgemm_kernel_8x16.cpp'
 
 foreach s : uhgemm_kernel_sources
   nntrainer_sources += meson.current_source_dir() / s

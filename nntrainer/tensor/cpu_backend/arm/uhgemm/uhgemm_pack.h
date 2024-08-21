@@ -3,12 +3,12 @@
  * Copyright (C) 2024 Sungsik Kong <ss.kong@samsung.com>
  *
  * @file   uhgemm_pack.h
- * @date   01 April 2024
+ * @date   01 August 2024
  * @see    https://github.com/nnstreamer/nntrainer
  * @author Sungsik Kong <ss.kong@samsung.com>
- * @author Debadri Samaddar <s.debadri@samsung.com>
+ * @author Sungsik Kong <ss.kong@samsung.com>
  * @bug    No known bugs except for NYI items
- * @brief  This is for half-precision packing for kernel-based GEMM
+ * @brief  This is for uint16 packing for kernel-based GEMM
  */
 
 /**
