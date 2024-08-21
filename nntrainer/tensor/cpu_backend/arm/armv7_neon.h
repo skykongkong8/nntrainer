@@ -18,7 +18,25 @@
  * @brief macro for vfmaq_n_f32
  *
  */
-#define vfmaq_n_f32(a, b, n) vaddq_f32(a, vmulq_f32(b, vmovq_n_f32(n)))
+#define vfmaq_n_f32(a, b, lane) vaddq_f32(a, vmulq_f32(b, vmovq_n_f32(lane)))
+
+/**
+ * @brief macro for vmlaq_laneq_u16
+ *
+ * @param dst dst register to accumulate values
+ * @param a src register to be used normally
+ * @param b src register to be expanded and used
+ * @param lane index ranges 0 ~ 8
+ * @return uint16x8_t
+ */
+static inline uint16x8_t vmlaq_laneq_u16(uint16x8_t dst, uint16x8_t a,
+                                         uint16x8_t b, unsigned int lane) {
+  if (lane < 4) {
+    return vmlaq_lane_u16(dst, a, vget_low_u16(b), lane);
+  } else {
+    return vmlaq_lane_u16(dst, a, vget_high_u16(b), lane);
+  }
+}
 
 /**
  * @brief vdivq_f32 macro
