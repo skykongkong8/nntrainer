@@ -15,13 +15,6 @@
 #define __CPU_BACKEND_H__
 #ifdef __cplusplus
 
-#ifdef ARM
-#include <arm_compute_backend.h>
-#elif X86
-#include <x86_compute_backend.h>
-#else
-#include <fallback.h>
-#endif
 
 #include <cstdint>
 #include <tensor_dim.h>

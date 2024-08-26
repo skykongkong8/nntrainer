@@ -1,6 +1,4 @@
-simd_interface_x86_headers = [
-  'x86_compute_backend.h',
-]
+simd_interface_x86_headers = []
 simd_interface_x86_sources = [
   'x86_compute_backend.cpp',
 ]

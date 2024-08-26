@@ -16,7 +16,7 @@
 #include <cblas_interface.h>
 #include <fallback_internal.h>
 #include <nntrainer_error.h>
-#include <x86_compute_backend.h>
+#include <cpu_backend.h>
 
 #define ROW_MAJOR 0
 #define COL_MAJOR 1

@@ -10,7 +10,7 @@
  * @brief  Compute backend for arm
  *
  */
-#include <arm_compute_backend.h>
+#include <cpu_backend.h>
 #include <assert.h>
 #include <cblas_interface.h>
 #include <fallback_internal.h>
