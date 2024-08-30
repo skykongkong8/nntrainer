@@ -422,6 +422,34 @@ void ele_sub(const unsigned N, const float *X, const float *Y, float *Z,
 void ele_div(const unsigned N, const float *X, const float *Y, float *Z,
              float alpha = 1.f, float beta = 0.f, unsigned int i_stride = 1,
              unsigned int o_stride = 1);
+
+/**
+ * @brief     gemm_u16 computation  : Y = alpha*op(A)*op(B) + beta*C,
+ * where op(X) is one of X or X**T
+ * @param[in] A uint16_t * for Matrix A
+ * @param[in] B uint16_t * for Matrix B
+ * @param[in] C uint16_t * for Matrix C
+ * @param[in] M number of op(A)'s and C's row
+ * @param[in] N number of op(B)'s and C's columns
+ * @param[in] K number of op(A)'s and columns and op(B)'s rows
+ * @param[in] a_zp uint32_t * vector(M) or scalar
+ * @param[in] a_sf uint32_t * vector(M) or scalar
+ * @param[in] b_zp uint32_t * vector(K) or scalar
+ * @param[in] b_sf uint32_t * vector(K) or scalar
+ * @param[in] c_zp uint32_t * vector(M) or scalar
+ * @param[in] c_sf uint32_t * vector(M) or scalar
+ *
+ * @note For memory optimization purpose, b quantization parameters vector
+ * lengths would better be size of N
+ */
+void gemm_u16(const unsigned int TStorageOrder, bool TransA, bool TransB,
+                     const unsigned int M, const unsigned int N,
+                     const unsigned int K, const uint16_t *A,
+                     const unsigned int lda, const uint32_t *a_zp,
+                     const uint32_t *a_sf, const uint16_t *B,
+                     const unsigned int ldb, const uint32_t *b_zp,
+                     const uint32_t *b_sf, uint16_t *C, const unsigned int ldc,
+                     const uint32_t *c_zp, const uint32_t *c_sf);
 } /* namespace nntrainer */
 #endif /* __cplusplus */
 #endif /* __x86_COMPUTE_BACKEND_H__ */

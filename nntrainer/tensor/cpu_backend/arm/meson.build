@@ -14,14 +14,14 @@ if get_option('enable-fp16')
     arm_compute_backend_sources += 'arm_compute_backend_fp16.cpp'
     arm_compute_backend_sources += 'neon_impl_fp16.cpp'
 
-    subdir('hgemm')
-    nntrainer_inc += include_directories('hgemm')
-    nntrainer_inc_abs += meson.current_source_dir() / 'hgemm'
-
     subdir('matrix_transpose_neon')
     nntrainer_inc += include_directories('matrix_transpose_neon')
     nntrainer_inc_abs += meson.current_source_dir() / 'matrix_transpose_neon'
 endif
+
+subdir('gemm')
+nntrainer_inc += include_directories('gemm')
+nntrainer_inc_abs += meson.current_source_dir() / 'gemm'
 
 arch = host_machine.cpu_family()
 if arch == 'arm'

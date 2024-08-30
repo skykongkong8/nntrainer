@@ -15,6 +15,7 @@
 #include <cmath>
 #include <cstdint>
 #include <fallback_internal.h>
+#include <iostream>
 #include <tensor_dim.h>
 
 #define sgemv_loop(ci, cj, cM, cN)           \
@@ -216,5 +217,18 @@ void __fallback_ele_div(const unsigned N, const float *X, const float *Y,
     Y += i_stride;
     Z += o_stride;
   }
+}
+
+void __fallback_gemm_u16(const unsigned int TStorageOrder, bool TransA,
+                         bool TransB, const unsigned int M,
+                         const unsigned int N, const unsigned int K,
+                         const uint16_t *A, const unsigned int lda,
+                         const uint32_t *a_zp, const uint32_t *a_sf,
+                         const uint16_t *B, const unsigned int ldb,
+                         const uint32_t *b_zp, const uint32_t *b_sf,
+                         uint16_t *C, const unsigned int ldc,
+                         const uint32_t *c_zp, const uint32_t *c_sf) {
+  std::cerr << "[NYI] __fallback_gemm_u16 is not implemented yet\n";
+  return;
 }
 } // namespace nntrainer

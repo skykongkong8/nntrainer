@@ -116,4 +116,15 @@ unsigned int isamax(const unsigned int N, const float *X,
   return __fallback_isamax(N, X, incX);
 }
 
+void gemm_u16(const unsigned int TStorageOrder, bool TransA, bool TransB,
+              const unsigned int M, const unsigned int N, const unsigned int K,
+              const uint16_t *A, const unsigned int lda, const uint32_t *a_zp,
+              const uint32_t *a_sf, const uint16_t *B, const unsigned int ldb,
+              const uint32_t *b_zp, const uint32_t *b_sf, uint16_t *C,
+              const unsigned int ldc, const uint32_t *c_zp,
+              const uint32_t *c_sf) {
+  __fallback_gemm_u16(TStorageOrder, TransA, TransB, M, N, K, A, lda, a_zp,
+                      a_sf, B, ldb, b_zp, b_sf, C, ldc, c_zp, c_sf);
+}
+
 } /* namespace nntrainer */

@@ -16,6 +16,7 @@
 #include <fallback_internal.h>
 #include <neon_impl.h>
 #include <nntrainer_error.h>
+#include <uhgemm.h>
 
 #define ROW_MAJOR 0
 #define COL_MAJOR 1
@@ -144,6 +145,16 @@ void sgemm(const unsigned int TStorageOrder, bool TransA, bool TransB,
 unsigned int isamax(const unsigned int N, const float *X,
                     const unsigned int incX) {
   return __cblas_isamax(N, X, incX);
+}
+
+void gemm_u16(const unsigned int TStorageOrder, bool TransA, bool TransB,
+              const unsigned int M, const unsigned int N, const unsigned int K,
+              const uint16_t *A, const unsigned int lda, const uint32_t *a_zp,
+              const uint32_t *a_sf, const uint16_t *B, const unsigned int ldb,
+              const uint32_t *b_zp, const uint32_t *b_sf, uint16_t *C,
+              const unsigned int ldc, const uint32_t *c_zp,
+              const uint32_t *c_sf) {
+  uhgemm(A, B, C, M, N, K, 1, 0, TransA, TransB);
 }
 
 } /* namespace nntrainer */
