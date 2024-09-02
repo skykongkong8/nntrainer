@@ -13,7 +13,6 @@
 
 #include <arm_neon.h>
 #include <cassert>
-#include <cstdint>
 #include <mask_neon.h>
 
 #define TRANSPOSE_FP16_4x4(row0, row1, row2, row3)                           \
@@ -263,6 +262,258 @@ static void transpose_kernel_mxn_neon_256(unsigned int N, const __fp16 *src,
     }
     if (M == 8) {
       vst1q_f16(&dst[i * ld_dst], temp[i]);
+    } else {
+      for (unsigned int m = 0; m < M; ++m) {
+        dst[i * ld_dst + m] = temp[i][m];
+      }
+    }
+  }
+}
+
+
+#define TRANSPOSE_U16_4x4(row0, row1, row2, row3)                           \
+  do {                                                                      \
+    uint16x4x2_t row01 = vtrn_u16(row0, row1);                              \
+    uint16x4x2_t row23 = vtrn_u16(row2, row3);                              \
+    row0 = vmovn_u32(vcombine_u32(vget_low_u32(vmovl_u16(row01.val[0])),    \
+                                  vget_low_u32(vmovl_u16(row23.val[0]))));  \
+    row1 = vmovn_u32(vcombine_u32(vget_low_u32(vmovl_u16(row01.val[1])),    \
+                                  vget_low_u32(vmovl_u16(row23.val[1]))));  \
+    row2 = vmovn_u32(vcombine_u32(vget_high_u32(vmovl_u16(row01.val[0])),   \
+                                  vget_high_u32(vmovl_u16(row23.val[0])))); \
+    row3 = vmovn_u32(vcombine_u32(vget_high_u32(vmovl_u16(row01.val[1])),   \
+                                  vget_high_u32(vmovl_u16(row23.val[1])))); \
+  } while (0)
+/**
+ * @brief 4x4 sized kernel for matrix transpose in NEON
+ *
+ * @param src uint16_t* source data
+ * @param ld_src col length of src
+ * @param dst uint16_t* destination data
+ * @param ld_dst col length of dst
+ */
+static inline void transpose_kernel_4x4_neon(const uint16_t *src,
+                                             unsigned int ld_src, uint16_t *dst,
+                                             unsigned int ld_dst) {
+  uint16x4_t a = vld1_u16(&src[0 * ld_src]);
+  uint16x4_t b = vld1_u16(&src[1 * ld_src]);
+  uint16x4_t c = vld1_u16(&src[2 * ld_src]);
+  uint16x4_t d = vld1_u16(&src[3 * ld_src]);
+
+  TRANSPOSE_U16_4x4(a, b, c, d);
+
+  vst1_u16(&dst[0 * ld_dst], a);
+  vst1_u16(&dst[1 * ld_dst], b);
+  vst1_u16(&dst[2 * ld_dst], c);
+  vst1_u16(&dst[3 * ld_dst], d);
+}
+
+/**
+ * @brief general case mxn sized matrix transpose kernel with 128 bit SIMD
+ * register
+ *
+ * @tparam M leftover size for row direction
+ * @param N leftover size for col direction
+ * @param src uint16_t* source data
+ * @param ld_src col length of src
+ * @param dst uint16_t* destination data
+ * @param ld_dst col length of dst
+ */
+template <unsigned int M>
+static void transpose_kernel_mxn_neon_128(unsigned int N, const uint16_t *src,
+                                          unsigned int ld_src, uint16_t *dst,
+                                          unsigned int ld_dst) {
+
+  uint16x4_t input[4];
+  uint16x4_t ZEROS = vmov_n_u16(0.F);
+
+  unsigned i;
+  for (i = 0; i < M; ++i) {
+    if (N == 4) {
+      input[i] = vld1_u16(&src[i * ld_src]);
+    } else {
+      uint16x4_t tmp = ZEROS;
+      for (unsigned int n = 0; n < N; ++n) {
+        tmp[n] = src[i * ld_src + n];
+      }
+      input[i] = tmp;
+    }
+  }
+  for (; i < 4; ++i) {
+    input[i] = vmov_n_u16(0.F);
+  }
+
+  uint16x4_t temp[4];
+  for (i = 0; i < (M + 1) / 2; ++i) {
+    temp[2 * i] = vzip1_u16(input[2 * i], input[2 * i + 1]);
+    temp[2 * i + 1] = vzip2_u16(input[2 * i], input[2 * i + 1]);
+  }
+  for (i = i * 2; i < 4; ++i) {
+    temp[i] = vmov_n_u16(0.F);
+  }
+
+  for (i = 0; i < N; ++i) {
+    if (i % 2 == 0) {
+      input[i] =
+        vmovn_u32(vcombine_u32(vget_low_u32(vmovl_u16(temp[i / 2])),
+                               vget_low_u32(vmovl_u16(temp[2 + i / 2]))));
+    } else {
+      input[i] =
+        vmovn_u32(vcombine_u32(vget_high_u32(vmovl_u16(temp[i / 2])),
+                               vget_high_u32(vmovl_u16(temp[2 + i / 2]))));
+    }
+    if (M == 4) {
+      vst1_u16(&dst[i * ld_dst], input[i]);
+    } else {
+      for (unsigned int m = 0; m < M; ++m) {
+        dst[i * ld_dst + m] = input[i][m];
+      }
+    }
+  }
+}
+
+/**
+ * @brief 8x8 sized kernel for matrix transpose in NEON
+ *
+ * @param src uint16_t* source data
+ * @param ld_src col length of src
+ * @param dst uint16_t* destination data
+ * @param ld_dst col length of dst
+ */
+static inline void transpose_kernel_8x8_neon(const uint16_t *src,
+                                             unsigned int ld_src, uint16_t *dst,
+                                             unsigned int ld_dst) {
+  uint16x8_t a = vld1q_u16(&src[0 * ld_src]);
+  uint16x8_t b = vld1q_u16(&src[1 * ld_src]);
+  uint16x8_t c = vld1q_u16(&src[2 * ld_src]);
+  uint16x8_t d = vld1q_u16(&src[3 * ld_src]);
+  uint16x8_t e = vld1q_u16(&src[4 * ld_src]);
+  uint16x8_t f = vld1q_u16(&src[5 * ld_src]);
+  uint16x8_t g = vld1q_u16(&src[6 * ld_src]);
+  uint16x8_t h = vld1q_u16(&src[7 * ld_src]);
+
+  uint16x8_t ab0145, ab2367, cd0145, cd2367, ef0145, ef2367, gh0145, gh2367;
+  uint16x8_t abcd04, abcd15, efgh04, efgh15, abcd26, abcd37, efgh26, efgh37;
+
+  ab0145 = vcombine_u16(vzip1_u16(vget_low_u16(a), vget_low_u16(b)),
+                        vzip1_u16(vget_high_u16(a), vget_high_u16(b)));
+  ab2367 = vcombine_u16(vzip2_u16(vget_low_u16(a), vget_low_u16(b)),
+                        vzip2_u16(vget_high_u16(a), vget_high_u16(b)));
+  cd0145 = vcombine_u16(vzip1_u16(vget_low_u16(c), vget_low_u16(d)),
+                        vzip1_u16(vget_high_u16(c), vget_high_u16(d)));
+  cd2367 = vcombine_u16(vzip2_u16(vget_low_u16(c), vget_low_u16(d)),
+                        vzip2_u16(vget_high_u16(c), vget_high_u16(d)));
+  ef0145 = vcombine_u16(vzip1_u16(vget_low_u16(e), vget_low_u16(f)),
+                        vzip1_u16(vget_high_u16(e), vget_high_u16(f)));
+  ef2367 = vcombine_u16(vzip2_u16(vget_low_u16(e), vget_low_u16(f)),
+                        vzip2_u16(vget_high_u16(e), vget_high_u16(f)));
+  gh0145 = vcombine_u16(vzip1_u16(vget_low_u16(g), vget_low_u16(h)),
+                        vzip1_u16(vget_high_u16(g), vget_high_u16(h)));
+  gh2367 = vcombine_u16(vzip2_u16(vget_low_u16(g), vget_low_u16(h)),
+                        vzip2_u16(vget_high_u16(g), vget_high_u16(h)));
+
+  uint16x8_t shuffle_mask =
+    vld1q_u16(reinterpret_cast<const uint16_t *>(shuffle_masks));
+  abcd04 = vbslq_u16(shuffle_mask, ab0145, vextq_u16(cd0145, cd0145, 6));
+  abcd15 = vbslq_u16(shuffle_mask, vextq_u16(ab0145, ab0145, 2), cd0145);
+
+  efgh04 = vbslq_u16(shuffle_mask, ef0145, vextq_u16(gh0145, gh0145, 6));
+  efgh15 = vbslq_u16(shuffle_mask, vextq_u16(ef0145, ef0145, 2), gh0145);
+
+  abcd26 = vbslq_u16(shuffle_mask, ab2367, vextq_u16(cd2367, cd2367, 6));
+  abcd37 = vbslq_u16(shuffle_mask, vextq_u16(ab2367, ab2367, 2), cd2367);
+
+  efgh26 = vbslq_u16(shuffle_mask, ef2367, vextq_u16(gh2367, gh2367, 6));
+  efgh37 = vbslq_u16(shuffle_mask, vextq_u16(ef2367, ef2367, 2), gh2367);
+
+  a = vcombine_u16(vget_low_u16(abcd04), vget_low_u16(efgh04));
+  b = vcombine_u16(vget_low_u16(abcd15), vget_low_u16(efgh15));
+  c = vcombine_u16(vget_low_u16(abcd26), vget_low_u16(efgh26));
+  d = vcombine_u16(vget_low_u16(abcd37), vget_low_u16(efgh37));
+  e = vcombine_u16(vget_high_u16(abcd04), vget_high_u16(efgh04));
+  f = vcombine_u16(vget_high_u16(abcd15), vget_high_u16(efgh15));
+  g = vcombine_u16(vget_high_u16(abcd26), vget_high_u16(efgh26));
+  h = vcombine_u16(vget_high_u16(abcd37), vget_high_u16(efgh37));
+
+  vst1q_u16(&dst[0 * ld_dst], a);
+  vst1q_u16(&dst[1 * ld_dst], b);
+  vst1q_u16(&dst[2 * ld_dst], c);
+  vst1q_u16(&dst[3 * ld_dst], d);
+  vst1q_u16(&dst[4 * ld_dst], e);
+  vst1q_u16(&dst[5 * ld_dst], f);
+  vst1q_u16(&dst[6 * ld_dst], g);
+  vst1q_u16(&dst[7 * ld_dst], h);
+}
+
+/**
+ * @brief general case mxn sized matrix transpose kernel with 256 bit SIMD
+ * register
+ *
+ * @tparam M leftover size for row direction
+ * @param N leftover size for col direction
+ * @param src uint16_t* source data
+ * @param ld_src col length of src
+ * @param dst uint16_t* destination data
+ * @param ld_dst col length of dst
+ */
+template <unsigned int M>
+static void transpose_kernel_mxn_neon_256(unsigned int N, const uint16_t *src,
+                                          unsigned int ld_src, uint16_t *dst,
+                                          unsigned int ld_dst) {
+  uint16x8_t ZEROS = vmovq_n_u16(0.F);
+  uint16x8_t input[8];
+  unsigned i;
+  for (i = 0; i < M; ++i) {
+    if (N == 8) {
+      input[i] = vld1q_u16(&src[i * ld_src]);
+    } else {
+      uint16x8_t tmp = ZEROS;
+      for (unsigned int n = 0; n < N; ++n) {
+        tmp[n] = src[i * ld_src + n];
+      }
+      input[i] = tmp;
+    }
+  }
+  for (; i < 8; ++i) {
+    input[i] = ZEROS;
+  }
+  uint16x8_t temp[8];
+  for (i = 0; i < (M + 1) / 2; ++i) {
+    temp[2 * i] = vcombine_u16(
+      vzip1_u16(vget_low_u16(input[2 * i]), vget_low_u16(input[2 * i + 1])),
+      vzip1_u16(vget_high_u16(input[2 * i]), vget_high_u16(input[2 * i + 1])));
+    temp[2 * i + 1] = vcombine_u16(
+      vzip2_u16(vget_low_u16(input[2 * i]), vget_low_u16(input[2 * i + 1])),
+      vzip2_u16(vget_high_u16(input[2 * i]), vget_high_u16(input[2 * i + 1])));
+  }
+  for (i = i * 2; i < 8; ++i) {
+    temp[i] = ZEROS;
+  }
+
+  uint16x8_t shuffle_mask =
+    vld1q_u16(reinterpret_cast<const uint16_t *>(shuffle_masks));
+  for (i = 0; i < (M + 3) / 4; ++i) {
+    input[4 * i] = vbslq_u16(shuffle_mask, temp[4 * i],
+                             vextq_u16(temp[4 * i + 2], temp[4 * i + 2], 6));
+    input[4 * i + 1] = vbslq_u16(
+      shuffle_mask, vextq_u16(temp[4 * i], temp[4 * i], 2), temp[4 * i + 2]);
+    input[4 * i + 2] =
+      vbslq_u16(shuffle_mask, temp[4 * i + 1],
+                vextq_u16(temp[4 * i + 3], temp[4 * i + 3], 6));
+    input[4 * i + 3] =
+      vbslq_u16(shuffle_mask, vextq_u16(temp[4 * i + 1], temp[4 * i + 1], 2),
+                temp[4 * i + 3]);
+  }
+  for (i = 0; i < N; ++i) {
+    if (i < 4) {
+      temp[i] =
+        vcombine_u16(vget_low_u16(input[i]), vget_low_u16(input[4 + i]));
+    } else {
+      temp[i] =
+        vcombine_u16(vget_high_u16(input[i - 4]), vget_high_u16(input[i]));
+    }
+    if (M == 8) {
+      vst1q_u16(&dst[i * ld_dst], temp[i]);
     } else {
       for (unsigned int m = 0; m < M; ++m) {
         dst[i * ld_dst + m] = temp[i][m];

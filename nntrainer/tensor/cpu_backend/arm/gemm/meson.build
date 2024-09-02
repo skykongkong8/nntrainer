@@ -5,6 +5,8 @@ gemm_sources = [
   'gemm_util.cpp',
 ]
 
+include_directories('../matrix_transpose_neon')
+
 subdir('uhgemm')
 nntrainer_inc += include_directories('uhgemm')
 nntrainer_inc_abs += meson.current_source_dir() / 'uhgemm'

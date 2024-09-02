@@ -7,7 +7,6 @@ nntrainer_inc += include_directories('uhgemm_padding')
 nntrainer_inc_abs += meson.current_source_dir() / 'uhgemm_padding'
 
 
-
 uhgemm_headers = [
   'uhgemm.h',
   'uhgemm_pack.h',
