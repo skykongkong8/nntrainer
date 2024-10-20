@@ -14,7 +14,7 @@
  * creates the OpenCL command queue and context.
  */
 
-#include <addition_layer_cl.h>
+// #include <addition_layer_cl.h>
 #include <blas_kernel_strings.h>
 #include <cl_context.h>
 #include <concat_cl.h>
