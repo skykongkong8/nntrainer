@@ -78,10 +78,10 @@ int NetworkGraph::compile(const std::string &loss_type) {
   } else {
     if (!loss_type.empty()){
       ml_loge("Warning : Loss type is given in inference mode. Ignoring loss type.");
-      NN_RETURN_STATUS();
     }
     // status = addLossLayer(loss_type);
-    status = setNonLossLayerAsOutputLayer();
+    // status = setNonLossLayerAsOutputLayer();
+    // NN_RETURN_STATUS();
   }
 
   graph.topologicalSort();
@@ -200,8 +200,8 @@ int NetworkGraph::setNonLossLayerAsOutputLayer() {
       continue;
 
     auto second_to_last_layer_node = output_layer_node;
-    output_layer_node->setRequireLabel(true);
-    
+    // output_layer_node->setRequireLabel(true);
+
     // if (second_to_last_layer_node->getDistribute()) {
     //   /// @question : what is distribute?
     // }

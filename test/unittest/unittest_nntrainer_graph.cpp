@@ -369,8 +369,11 @@ TEST(nntrainerGraphUnitTest, call_functions) {
 }
 
 TEST(nntrainerGraphUnitTest, NoLossLayerWhenInferenceMode) {
-  std::unique_ptr<ml::train::Model> model = ml::train::createModel(
-    ml::train::ModelType::NEURAL_NET, {withKey("loss", "mse")});
+  // std::unique_ptr<ml::train::Model> model = ml::train::createModel(
+  //   ml::train::ModelType::NEURAL_NET, {withKey("loss", "mse")});
+    std::unique_ptr<ml::train::Model> model = ml::train::createModel(
+    ml::train::ModelType::NEURAL_NET);
+  
 
   model->addLayer(ml::train::createLayer(
     "input", {withKey("name", "input0"), withKey("input_shape", "1:1:256")}));
@@ -414,7 +417,6 @@ TEST(nntrainerGraphUnitTest, NoLossLayerWhenInferenceMode) {
   std::vector<float*> ans;
 
   in.push_back(input);
-  l.push_back(label);
 
   ans = model->inference(1, in, l);
 
