@@ -305,7 +305,7 @@ public:
    * requireLabel is true
    * @return true if requires a label when training, else false
    */
-  virtual bool requireLabel() const { return false; }
+  virtual bool requireLabel() const { return does_require_label; }
 
   /**
    * @brief  check if this layer supports backwarding
@@ -314,6 +314,13 @@ public:
    * @return true if supports backwarding, else false
    */
   virtual bool supportBackwarding() const = 0;
+
+  virtual void setRequireLabel(bool _does_require_label){
+    does_require_label = _does_require_label;
+  }
+
+private:
+  bool does_require_label = false;
 
 protected:
   bool is_inplace = false; /**< whether this layer is in-place or not */

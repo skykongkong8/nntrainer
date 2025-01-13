@@ -982,6 +982,7 @@ InPlaceType LayerNode::initializeInPlace() {
  * @brief  check if this layer requires label to be passed
  */
 bool LayerNode::requireLabel() const { return getLayer()->requireLabel(); }
+void LayerNode::setRequireLabel(bool _does_require_label) { getLayer()->setRequireLabel(_does_require_label); }
 
 /**
  * @brief     get loss for the layer

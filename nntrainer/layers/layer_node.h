@@ -396,6 +396,7 @@ public:
    * if requireLabel is true
    */
   bool requireLabel() const;
+  void setRequireLabel(bool _does_require_label);
 
   /**
    * Add rest of the helper interfaces required by other internal classes

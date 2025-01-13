@@ -65,14 +65,23 @@ int NetworkGraph::compile(const std::string &loss_type) {
 
   graph.realizeInputOutputNode();
 
-  try {
-    /// @todo realize loss beforehand
-    status = addLossLayer(loss_type);
-    NN_RETURN_STATUS();
-  } catch (const std::exception &e) {
-    ml_loge("%s", e.what());
-    status = ML_ERROR_INVALID_PARAMETER;
-    NN_RETURN_STATUS();
+  if (exec_mode != ExecutionMode::INFERENCE) {
+    try {
+      /// @todo realize loss beforehand
+      status = addLossLayer(loss_type);
+      NN_RETURN_STATUS();
+    } catch (const std::exception &e) {
+      ml_loge("%s", e.what());
+      status = ML_ERROR_INVALID_PARAMETER;
+      NN_RETURN_STATUS();
+    }
+  } else {
+    if (!loss_type.empty()){
+      ml_loge("Warning : Loss type is given in inference mode. Ignoring loss type.");
+      NN_RETURN_STATUS();
+    }
+    // status = addLossLayer(loss_type);
+    status = setNonLossLayerAsOutputLayer();
   }
 
   graph.topologicalSort();
@@ -182,6 +191,33 @@ int NetworkGraph::addLossLayer(const std::string &loss_type_) {
 
   return ML_ERROR_NONE;
 }
+
+int NetworkGraph::setNonLossLayerAsOutputLayer() {
+  for (unsigned int i = 0; i < graph.getNumOutputNodes(); ++i) {
+    auto output_layer_node = LNODE(graph.getOutputNode(i));
+
+    if (output_layer_node->requireLabel())
+      continue;
+
+    auto second_to_last_layer_node = output_layer_node;
+    output_layer_node->setRequireLabel(true);
+    
+    // if (second_to_last_layer_node->getDistribute()) {
+    //   /// @question : what is distribute?
+    // }
+
+    /// @todo remove this by add loss at realization
+    // second_to_last_layer_node->setOutputLayers({output_layer_node->getName()});
+
+    // not required?
+    // graph.addNode(lnode, false);
+    // graph.replaceOutputNode(i, lnode);
+    // graph.replaceOutputNode(i, output_layer_node);
+  }
+
+  return ML_ERROR_NONE;
+}
+
 
 void NetworkGraph::setOutputConnections() {
   for (auto layer_iter = cbegin(); layer_iter != cend(); layer_iter++) {

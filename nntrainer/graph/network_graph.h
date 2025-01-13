@@ -578,6 +578,8 @@ private:
    * @retval #ML_ERROR_INVALID_PARAMETER invalid parameter.
    */
   int addLossLayer(const std::string &loss_type);
+  
+  int setNonLossLayerAsOutputLayer();
 
   /**
    * @brief     set output connections for all the layers
