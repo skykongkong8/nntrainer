@@ -5614,6 +5614,40 @@ TEST(nntrainer_Tensor, transpose_5122048) {
   EXPECT_EQ(A_fp32, A_T_T);
 }
 
+/**
+ * @brief (A*B).T = (B.T * A.T)
+ * 
+ */
+TEST(nntrainer_Tensor, transpose_check_with_gemm_fp32) {
+  int batch = 1;
+  int channel = 1;
+  int height = 768;
+  int width = 512;
+
+  int height_b = 512;
+  int width_b = 768;
+
+  bool transA = false;
+
+  nntrainer::TensorDim::TensorType t_type_nchw_fp32 = {
+    nntrainer::Tformat::NCHW, nntrainer::Tdatatype::FP32};
+
+  nntrainer::Tensor A_fp32(batch, channel, height, width, t_type_nchw_fp32);
+  nntrainer::Tensor B_fp32(batch, channel, height_b, width_b, t_type_nchw_fp32);
+
+  GEN_TEST_INPUT_RAND(A_fp32, 0, 1);
+  GEN_TEST_INPUT_RAND_B(B_fp32, 0, 1);
+
+  nntrainer::Tensor A_T = A_fp32.transpose("0:2:1");
+  nntrainer::Tensor B_T = B_fp32.transpose("0:2:1");
+  nntrainer::Tensor C_T = B_T.dot(A_T);
+
+  nntrainer::Tensor C = A_fp32.dot(B_fp32);
+  nntrainer::Tensor C_transposed = C.transpose("0:2:1");
+
+  EXPECT_EQ(C_T, C_transposed);
+}
+
 int main(int argc, char **argv) {
   int result = -1;
 
