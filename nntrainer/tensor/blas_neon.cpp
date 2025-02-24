@@ -492,32 +492,98 @@ void ele_mul(const unsigned int N, const float *X, const float *Y, float *Z,
   }
 }
 
+// void ele_add(const unsigned int N, const float *X, const float *Y, float *Z,
+//              float alpha, float beta) {
+//   unsigned int i = 0;
+//   float32x4_t alpha_vec = vdupq_n_f32(alpha);
+//   float32x4_t beta_vec = vdupq_n_f32(beta);
+//   for (; N - i >= 4; i += 4) {
+//     float32x4_t x0_3 = vld1q_f32(&X[i]);
+//     float32x4_t y0_3 = vld1q_f32(&Y[i]);
+//     if (alpha != 1.f) {
+//       y0_3 = vmulq_f32(y0_3, alpha_vec);
+//     }
+//     float32x4_t xy0_3 = vaddq_f32(x0_3, y0_3);
+//     if (std::abs(beta) > __FLT_MIN__) {
+//       float32x4_t z0_3 = vmulq_f32(vld1q_f32(&Z[i]), beta_vec);
+//       vst1q_f32(&Z[i], vaddq_f32(z0_3, xy0_3));
+//     } else
+//       vst1q_f32(&Z[i], xy0_3);
+//   }
+//   while (i < N) {
+//     if (std::abs(beta) > __FLT_MIN__)
+//       Z[i] = X[i] + alpha * Y[i] + beta * Z[i];
+//     else
+//       Z[i] = X[i] + alpha * Y[i];
+//     ++i;
+//   }
+// }
+
+static void ele_add_with_alpha(const unsigned int N, const float *X, const float *Y, float *Z,
+             float alpha, float beta) {
+// 벡터 연산은 4개 단위이므로, 4로 나눈 몫과 나머지를 구합니다.
+    int vector_count = N / 4;
+    int remainder = N % 4;
+    
+    // 원래의 포인터 값을 로컬 변수에 복사하여, inline assembly 내에서 post-increment 사용 후 남은 tail을 처리할 수 있도록 합니다.
+    
+    // 벡터 단위 연산 (4개 float씩 처리)
+    if (vector_count > 0) {
+        __asm__ volatile (
+            "dup {v2.4s}, %w[alpha]      \n\t"  // w4에 벡터 처리 반복 횟수를 설정 (vector_count)
+            "mov w4, %w[vc]              \n\t"  // w4에 벡터 처리 반복 횟수를 설정 (vector_count)
+            "1:                          \n\t"  // 루프 시작 라벨
+            "ld1 {v0.4s}, [%[a]], #16     \n\t"  // a에서 4개 float 로드 후, 포인터를 16바이트(4×4byte) 증가
+            "ld1 {v1.4s}, [%[b]], #16     \n\t"  // b에서 4개 float 로드 후, 포인터를 16바이트 증가
+            "fmul v1.4s, v1.4s, v2.4s"
+            "fadd v0.4s, v0.4s, v1.4s      \n\t"  // v0 = v0 + v1 (벡터 덧셈)
+            "st1 {v0.4s}, [%[result]], #16\n\t"  // 결과를 result에 저장 후, 포인터를 16바이트 증가
+            "subs w4, w4, #1             \n\t"  // 루프 카운터를 1씩 감소하며, Zero 플래그를 설정
+            "b.ne 1b                     \n\t"  // w4가 0이 아니면(즉, 남은 벡터가 있으면) 루프 반복
+            : [a] "+r"(X), [b] "+r"(Y), [result] "+r"(Z)
+            : [vc] "r"(vector_count), "r"(alpha)
+            : "w4", "v0", "v1", "v2", "memory"
+        );
+    }
+    
+    // 남은 요소(remainder)가 있다면, 스칼라 연산으로 처리합니다.
+    for (int i = 0; i < remainder; i++) {
+        Z[i] = X[i] + alpha * Y[i];
+    }
+}
+
 void ele_add(const unsigned int N, const float *X, const float *Y, float *Z,
              float alpha, float beta) {
-  unsigned int i = 0;
-  float32x4_t alpha_vec = vdupq_n_f32(alpha);
-  float32x4_t beta_vec = vdupq_n_f32(beta);
-  for (; N - i >= 4; i += 4) {
-    float32x4_t x0_3 = vld1q_f32(&X[i]);
-    float32x4_t y0_3 = vld1q_f32(&Y[i]);
-    if (alpha != 1.f) {
-      y0_3 = vmulq_f32(y0_3, alpha_vec);
+    if (alpha != 1.0) return ele_add_with_alpha(N, X, Y, Z, alpha, beta);
+// 벡터 연산은 4개 단위이므로, 4로 나눈 몫과 나머지를 구합니다.
+    int vector_count = N / 4;
+    int remainder = N % 4;
+    
+    // 원래의 포인터 값을 로컬 변수에 복사하여, inline assembly 내에서 post-increment 사용 후 남은 tail을 처리할 수 있도록 합니다.
+    
+    // 벡터 단위 연산 (4개 float씩 처리)
+    if (vector_count > 0) {
+        __asm__ volatile (
+            "mov w4, %w[vc]              \n\t"  // w4에 벡터 처리 반복 횟수를 설정 (vector_count)
+            "1:                          \n\t"  // 루프 시작 라벨
+            "ld1 {v0.4s}, [%[a]], #16     \n\t"  // a에서 4개 float 로드 후, 포인터를 16바이트(4×4byte) 증가
+            "ld1 {v1.4s}, [%[b]], #16     \n\t"  // b에서 4개 float 로드 후, 포인터를 16바이트 증가
+            "fadd v0.4s, v0.4s, v1.4s      \n\t"  // v0 = v0 + v1 (벡터 덧셈)
+            "st1 {v0.4s}, [%[result]], #16\n\t"  // 결과를 result에 저장 후, 포인터를 16바이트 증가
+            "subs w4, w4, #1             \n\t"  // 루프 카운터를 1씩 감소하며, Zero 플래그를 설정
+            "b.ne 1b                     \n\t"  // w4가 0이 아니면(즉, 남은 벡터가 있으면) 루프 반복
+            : [a] "+r"(X), [b] "+r"(Y), [result] "+r"(Z)
+            : [vc] "r"(vector_count)
+            : "w4", "v0", "v1", "memory"
+        );
     }
-    float32x4_t xy0_3 = vaddq_f32(x0_3, y0_3);
-    if (std::abs(beta) > __FLT_MIN__) {
-      float32x4_t z0_3 = vmulq_f32(vld1q_f32(&Z[i]), beta_vec);
-      vst1q_f32(&Z[i], vaddq_f32(z0_3, xy0_3));
-    } else
-      vst1q_f32(&Z[i], xy0_3);
-  }
-  while (i < N) {
-    if (std::abs(beta) > __FLT_MIN__)
-      Z[i] = X[i] + alpha * Y[i] + beta * Z[i];
-    else
-      Z[i] = X[i] + alpha * Y[i];
-    ++i;
-  }
+    
+    // 남은 요소(remainder)가 있다면, 스칼라 연산으로 처리합니다.
+    for (int i = 0; i < remainder; i++) {
+        Z[i] = X[i] + Y[i];
+    }
 }
+
 
 void ele_sub(const unsigned N, const float *X, const float *Y, float *Z,
              float alpha, float beta) {
