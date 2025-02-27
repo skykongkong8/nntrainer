@@ -309,6 +309,178 @@ void hgemm_kernel_8x16(unsigned int M, unsigned int N, unsigned int K,
   }
 }
 
+// template <>
+// void hgemm_kernel_8x16(unsigned int M, unsigned int N, unsigned int K,
+//                        __fp16 *sa, __fp16 *sb, float *sc, unsigned int ldc) {
+//   assert(M > 0 && N > 0 && K > 0);
+//   assert(M % 8 == 0 && N % 16 == 0 && K % 4 == 0);
+
+//   __fp16 *a = sa, *b = sb;
+//   float *c = sc;
+//   unsigned int i, j, l;
+//   unsigned int K4 = get_prev_mltpl_of_2p_n(K, 2);
+//   unsigned int K8 = get_prev_mltpl_of_2p_n(K, 3);
+//   unsigned int K16 = get_prev_mltpl_of_2p_n(K, 4);
+//   for (i = 0; i < M; i += 8) {
+//     for (j = 0; j < N; j += 16) {
+//       __builtin_prefetch(b, 0, 3);
+//       __builtin_prefetch(a, 0, 3);
+//       float16x8_t v0_7, v8_15;
+//       float16x8_t v16_23, v24_31;
+//       float16x8_t v32_39, v40_47;
+//       float16x8_t v48_55, v56_63;
+//       float16x8_t v64_71, v72_79;
+//       float16x8_t v80_87, v88_95;
+//       float16x8_t v96_103, v104_111;
+//       float16x8_t v112_119, v120_127;
+//       float16x8_t va0;
+//       float16x8_t vb1, vb2;
+//       l = 0;
+//       for (; l < K16;) {
+//         INIT_KERNEL_8X16();
+//         KERNEL_8x16_ACC_N4(16);
+//         SAVE_KERNEL_8X16_F16_F32();
+//       }
+//       for (; l < K8;) {
+//         INIT_KERNEL_8X16();
+//         KERNEL_8x16_ACC_N4(8);
+//         SAVE_KERNEL_8X16_F16_F32();
+//       }
+//       for (; l < K4;) {
+//         INIT_KERNEL_8X16();
+//         KERNEL_8x16_ACC_N4(4);
+//         SAVE_KERNEL_8X16_F16_F32();
+//       }
+//       for (; l < K;) {
+//         INIT_KERNEL_8X16();
+//         KERNEL_8x16_ACC1();
+//         SAVE_KERNEL_8X16_F16_F32();
+//       }
+//       c += 16;
+//       a -= 8 * K;
+//     }
+//     sc += ldc * 8;
+//     c = sc;
+//     a += 8 * K;
+//     b = sb;
+//   }
+// }
+
+// zero-init like this works!
+#define HGEMM_UKERNEL_8x16_INIT_ASM \
+  "eor v6.16b,  v6.16b,  v6.16b \n\t"            \
+  "eor v7.16b, v7.16b, v7.16b \n\t"            \
+  "eor v8.16b, v8.16b, v8.16b \n\t"            \
+  "eor v9.16b, v9.16b, v9.16b \n\t"            \
+  "eor v10.16b, v10.16b, v10.16b \n\t"           \
+  "eor v11.16b, v11.16b, v11.16b \n\t"           \
+  "eor v12.16b, v12.16b, v12.16b \n\t"           \
+  "eor v13.16b, v13.16b, v13.16b \n\t"           \
+  "eor v14.16b, v14.16b, v14.16b \n\t"           \
+  "eor v15.16b, v15.16b, v15.16b \n\t"           \
+  "eor v16.16b, v16.16b, v16.16b \n\t"           \
+  "eor v17.16b, v17.16b, v17.16b \n\t"           \
+  "eor v18.16b, v18.16b, v18.16b \n\t"           \
+  "eor v19.16b, v19.16b, v19.16b \n\t"           \
+  "eor v20.16b, v20.16b, v20.16b \n\t"           \
+  "eor v21.16b, v21.16b, v21.16b \n\t"
+
+/**
+ * @note v0 : a1, v1 : b1, v2 : b2, v3 ~ v5 : ukernel, v6 ~ v30 : intermediate
+ * registers
+ *
+ */
+#define HGEMM_KERNEL_8x16_ukernel_ASM \
+  "mov w0, %w[acc_n] \n\t"            \
+  "1:                 \n\t"                           \
+  "ld1 {v3.8h}, [%[a]], #16 \n\t"       \
+  "ld1 v4.8h, [%[b]], #16 \n\t"       \
+  "ld1 v5.8h, [%[b]], #16 \n\t"       \
+  "fmla v6.8h, v4.8h, v3.h[0] \n\t"   \
+  "fmla v7.8h, v4.8h, v3.h[1] \n\t"   \
+  "fmla v8.8h, v4.8h, v3.h[2] \n\t"   \
+  "fmla v9.8h, v4.8h, v3.h[3] \n\t"   \
+  "fmla v10.8h, v4.8h, v3.h[4] \n\t"  \
+  "fmla v11.8h, v4.8h, v3.h[5] \n\t"  \
+  "fmla v12.8h, v4.8h, v3.h[6] \n\t"  \
+  "fmla v13.8h, v4.8h, v3.h[7] \n\t"  \
+  "fmla v14.8h, v5.8h, v3.h[0] \n\t"  \
+  "fmla v15.8h, v5.8h, v3.h[1] \n\t"  \
+  "fmla v16.8h, v5.8h, v3.h[2] \n\t"  \
+  "fmla v17.8h, v5.8h, v3.h[3] \n\t"  \
+  "fmla v18.8h, v5.8h, v3.h[4] \n\t"  \
+  "fmla v19.8h, v5.8h, v3.h[5] \n\t"  \
+  "fmla v20.8h, v5.8h, v3.h[6] \n\t"  \
+  "fmla v21.8h, v5.8h, v3.h[7] \n\t"  \
+  "subs w0, w0, #1 \n\t"              \
+  "b.ne 1b \n\t"                      \
+  "2: \n\t"
+
+#define HGEMM_KERNEL_8x16_SAVE_ASM                                            \
+  "lsl x10, %[ldc], #2 \n\t" /* --- Row 0 (pointer = c) --- */                \
+  "ld1 {v22.4s}, [%[c]] \n\t"                                                 \
+  "fcvtl v23.4s, v6.4h \n\t" /* convert lower half */                         \
+  "fadd v22.4s, v22.4s, v23.4s \n\t"                                          \
+  "st1 {v22.4s}, [%[c]] \n\t" /* Group 1: columns 4-7 from v6 (upper half) */ \
+  "ld1 {v22.4s}, [%[c], #16] \n\t"                                            \
+  "fcvtl2 v23.4s, v6.8h \n\t" /* convert upper half */                        \
+  "fadd v22.4s, v22.4s, v23.4s \n\t"                                          \
+  "st1 {v22.4s}, [%[c], #16] \n\t"                                            \
+  "ld1 {v22.4s}, [%[c], #32] \n\t"                                            \
+  "fcvtl v23.4s, v14.4h \n\t"                                                 \
+  "fadd v22.4s, v22.4s, v23.4s \n\t"                                          \
+  "st1 {v22.4s}, [%[c], #32] \n\t"                                            \
+  "ld1 {v22.4s}, [%[c], #48] \n\t"                                            \
+  "fcvtl2 v23.4s, v14.8h \n\t"                                                \
+  "fadd v22.4s, v22.4s, v23.4s \n\t"                                          \
+  "st1 {v22.4s}, [%[c], #48] \n\t" /* --- Row 1 (pointer = c + x10) --- */    \
+  "add x11, %[c], x10 \n\t"        /* x11 = row1 pointer */                   \
+  "ld1 {v22.4s}, [x11] \n\t"                                                  \
+  "fcvtl v23.4s, v7.4h \n\t"                                                  \
+  "fadd v22.4s, v22.4s, v23.4s \n\t"                                          \
+  "st1 {v22.4s}, [x11] \n\t"                                                  \
+  "ld1 {v22.4s}, [x11, #16] \n\t"                                             \
+  "fcvtl2 v23.4s, v7.8h \n\t"                                                 \
+  "fadd v22.4s, v22.4s, v23.4s \n\t"                                          \
+  "st1 {v22.4s}, [x11, #16] \n\t"                                             \
+  "ld1 {v22.4s}, [x11, #32] \n\t"                                             \
+  "fcvtl v23.4s, v15.4h \n\t"                                                 \
+  "fadd v22.4s, v22.4s, v23.4s \n\t"                                          \
+  "st1 {v22.4s}, [x11, #32] \n\t"                                             \
+  "ld1 {v22.4s}, [x11, #48] \n\t"                                             \
+  "fcvtl2 v23.4s, v15.8h \n\t"                                                \
+  "fadd v22.4s, v22.4s, v23.4s \n\t"                                          \
+  "st1 {v22.4s}, [x11, #48] \n\t" /* --- Row 2 (pointer = x11 + x10) --- */   \
+  "add x11, x11, x10 \n\t"        /* now row2 */                              \
+  "ld1 {v22.4s}, [x11] \n\t"                                                  \
+  "fcvtl v23.4s, v8.4h \n\t"                                                  \
+  "fadd v22.4s, v22.4s, v23.4s \n\t"                                          \
+  "st1 {v22.4s}, [x11] \n\t"                                                  \
+  "ld1 {v22.4s}, [x11, #16] \n\t"                                             \
+  "fcvtl2 v23.4s, v8.8h \n\t"                                                 \
+  "fadd v22.4s, v22.4s, v23.4s \n\t"                                          \
+  "st1 {v22.4s}, [x11, #16] \n\t"                                             \
+  "ld1 {v22.4s}, [x11, #32] \n\t"                                             \
+  "fcvtl v23.4s, v16.4h \n\t"                                                 \
+  "fadd v22.4s, v22.4s, v23.4s \n\t"                                          \
+  "st1 {v22.4s}, [x11, #32] \n\t"                                             \
+  "ld1 {v22.4s}, [x11, #48] \n\t"                                             \
+  "fcvtl2 v23.4s, v16.8h \n\t"                                                \
+  "fadd v22.4s, v22.4s, v23.4s \n\t"                                          \
+  "st1 {v22.4s}, [x11, #48] \n\t"
+
+#define HGEMM_KERNEL_8x16_ACC_N_ASM()                                         \
+  do {                                                                        \
+    __asm__ volatile(                                                         \
+      HGEMM_UKERNEL_8x16_INIT_ASM HGEMM_KERNEL_8x16_ukernel_ASM               \
+        HGEMM_KERNEL_8x16_SAVE_ASM                                            \
+      : [a] "+x"(a), [b] "+x"(b), [c] "+x"(c), [l] "+r"(l), [ldc] "+r"(ldc)   \
+      : [acc_n] "+r"(acc_n)                                                   \
+      : "w0", "v3", "v4", "v5", "v6", "v7", "v8", "v9",     \
+        "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", \
+        "v20", "v21", "v22", "v23", "v24", "x10", "x11", "memory");           \
+  } while (0)
+
 template <>
 void hgemm_kernel_8x16(unsigned int M, unsigned int N, unsigned int K,
                        __fp16 *sa, __fp16 *sb, float *sc, unsigned int ldc) {
@@ -325,37 +497,16 @@ void hgemm_kernel_8x16(unsigned int M, unsigned int N, unsigned int K,
     for (j = 0; j < N; j += 16) {
       __builtin_prefetch(b, 0, 3);
       __builtin_prefetch(a, 0, 3);
-      float16x8_t v0_7, v8_15;
-      float16x8_t v16_23, v24_31;
-      float16x8_t v32_39, v40_47;
-      float16x8_t v48_55, v56_63;
-      float16x8_t v64_71, v72_79;
-      float16x8_t v80_87, v88_95;
-      float16x8_t v96_103, v104_111;
-      float16x8_t v112_119, v120_127;
-      float16x8_t va0;
-      float16x8_t vb1, vb2;
       l = 0;
-      for (; l < K16;) {
-        INIT_KERNEL_8X16();
-        KERNEL_8x16_ACC_N4(16);
-        SAVE_KERNEL_8X16_F16_F32();
-      }
-      for (; l < K8;) {
-        INIT_KERNEL_8X16();
-        KERNEL_8x16_ACC_N4(8);
-        SAVE_KERNEL_8X16_F16_F32();
-      }
-      for (; l < K4;) {
-        INIT_KERNEL_8X16();
-        KERNEL_8x16_ACC_N4(4);
-        SAVE_KERNEL_8X16_F16_F32();
-      }
-      for (; l < K;) {
-        INIT_KERNEL_8X16();
-        KERNEL_8x16_ACC1();
-        SAVE_KERNEL_8X16_F16_F32();
-      }
+      unsigned int acc_n = 4;
+      __asm__ volatile(
+        HGEMM_UKERNEL_8x16_INIT_ASM HGEMM_KERNEL_8x16_ukernel_ASM
+          HGEMM_KERNEL_8x16_SAVE_ASM
+        : [a] "+x"(a), [b] "+x"(b), [c] "+x"(c), [l] "+r"(l), [ldc] "+r"(ldc)
+        : [acc_n] "+r"(acc_n)
+        : "w0", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
+          "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",
+          "v20", "v21", "v22", "v23", "v24", "x10", "x11", "memory");
       c += 16;
       a -= 8 * K;
     }

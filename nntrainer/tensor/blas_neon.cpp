@@ -530,18 +530,18 @@ static void ele_add_with_alpha(const unsigned int N, const float *X, const float
     // 벡터 단위 연산 (4개 float씩 처리)
     if (vector_count > 0) {
         __asm__ volatile (
-            "dup {v2.4s}, %w[alpha]      \n\t"  // w4에 벡터 처리 반복 횟수를 설정 (vector_count)
+            "dup v2.4s, %w[alpha]      \n\t"  // w4에 벡터 처리 반복 횟수를 설정 (vector_count)
             "mov w4, %w[vc]              \n\t"  // w4에 벡터 처리 반복 횟수를 설정 (vector_count)
             "1:                          \n\t"  // 루프 시작 라벨
             "ld1 {v0.4s}, [%[a]], #16     \n\t"  // a에서 4개 float 로드 후, 포인터를 16바이트(4×4byte) 증가
             "ld1 {v1.4s}, [%[b]], #16     \n\t"  // b에서 4개 float 로드 후, 포인터를 16바이트 증가
-            "fmul v1.4s, v1.4s, v2.4s"
+            "fmul v1.4s, v1.4s, v2.4s     \n\t"
             "fadd v0.4s, v0.4s, v1.4s      \n\t"  // v0 = v0 + v1 (벡터 덧셈)
-            "st1 {v0.4s}, [%[result]], #16\n\t"  // 결과를 result에 저장 후, 포인터를 16바이트 증가
+            "st1 {v0.4s}, [%[result]], #16 \n\t"  // 결과를 result에 저장 후, 포인터를 16바이트 증가
             "subs w4, w4, #1             \n\t"  // 루프 카운터를 1씩 감소하며, Zero 플래그를 설정
             "b.ne 1b                     \n\t"  // w4가 0이 아니면(즉, 남은 벡터가 있으면) 루프 반복
             : [a] "+r"(X), [b] "+r"(Y), [result] "+r"(Z)
-            : [vc] "r"(vector_count), "r"(alpha)
+            : [vc] "r"(vector_count), [alpha] "r"(alpha)
             : "w4", "v0", "v1", "v2", "memory"
         );
     }
@@ -552,10 +552,7 @@ static void ele_add_with_alpha(const unsigned int N, const float *X, const float
     }
 }
 
-void ele_add(const unsigned int N, const float *X, const float *Y, float *Z,
-             float alpha, float beta) {
-    if (alpha != 1.0) return ele_add_with_alpha(N, X, Y, Z, alpha, beta);
-// 벡터 연산은 4개 단위이므로, 4로 나눈 몫과 나머지를 구합니다.
+static inline void ele_add_vanilla(const unsigned int N, const float *X, const float *Y, float *Z) {
     int vector_count = N / 4;
     int remainder = N % 4;
     
@@ -582,6 +579,12 @@ void ele_add(const unsigned int N, const float *X, const float *Y, float *Z,
     for (int i = 0; i < remainder; i++) {
         Z[i] = X[i] + Y[i];
     }
+}
+
+void ele_add(const unsigned int N, const float *X, const float *Y, float *Z,
+             float alpha, float beta) {
+    if (std::fpclassify(alpha - 1.F) != FP_ZERO) return ele_add_with_alpha(N, X, Y, Z, alpha, beta);
+    return ele_add_vanilla(N, X, Y, Z);
 }
 
 
