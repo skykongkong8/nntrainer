@@ -32,6 +32,13 @@
     }                                                                          \
   } while (0);
 namespace nntrainer {
+void __fallback_ele_qmul(int8_t *lhs, int8_t *rhs, int8_t *res,
+                         unsigned int data_len, const float *lhs_scale,
+                         const float *rhs_scale, const float *res_scale,
+                         unsigned int scale_len) {
+  throw std::runtime_error(
+    "NYI : No implementation of __fallback_ele_qmul except for NEON!");
+}
 
 void __fallback_sscal(const unsigned int N, const float alpha, float *X,
                       const unsigned int incX) {

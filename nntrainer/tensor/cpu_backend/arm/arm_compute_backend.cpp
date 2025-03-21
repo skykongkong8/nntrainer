@@ -19,6 +19,13 @@
 
 namespace nntrainer {
 
+void ele_qmul(int8_t *lhs, int8_t *rhs, int8_t *res, unsigned int data_len,
+              const float *lhs_scale, const float *rhs_scale,
+              const float *res_scale, unsigned int scale_len) {
+  nntrainer::neon::ele_qmul(lhs, rhs, res, data_len, lhs_scale, rhs_scale,
+                            res_scale, scale_len);
+}
+
 void calc_trigonometric_vals_dup(unsigned int N_half, float *angle, float *cos_,
                                  float *sin_, unsigned int alpha) {
   nntrainer::neon::calc_trigonometric_vals_dup(N_half, angle, cos_, sin_,
