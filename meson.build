@@ -25,6 +25,7 @@ add_project_arguments('-DVERSION="' + nntrainer_version + '"', language: ['c', '
 add_project_arguments('-DVERSION_MAJOR=' + nntrainer_version_split[0], language: ['c', 'cpp'])
 add_project_arguments('-DVERSION_MINOR=' + nntrainer_version_split[1], language: ['c', 'cpp'])
 add_project_arguments('-DVERSION_MICRO=' + nntrainer_version_split[2], language: ['c', 'cpp'])
+add_project_arguments('-O3', language: ['c', 'cpp'])
 
 cc = meson.get_compiler('c')
 cxx = meson.get_compiler('cpp')
