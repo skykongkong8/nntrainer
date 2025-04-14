@@ -376,13 +376,13 @@ TEST(nntrainer_cpu_backend_standalone, DISABLED_q4_K_GEMV_latencyonly_512) {
             << " ns " << std::endl;
 }
 
-TEST(nntrainer_cpu_backend_standalone, DISABLED_q4_K_GEMV_3B_1x1440x1440) {
+TEST(nntrainer_cpu_backend_standalone, q4_K_GEMV_3B_1x3072x8192) {
     ///@note A(M, K) * W.T(N, K) = (M, N)
     ///@note A(sizez, sizex) * W.T(sizey, sizex) = (sizez, sizey)
 
     const unsigned int M = 1; // = sizez
-    const unsigned int K = 1440; // = sizex
-    const unsigned int N = 5760; // = sizey
+    const unsigned int K = 3072; // = sizex
+    const unsigned int N = 8192; // = sizey
     
     ///@note q4_K GEMM is a Row-Major, transB GEMM
     ///@todo Temporally use homogenous matrices. Need to replace with random data after accuracy debugging. Reason why it is set 1.0 and 1.5 is to compare with benchmark-matmult.cpp from llama.cpp
@@ -476,13 +476,13 @@ TEST(nntrainer_cpu_backend_standalone, DISABLED_q4_K_GEMV_3B_1x1440x1440) {
     */
 }
 
-TEST(nntrainer_cpu_backend_standalone, DISABLED_q4_K_GEMV_3B_1x1440x5760) {
+TEST(nntrainer_cpu_backend_standalone, q4_K_GEMV_3B_1x8192x3072) {
     ///@note A(M, K) * W.T(N, K) = (M, N)
     ///@note A(sizez, sizex) * W.T(sizey, sizex) = (sizez, sizey)
 
     const unsigned int M = 1; // = sizez
-    const unsigned int K = 1440; // = sizex
-    const unsigned int N = 5760; // = sizey
+    const unsigned int K = 8192; // = sizex
+    const unsigned int N = 3072; // = sizey
     
     ///@note q4_K GEMM is a Row-Major, transB GEMM
     ///@todo Temporally use homogenous matrices. Need to replace with random data after accuracy debugging. Reason why it is set 1.0 and 1.5 is to compare with benchmark-matmult.cpp from llama.cpp
@@ -576,13 +576,13 @@ TEST(nntrainer_cpu_backend_standalone, DISABLED_q4_K_GEMV_3B_1x1440x5760) {
     */
 }
 
-TEST(nntrainer_cpu_backend_standalone, DISABLED_q4_K_GEMM_3B_1024x1440x1440) {
+TEST(nntrainer_cpu_backend_standalone, q4_K_GEMM_3B_1024x8192x3072) {
     ///@note A(M, K) * W.T(N, K) = (M, N)
     ///@note A(sizez, sizex) * W.T(sizey, sizex) = (sizez, sizey)
 
     const unsigned int M = 1024; // = sizez
-    const unsigned int K = 1440; // = sizex
-    const unsigned int N = 1440; // = sizey
+    const unsigned int K = 8192; // = sizex
+    const unsigned int N = 3072; // = sizey
     
     ///@note q4_K GEMM is a Row-Major, transB GEMM
     ///@todo Temporally use homogenous matrices. Need to replace with random data after accuracy debugging. Reason why it is set 1.0 and 1.5 is to compare with benchmark-matmult.cpp from llama.cpp
@@ -676,14 +676,14 @@ TEST(nntrainer_cpu_backend_standalone, DISABLED_q4_K_GEMM_3B_1024x1440x1440) {
     */
 }
 
-TEST(nntrainer_cpu_backend_standalone, q4_K_GEMM_3B_1024x1440x5760) {
+TEST(nntrainer_cpu_backend_standalone, q4_K_GEMM_3B_1024x3072x8192) {
     ///@note A(M, K) * W.T(N, K) = (M, N)
     ///@note A(sizez, sizex) * W.T(sizey, sizex) = (sizez, sizey)
 
     const unsigned int M = 1024; // = sizez
     // const unsigned int K = 1024; // = sizex
-    const unsigned int K = 1440; // = sizex // K should be multiple of 256 -> needs padding??? this is for the weight as well.....
-    const unsigned int N = 5760; // = sizey
+    const unsigned int K = 3072; // = sizex // K should be multiple of 256 -> needs padding??? this is for the weight as well.....
+    const unsigned int N = 8192; // = sizey
     
     ///@note q4_K GEMM is a Row-Major, transB GEMM
     ///@todo Temporally use homogenous matrices. Need to replace with random data after accuracy debugging. Reason why it is set 1.0 and 1.5 is to compare with benchmark-matmult.cpp from llama.cpp

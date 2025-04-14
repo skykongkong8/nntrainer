@@ -16,6 +16,7 @@
 #include <cmath>
 #include <stdlib.h>
 #include <string.h>
+#include <omp.h>
 
 #include <iostream>
 #include <chrono>
@@ -875,13 +876,14 @@ static void ggml_gemm_q4_K_8x8_q8_K(int n, float *GGML_RESTRICT s, size_t bs,
                                     int nc) {
   const int qk = QK_K;
   const int nb = n / qk;
+  // const int nb = n / qk;
   const int ncols_interleaved = 8;
   const int blocklen = 8;
   static const uint32_t kmask1 = 0x3f3f3f3f;
   static const uint32_t kmask2 = 0x0f0f0f0f;
   static const uint32_t kmask3 = 0x03030303;
 
-  assert(n % qk == 0);
+  // assert(n % qk == 0);
   assert(nr % 4 == 0);
   assert(nc % ncols_interleaved == 0);
 
@@ -2887,7 +2889,6 @@ public:
 
     /// @todo Enable multithreading
     // ggml_barrier(params->threadpool);
-
     const void *src1_wdata = (void *)wdata;
     ///@todo Generalize ggml_row_size
     const size_t src1_col_stride = (sizeof(block_q8_K) * ne10) / QK_K;
