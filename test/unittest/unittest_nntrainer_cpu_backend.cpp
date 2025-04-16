@@ -778,7 +778,6 @@ TEST(nntrainer_cpu_backend_standalone, q4_K_GEMM_3B_1024x3072x8192) {
     */
 }
 
-
 TEST(nntrainer_cpu_backend_standalone, q4_K_GEMM) {
     ///@note A(M, K) * W.T(N, K) = (M, N)
     ///@note A(sizez, sizex) * W.T(sizey, sizex) = (sizez, sizey)
@@ -1076,6 +1075,307 @@ TEST(nntrainer_cpu_backend_standalone, q4_K_GEMV_1024) {
     */
 }
 
+
+TEST(nntrainer_cpu_backend_standalone, q4_K_GEMM_3B_3072x3072x512) {
+    ///@note A(M, K) * W.T(N, K) = (M, N)
+    ///@note A(sizez, sizex) * W.T(sizey, sizex) = (sizez, sizey)
+
+    const unsigned int M = 512; // = sizez
+    const unsigned int K = 3072; // = sizex
+    const unsigned int N = 3072; // = sizey
+    
+    ///@note q4_K GEMM is a Row-Major, transB GEMM
+    ///@todo Temporally use homogenous matrices. Need to replace with random data after accuracy debugging. Reason why it is set 1.0 and 1.5 is to compare with benchmark-matmult.cpp from llama.cpp
+    // std::vector<float> activation = generate_homogeneous_vector<float>(M * K, 2.0f);
+    // std::vector<float> weight = generate_homogeneous_vector<float>(N * K, 1.0F);
+    std::vector<float> activation = generate_random_vector<float>(M * K);
+    std::vector<float> weight = generate_random_vector<float>(N * K);
+    // std::vector<float> activation = generate_random_positive_vector<float>(M * K);
+    // std::vector<float> weight = generate_random_positive_vector<float>(N * K);
+    // std::vector<float> activation = set_custom_value<float>(M * K);
+    // std::vector<float> weight = set_custom_value<float>(N * K);
+    std::vector<float> weight_tmp(N * K);
+    std::vector<float> ref_dst(M * N);
+    std::vector<float> dst(M * N);
+
+    const float* lhs_ptr = (const float*) activation.data();
+    const float* rhs_ptr = (const float*) weight.data();
+    float* rhs_ptr_tmp = weight_tmp.data();
+    float* ref_dst_ptr = (float*) ref_dst.data();
+    float* dst_ptr = (float*) dst.data();
+
+    // GROUND TRUTH TRANSB SGEMM for reference
+    auto t1 = high_resolution_clock::now();
+    nntrainer::sgemm(/*ROW MAJOR*/0, false, true, M, N, K, 1.F, lhs_ptr, K, rhs_ptr, K, 0.F, ref_dst_ptr, N);
+    auto t2 = high_resolution_clock::now();
+    auto dt = duration_cast<nanoseconds>(t2 - t1);
+    std::cout << "sgemm : " << dt.count()
+            << " ns " << std::endl;
+
+    // Step0. Allocate a temporary buffer for quantized weight
+    int64_t ne0 = N; // row length of the weight matrix
+    int64_t q4_k_block_size = 256;
+    int64_t q4_k_type_size = sizeof(block_q4_K_testonly);
+    int64_t num_blocks = (K * N) / q4_k_block_size;
+    size_t data_size = q4_k_type_size * ne0 / q4_k_block_size;
+    data_size *= K;
+    ///@todo this is might be an invalid(too huge?) size for weight data. Needs double checking.
+    data_size = N * K / q4_k_block_size * q4_k_type_size;
+    std::vector<char> offline_qWeight = std::vector<char>(data_size); 
+    char* offline_qWeight_ptr = (char*) offline_qWeight.data();
+
+    // Step1. Supposed to be an offline Weight quantization from float to q4_K (Zero latency overhead for the model runtime)
+    nntrainer::quantize_q4_K(rhs_ptr, /*dst quantized vector*/(void*) offline_qWeight_ptr, K, N, /*imatrix*/nullptr);
+    ///@note Step1 is validated with unittest TC : q4_k_quantization
+
+    // Step2. Repack Weight to q4_K_8x8 layout (This happens when you load the model weights. It's a one-time operation)
+    std::vector<char> repacked_qWeight = std::vector<char>(data_size); 
+    nntrainer::repack_q4_K_to_q4_K_8(repacked_qWeight.data(), offline_qWeight_ptr,  data_size, /*row*/N, /*col*/K); // W is transposed, so it is N*K ?
+    ///@note Needs validation!
+    ///@note double-check for : row / col order (since is this function consider a transpoed weight? Or is it just generalized for all matrices?)
+    ///@note double-check for data_size (temporally allocated the same size with offline_qWeight, but itself is not validated, yet.)
+    ///@note super-quick check with gemm op! (but this might make unclear diagnosis : repacking problem? or gemm kernel problem? ...)
+
+    // Step3. Run GEMM! (Online activation quantization + kernel routine + return float)
+    t1 = high_resolution_clock::now();
+    nntrainer::gemm_q4_K(M, N, K, lhs_ptr, K, (void*) repacked_qWeight.data(), N, dst_ptr, N);
+    t2 = high_resolution_clock::now();
+    dt = duration_cast<nanoseconds>(t2 - t1);
+    std::cout << "gemm_q4_K : " << dt.count()
+            << " ns " << std::endl;
+    ///@note Needs validation!
+
+    // Step4. Compare quantization error
+    // 1. Ground Truth VS Q4_K GEMM
+    // 2. Q4_K GEMM on the nntrainer VS Q4_K GEMM on the llama.cpp
+    ///@note It is quite obvious to have a huge quantization error(32bit to 4.12bit), but the error is expected to be similar to something we can obtain from llama.cpp benchmark-matmult.cpp
+    ///@note Needs validation!
+    auto mean_squared_error = mse<float, float>( ref_dst_ptr, dst_ptr, M*N);
+    auto cos_sim = cosine_similarity( ref_dst_ptr, dst_ptr, M*N);
+    auto max_differ = find_max_diff(ref_dst_ptr, dst_ptr, M, N);
+    
+    auto sum = std::accumulate(dst.begin(), dst.end(), 0.0);
+    auto sum_gt = std::accumulate(ref_dst.begin(), ref_dst.end(), 0.0);
+
+    print_matrix_partially<float>(ref_dst_ptr, M, 0); // for it is a vector
+    print_matrix_partially<float>(dst_ptr, M, 0);
+
+    print_vector_partially<float>(ref_dst_ptr);
+    print_vector_partially<float>(dst_ptr);
+
+    std::cout << "MSE : " << mean_squared_error << ", COS_SIM : " << cos_sim << ", MAX_DIFFER : " << max_differ << ", SUM : " << sum << ", SUM_GT : " << sum_gt << std::endl;
+
+    /* 
+        Room for optimization
+        
+        1. Why don't we save weights for GEMM in q4_K_8x8 format offline?
+            - PRO : We can save the time for repacking the weight
+            - CON : We need to save the weight in two different formats (q4_K and q4_K_8x8), and such kernel works for specific HWs.
+        2. Pre-allocation of runtime quantized activation buffer
+        3. ???
+    */
+}
+
+TEST(nntrainer_cpu_backend_standalone, q4_K_GEMM_3B_512x3072x512) {
+    ///@note A(M, K) * W.T(N, K) = (M, N)
+    ///@note A(sizez, sizex) * W.T(sizey, sizex) = (sizez, sizey)
+
+    const unsigned int M = 512; // = sizez
+    const unsigned int K = 3072; // = sizex
+    const unsigned int N = 512; // = sizey
+    
+    ///@note q4_K GEMM is a Row-Major, transB GEMM
+    ///@todo Temporally use homogenous matrices. Need to replace with random data after accuracy debugging. Reason why it is set 1.0 and 1.5 is to compare with benchmark-matmult.cpp from llama.cpp
+    // std::vector<float> activation = generate_homogeneous_vector<float>(M * K, 2.0f);
+    // std::vector<float> weight = generate_homogeneous_vector<float>(N * K, 1.0F);
+    std::vector<float> activation = generate_random_vector<float>(M * K);
+    std::vector<float> weight = generate_random_vector<float>(N * K);
+    // std::vector<float> activation = generate_random_positive_vector<float>(M * K);
+    // std::vector<float> weight = generate_random_positive_vector<float>(N * K);
+    // std::vector<float> activation = set_custom_value<float>(M * K);
+    // std::vector<float> weight = set_custom_value<float>(N * K);
+    std::vector<float> weight_tmp(N * K);
+    std::vector<float> ref_dst(M * N);
+    std::vector<float> dst(M * N);
+
+    const float* lhs_ptr = (const float*) activation.data();
+    const float* rhs_ptr = (const float*) weight.data();
+    float* rhs_ptr_tmp = weight_tmp.data();
+    float* ref_dst_ptr = (float*) ref_dst.data();
+    float* dst_ptr = (float*) dst.data();
+
+    // GROUND TRUTH TRANSB SGEMM for reference
+    auto t1 = high_resolution_clock::now();
+    nntrainer::sgemm(/*ROW MAJOR*/0, false, true, M, N, K, 1.F, lhs_ptr, K, rhs_ptr, K, 0.F, ref_dst_ptr, N);
+    auto t2 = high_resolution_clock::now();
+    auto dt = duration_cast<nanoseconds>(t2 - t1);
+    std::cout << "sgemm : " << dt.count()
+            << " ns " << std::endl;
+
+    // Step0. Allocate a temporary buffer for quantized weight
+    int64_t ne0 = N; // row length of the weight matrix
+    int64_t q4_k_block_size = 256;
+    int64_t q4_k_type_size = sizeof(block_q4_K_testonly);
+    int64_t num_blocks = (K * N) / q4_k_block_size;
+    size_t data_size = q4_k_type_size * ne0 / q4_k_block_size;
+    data_size *= K;
+    ///@todo this is might be an invalid(too huge?) size for weight data. Needs double checking.
+    data_size = N * K / q4_k_block_size * q4_k_type_size;
+    std::vector<char> offline_qWeight = std::vector<char>(data_size); 
+    char* offline_qWeight_ptr = (char*) offline_qWeight.data();
+
+    // Step1. Supposed to be an offline Weight quantization from float to q4_K (Zero latency overhead for the model runtime)
+    nntrainer::quantize_q4_K(rhs_ptr, /*dst quantized vector*/(void*) offline_qWeight_ptr, K, N, /*imatrix*/nullptr);
+    ///@note Step1 is validated with unittest TC : q4_k_quantization
+
+    // Step2. Repack Weight to q4_K_8x8 layout (This happens when you load the model weights. It's a one-time operation)
+    std::vector<char> repacked_qWeight = std::vector<char>(data_size); 
+    nntrainer::repack_q4_K_to_q4_K_8(repacked_qWeight.data(), offline_qWeight_ptr,  data_size, /*row*/N, /*col*/K); // W is transposed, so it is N*K ?
+    ///@note Needs validation!
+    ///@note double-check for : row / col order (since is this function consider a transpoed weight? Or is it just generalized for all matrices?)
+    ///@note double-check for data_size (temporally allocated the same size with offline_qWeight, but itself is not validated, yet.)
+    ///@note super-quick check with gemm op! (but this might make unclear diagnosis : repacking problem? or gemm kernel problem? ...)
+
+    // Step3. Run GEMM! (Online activation quantization + kernel routine + return float)
+    t1 = high_resolution_clock::now();
+    nntrainer::gemm_q4_K(M, N, K, lhs_ptr, K, (void*) repacked_qWeight.data(), N, dst_ptr, N);
+    t2 = high_resolution_clock::now();
+    dt = duration_cast<nanoseconds>(t2 - t1);
+    std::cout << "gemm_q4_K : " << dt.count()
+            << " ns " << std::endl;
+    ///@note Needs validation!
+
+    // Step4. Compare quantization error
+    // 1. Ground Truth VS Q4_K GEMM
+    // 2. Q4_K GEMM on the nntrainer VS Q4_K GEMM on the llama.cpp
+    ///@note It is quite obvious to have a huge quantization error(32bit to 4.12bit), but the error is expected to be similar to something we can obtain from llama.cpp benchmark-matmult.cpp
+    ///@note Needs validation!
+    auto mean_squared_error = mse<float, float>( ref_dst_ptr, dst_ptr, M*N);
+    auto cos_sim = cosine_similarity( ref_dst_ptr, dst_ptr, M*N);
+    auto max_differ = find_max_diff(ref_dst_ptr, dst_ptr, M, N);
+    
+    auto sum = std::accumulate(dst.begin(), dst.end(), 0.0);
+    auto sum_gt = std::accumulate(ref_dst.begin(), ref_dst.end(), 0.0);
+
+    print_matrix_partially<float>(ref_dst_ptr, M, 0); // for it is a vector
+    print_matrix_partially<float>(dst_ptr, M, 0);
+
+    print_vector_partially<float>(ref_dst_ptr);
+    print_vector_partially<float>(dst_ptr);
+
+    std::cout << "MSE : " << mean_squared_error << ", COS_SIM : " << cos_sim << ", MAX_DIFFER : " << max_differ << ", SUM : " << sum << ", SUM_GT : " << sum_gt << std::endl;
+
+    /* 
+        Room for optimization
+        
+        1. Why don't we save weights for GEMM in q4_K_8x8 format offline?
+            - PRO : We can save the time for repacking the weight
+            - CON : We need to save the weight in two different formats (q4_K and q4_K_8x8), and such kernel works for specific HWs.
+        2. Pre-allocation of runtime quantized activation buffer
+        3. ???
+    */
+}
+
+
+TEST(nntrainer_cpu_backend_standalone, q4_K_GEMM_3B_2048x2048x512) {
+    ///@note A(M, K) * W.T(N, K) = (M, N)
+    ///@note A(sizez, sizex) * W.T(sizey, sizex) = (sizez, sizey)
+
+    const unsigned int M = 512; // = sizez
+    const unsigned int K = 2048; // = sizex
+    const unsigned int N = 2048; // = sizey
+    
+    ///@note q4_K GEMM is a Row-Major, transB GEMM
+    ///@todo Temporally use homogenous matrices. Need to replace with random data after accuracy debugging. Reason why it is set 1.0 and 1.5 is to compare with benchmark-matmult.cpp from llama.cpp
+    // std::vector<float> activation = generate_homogeneous_vector<float>(M * K, 2.0f);
+    // std::vector<float> weight = generate_homogeneous_vector<float>(N * K, 1.0F);
+    std::vector<float> activation = generate_random_vector<float>(M * K);
+    std::vector<float> weight = generate_random_vector<float>(N * K);
+    // std::vector<float> activation = generate_random_positive_vector<float>(M * K);
+    // std::vector<float> weight = generate_random_positive_vector<float>(N * K);
+    // std::vector<float> activation = set_custom_value<float>(M * K);
+    // std::vector<float> weight = set_custom_value<float>(N * K);
+    std::vector<float> weight_tmp(N * K);
+    std::vector<float> ref_dst(M * N);
+    std::vector<float> dst(M * N);
+
+    const float* lhs_ptr = (const float*) activation.data();
+    const float* rhs_ptr = (const float*) weight.data();
+    float* rhs_ptr_tmp = weight_tmp.data();
+    float* ref_dst_ptr = (float*) ref_dst.data();
+    float* dst_ptr = (float*) dst.data();
+
+    // GROUND TRUTH TRANSB SGEMM for reference
+    auto t1 = high_resolution_clock::now();
+    nntrainer::sgemm(/*ROW MAJOR*/0, false, true, M, N, K, 1.F, lhs_ptr, K, rhs_ptr, K, 0.F, ref_dst_ptr, N);
+    auto t2 = high_resolution_clock::now();
+    auto dt = duration_cast<nanoseconds>(t2 - t1);
+    std::cout << "sgemm : " << dt.count()
+            << " ns " << std::endl;
+
+    // Step0. Allocate a temporary buffer for quantized weight
+    int64_t ne0 = N; // row length of the weight matrix
+    int64_t q4_k_block_size = 256;
+    int64_t q4_k_type_size = sizeof(block_q4_K_testonly);
+    int64_t num_blocks = (K * N) / q4_k_block_size;
+    size_t data_size = q4_k_type_size * ne0 / q4_k_block_size;
+    data_size *= K;
+    ///@todo this is might be an invalid(too huge?) size for weight data. Needs double checking.
+    data_size = N * K / q4_k_block_size * q4_k_type_size;
+    std::vector<char> offline_qWeight = std::vector<char>(data_size); 
+    char* offline_qWeight_ptr = (char*) offline_qWeight.data();
+
+    // Step1. Supposed to be an offline Weight quantization from float to q4_K (Zero latency overhead for the model runtime)
+    nntrainer::quantize_q4_K(rhs_ptr, /*dst quantized vector*/(void*) offline_qWeight_ptr, K, N, /*imatrix*/nullptr);
+    ///@note Step1 is validated with unittest TC : q4_k_quantization
+
+    // Step2. Repack Weight to q4_K_8x8 layout (This happens when you load the model weights. It's a one-time operation)
+    std::vector<char> repacked_qWeight = std::vector<char>(data_size); 
+    nntrainer::repack_q4_K_to_q4_K_8(repacked_qWeight.data(), offline_qWeight_ptr,  data_size, /*row*/N, /*col*/K); // W is transposed, so it is N*K ?
+    ///@note Needs validation!
+    ///@note double-check for : row / col order (since is this function consider a transpoed weight? Or is it just generalized for all matrices?)
+    ///@note double-check for data_size (temporally allocated the same size with offline_qWeight, but itself is not validated, yet.)
+    ///@note super-quick check with gemm op! (but this might make unclear diagnosis : repacking problem? or gemm kernel problem? ...)
+
+    // Step3. Run GEMM! (Online activation quantization + kernel routine + return float)
+    t1 = high_resolution_clock::now();
+    nntrainer::gemm_q4_K(M, N, K, lhs_ptr, K, (void*) repacked_qWeight.data(), N, dst_ptr, N);
+    t2 = high_resolution_clock::now();
+    dt = duration_cast<nanoseconds>(t2 - t1);
+    std::cout << "gemm_q4_K : " << dt.count()
+            << " ns " << std::endl;
+    ///@note Needs validation!
+
+    // Step4. Compare quantization error
+    // 1. Ground Truth VS Q4_K GEMM
+    // 2. Q4_K GEMM on the nntrainer VS Q4_K GEMM on the llama.cpp
+    ///@note It is quite obvious to have a huge quantization error(32bit to 4.12bit), but the error is expected to be similar to something we can obtain from llama.cpp benchmark-matmult.cpp
+    ///@note Needs validation!
+    auto mean_squared_error = mse<float, float>( ref_dst_ptr, dst_ptr, M*N);
+    auto cos_sim = cosine_similarity( ref_dst_ptr, dst_ptr, M*N);
+    auto max_differ = find_max_diff(ref_dst_ptr, dst_ptr, M, N);
+    
+    auto sum = std::accumulate(dst.begin(), dst.end(), 0.0);
+    auto sum_gt = std::accumulate(ref_dst.begin(), ref_dst.end(), 0.0);
+
+    print_matrix_partially<float>(ref_dst_ptr, M, 0); // for it is a vector
+    print_matrix_partially<float>(dst_ptr, M, 0);
+
+    print_vector_partially<float>(ref_dst_ptr);
+    print_vector_partially<float>(dst_ptr);
+
+    std::cout << "MSE : " << mean_squared_error << ", COS_SIM : " << cos_sim << ", MAX_DIFFER : " << max_differ << ", SUM : " << sum << ", SUM_GT : " << sum_gt << std::endl;
+
+    /* 
+        Room for optimization
+        
+        1. Why don't we save weights for GEMM in q4_K_8x8 format offline?
+            - PRO : We can save the time for repacking the weight
+            - CON : We need to save the weight in two different formats (q4_K and q4_K_8x8), and such kernel works for specific HWs.
+        2. Pre-allocation of runtime quantized activation buffer
+        3. ???
+    */
+}
 
 
 int main(int argc, char **argv) {
