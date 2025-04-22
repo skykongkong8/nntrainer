@@ -1783,6 +1783,37 @@ void print_5_floats(float* src){
     }
     printf("\n");
 }
+
+int compute_matrix_offset(int M, int N, int offset){
+  int ret = 0;
+  //USE BSHD
+  // shape_master_ = {(uint64_t)source->batch(),
+  //                (uint64_t)source->head(),
+  //                (uint64_t)source->sequence(),
+  //                (uint64_t)source->dimension()};
+  // shape_offset_ = {(uint64_t)shape_offset[0],
+  //                (uint64_t)shape_offset[1],
+  //                (uint64_t)shape_offset[2],
+  //                (uint64_t)shape_offset[3]};
+  
+  // generic
+  // auto b_ = (0 + shape_offset_[0]) % shape_master_[0];
+  // auto h_ = (0 + shape_offset_[1]) % shape_master_[1];
+  // auto s_ = (0 + shape_offset_[2]) % shape_master_[2];
+  // auto d_ = (d + shape_offset_[3]) % shape_master_[3];
+  // ret = ((b_ * base_sequence_ + s_) * base_head_ + h_) * base_dimension_ + d_;
+  // ret = ((0 * base_sequence_ + 0) * base_head_ + 0) * base_dimension_ + (d + shape_offset_[3]) % base_dimension_;
+
+  // assume: shape_offset is 0 0 0 0
+  // auto b_ = (0 + 0) % shape_master_[0];
+  // auto h_ = (0 + 0) % shape_master_[1];
+  // auto s_ = (0 + 0) % shape_master_[2];
+  // auto d_ = (d + 0) % shape_master_[3];
+  // ret = (d + 0) % shape_master_[3];
+
+
+  return ret;
+}
 template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS,
           ggml_type PARAM_TYPE>
 class nntr_gemm_ggml_traits {
@@ -1833,9 +1864,11 @@ public:
     /// @todo Enable multithreading
     // const int ith = params->ith;
     // const int nth = params->nth;
-    const int n_threads = 1; // DO NOT FIX!
+    // const int n_threads = 1; // DO NOT FIX!
+    const int n_threads = 8; // DO NOT FIX!
+    // const int n_threads = 4; // DO NOT FIX!
     const int ith = 0;
-    const int nth = 1;
+    const int nth = n_threads;
 
     int64_t ne0 = N;
     int64_t ne1 = M;
@@ -1968,6 +2001,7 @@ public:
     const void *src1_wdata = (void *)wdata;
     ///@todo Generalize ggml_row_size
     const size_t src1_col_stride = (sizeof(block_q8_K) * ne10) / QK_K;
+    /*
     int64_t src0_start = (ith * ne01) / nth; // = 0
     int64_t src0_end = ((ith + 1) * ne01) / nth; // ne01 = N
     src0_start = (src0_start % NB_COLS)
@@ -1978,26 +2012,85 @@ public:
     if (src0_start >= src0_end) {
       return;
     }
+    */
+/*
+      int64_t src0_start = (ith * ne01) / nth; // = 0
+      int64_t src0_end = ((ith + 1) * ne01) / nth; // ne01 = N
+      src0_start = (src0_start % NB_COLS)
+                    ? src0_start + NB_COLS - (src0_start % NB_COLS)
+                    : src0_start;
+      src0_end = (src0_end % NB_COLS) ? src0_end + NB_COLS - (src0_end % NB_COLS)
+                                      : src0_end;
+      if (src0_start >= src0_end) {
+        return;
+      }
+      if (ne11 > 3) {
+        gemm<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(
+          ne00, (float *)((char *)C) + src0_start, ne01,
+          (const char *)B + src0_start * nb01, (const char *)src1_wdata,
+          ne11 - ne11 % 4, src0_end - src0_start);
+      }
+      for (int iter = ne11 - ne11 % 4; iter < ne11; iter++) {
+        gemv<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(
+          ne00, (float *)((char *)C + (iter * nb1)) + src0_start, ne01,
+          (const char *)B + src0_start * nb01,
+          (const char *)src1_wdata + (src1_col_stride * iter), 1,
+          src0_end - src0_start);
+      }
+      */
 
     // If there are more than three rows in src1, use gemm; otherwise, use gemv.
     // t1 = high_resolution_clock::now();
-    if (ne11 > 3) {
-      gemm<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(
-        ne00, (float *)((char *)C) + src0_start, ne01,
-        (const char *)B + src0_start * nb01, (const char *)src1_wdata,
-        ne11 - ne11 % 4, src0_end - src0_start);
-    }
-    for (int iter = ne11 - ne11 % 4; iter < ne11; iter++) {
-      gemv<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(
-        ne00, (float *)((char *)C + (iter * nb1)) + src0_start, ne01,
-        (const char *)B + src0_start * nb01,
-        (const char *)src1_wdata + (src1_col_stride * iter), 1,
-        src0_end - src0_start);
+#pragma omp parallel for collapse(1) num_threads(n_threads)
+    for (int ith_tmp = 0; ith_tmp < nth; ith_tmp++){
+      int64_t src0_start = (ith_tmp * ne01) / nth; // = 0
+      int64_t src0_end = ((ith_tmp + 1) * ne01) / nth; // ne01 = N
+      src0_start = (src0_start % NB_COLS)
+                    ? src0_start + NB_COLS - (src0_start % NB_COLS)
+                    : src0_start;
+      src0_end = (src0_end % NB_COLS) ? src0_end + NB_COLS - (src0_end % NB_COLS)
+                                      : src0_end;
+      // if (src0_start >= src0_end) {
+      //   return;
+      // }
+      if (ne11 > 3) {
+        gemm<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(
+          ne00, (float *)((char *)C) + src0_start, ne01,
+          (const char *)B + src0_start * nb01, (const char *)src1_wdata,
+          ne11 - ne11 % 4, src0_end - src0_start);
+      }
+      for (int iter = ne11 - ne11 % 4; iter < ne11; iter++) {
+        gemv<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(
+          ne00, (float *)((char *)C + (iter * nb1)) + src0_start, ne01,
+          (const char *)B + src0_start * nb01,
+          (const char *)src1_wdata + (src1_col_stride * iter), 1,
+          src0_end - src0_start);
+      }
     }
     // t2 = high_resolution_clock::now();
     // dt = duration_cast<nanoseconds>(t2 - t1);
     // std::cout << "compute kernel : " << dt.count()
     //         << " ns " << std::endl;
+
+    // #pragma omp parallel for collapse(1) num_threads(n_threads)
+    // for (int ith_tmp = 0; ith_tmp < nth; ith_tmp++){
+    //     // int64_t i_processed = 0; // Need for MM-leftover MV computation
+    //     int64_t seq_start = (ith_tmp * N) / nth; // = 0
+    //     int64_t seq_end = ((ith_tmp + 1) * N) / nth; // = N
+    //   if (ne11 > 3) {
+    //     gemm<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(
+    //       ne00, (float *)((char *)C) + seq_start, ne01,
+    //       (const char *)B + seq_start * 256 / sizeof(block_q4_K), (const char *)src1_wdata,
+    //       ne11 - ne11 % 4, src0_end - src0_start);
+    //   }
+    //   for (int iter = ne11 - ne11 % 4; iter < ne11; iter++) {
+    //     gemv<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(
+    //       ne00, (float *)((char *)C + (iter * nb1)) + src0_start, ne01,
+    //       (const char *)B + src0_start * nb01,
+    //       (const char *)src1_wdata + (src1_col_stride * iter), 1,
+    //       src0_end - src0_start);
+    //   }
+    // }
 
     delete[] wdata;
         printf("forward_mul_mat INFORMATION\n");
