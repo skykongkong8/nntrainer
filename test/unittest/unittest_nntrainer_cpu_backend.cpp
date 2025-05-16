@@ -133,6 +133,34 @@ template <typename T> static inline void print_matrix(T *src, int M, int N) {
   }
 }
 
+template <typename T>  inline void inspect_zero_matrix(T *src, int M, int N) {
+  for (int i = 0; i < M; ++i) {
+    for (int j = 0; j < N; ++j) {
+      T val = src[i * N + j];
+      if (std::fpclassify(val) == FP_ZERO){
+        std::cout << "ZERO VALUE AT : ( " << i << " , " << j << " ) " << std::endl;
+      }
+    }
+    std::cout << std::endl;
+  }
+}
+
+template <typename T> inline void print_last_column(T* src, int M, int N){
+  if (N > 10){
+    // std::cout << src[(M - 1) * (N - 2) + 0] << "\t" << src[(M - 1) * (N - 2) + 1] << "\t" << src[(M - 1) * (N - 2) + 2] << " ... " << "\t" << src[(M - 1) * (N - 2) + (N - 2)] << "\t" << src[(M - 1) * (N - 2) + (N - 1)] << std::endl; 
+    // std::cout << src[(M - 1) * (N - 1) + 0] << "\t" << src[(M - 1) * (N - 1) + 1] << "\t" << src[(M - 1) * (N - 1) + 2] << " ... " << "\t" << src[(M - 1) * (N - 1) + (N - 2)] << "\t" << src[(M - 1) * (N - 1) + (N - 1)] << std::endl; 
+      // std::cout << src[(M - 1) * (N - 2) + 0] << "\t" << src[(M - 1) * (N - 2) + 1] << " ... " << "\t" << src[(M - 1) * (N - 2) + (N - 2)] << "\t" << src[(M - 1) * (N - 2) + (N - 1)] << std::endl; 
+    std::cout << src[(M - 1) * (N - 1) + 0] << "\t" << src[(M - 1) * (N - 1) + 1] << " ... " << "\t";
+    for (int i = 20; i > 0; i--){
+      std::cout << src[(M - 1) * (N - 1) + (N - i)] << "\t";
+    }
+    std::cout << std::endl;
+  }
+  else {
+    std::cout << src[(M - 1) * (N - 1) + 0] << "\t" << src[(M - 1) * (N - 1) + 1] << "\t" << src[(M - 1) * (N - 1) + 1] << std::endl;
+  }
+}
+
 template <typename T>
 inline void print_matrix_partially(T *src, int M, int N, int partial_m = 5,
                                    int partial_n = 5, int partial_len = 5) {
@@ -416,9 +444,20 @@ static float test_gemm_q4_K(const uint32_t M, const uint32_t K,
   // Step4. Compare quantization error
   auto mean_squared_error = compute_mse(M, N, ref_dst, dst);
   
-  std::vector<float> dst_trans(M * N);
-  transpose_matrix_util<float>(dst.data(), dst_trans.data(), M, N);
-  auto mean_squared_error_transpose = compute_mse(M, N, ref_dst, dst_trans);
+  // Check if this is a col maj
+  // std::vector<float> dst_trans(M * N);
+  // transpose_matrix_util<float>(dst.data(), dst_trans.data(), M, N);
+  // auto mean_squared_error_transpose = compute_mse(M, N, ref_dst, dst_trans);
+
+  if (1){
+  // if (M % 256 != 0){
+    print_last_column(ref_dst.data(), M, N);
+    std::cout << std::endl;
+    print_last_column(dst.data(), M, N);
+  }
+  if (M%256 != 0){
+    // inspect_zero_matrix<float>(dst.data(), M, N);
+  }
 
   return mean_squared_error;
 }
@@ -484,15 +523,15 @@ TEST(nntrainer_cpu_backend_standalone, quant_GEMM_256x3072x3072) {
   ASSERT_LE(q4_k_mse, 1.0f);
 }
 
-// TEST(nntrainer_cpu_backend_standalone, quant_GEMM_256x3072x3072) {
-//   const unsigned int M = 256;
-//   const unsigned int K = 3072;
-//   const unsigned int N = 3072;
-//   float q0_k_mse, q4_k_mse;
-//   run_quant_test(M, K, N, q0_k_mse, q4_k_mse);
-//   // ASSERT_LE(q0_k_mse, 1.0f);
-//   ASSERT_LE(q4_k_mse, 1.0f);
-// }
+TEST(nntrainer_cpu_backend_standalone, quant_GEMM_457x3072x3072) {
+  const unsigned int M = 457;
+  const unsigned int K = 3072;
+  const unsigned int N = 3072;
+  float q0_k_mse, q4_k_mse;
+  run_quant_test(M, K, N, q0_k_mse, q4_k_mse);
+  // ASSERT_LE(q0_k_mse, 1.0f);
+  ASSERT_LE(q4_k_mse, 1.0f);
+}
 
 TEST(nntrainer_cpu_backend_standalone, quant_GEMM_512x3072x3072) {
   const unsigned int M = 512;
@@ -528,7 +567,7 @@ TEST(nntrainer_cpu_backend_standalone, quant_GEMM_1024x3072x3072) {
  */
 
 int main(int argc, char **argv) {
-  int result = -1;
+   int result = -1;
 #ifdef ENABLE_GGML
   try {
     testing::InitGoogleTest(&argc, argv);
