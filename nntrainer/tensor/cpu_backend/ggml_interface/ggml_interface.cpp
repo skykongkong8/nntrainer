@@ -193,9 +193,53 @@ void __ggml_q4_K_8x8_q8_K_GEMM(const unsigned int M, const unsigned int N,
                                 (void *)((char *)B + M_step_start * B_step),
                                 QA.data(), M, M_step_end - M_step_start);
     }
-
-    //  ::ggml_gemv_q4_K_8x8_q8_K(K, C, ldc, B, QA.data(), M, N);
   } else if (M % 256 != 0) {
+    unsigned int n_threads = 4;
+    unsigned int blocks_per_4_rows = (K + QK_K - 1) / QK_K;
+    unsigned int qa_4_rows_size = sizeof(block_q8_Kx4) * blocks_per_4_rows;
+    const size_t qa_row_size = (sizeof(block_q8_K) * K) / QK_K;
+    // unsigned int M4 = M - M % 4;
+    unsigned int M4 = ((M - M % 4) / 4);
+    // unsigned int M4 = ((M + 3) / 4);
+    int B_step = sizeof(block_q4_K) * (K / QK_K);
+
+    // unsigned int qa_size = qa_4_rows_size *((M + 3) / 4);
+    unsigned int qa_size = qa_4_rows_size * (((M >> 2) << 2) / 4 + 1);
+    // unsigned int qa_size = qa_4_rows_size * M4;
+    std::vector<char> QA = std::vector<char>(qa_size);
+
+    // Quantization of activations
+// #pragma omp parallel for collapse(1) num_threads(16)
+    for (unsigned int i = 0; i < M4; i++) {
+      ::ggml_quantize_mat_q8_K_4x8(A + 4 * i * K,
+                                   QA.data() + i * qa_4_rows_size, K);
+    }
+
+    for (unsigned int i = M4 * 4; i < M; i++) {
+      ::quantize_row_q8_K((float*)A + i * K, (QA.data() + (M4 * qa_4_rows_size) + (i - M4*4) * qa_row_size), K);
+      // ::quantize_row_q8_K(A, QA.data(), K)
+    }
+
+    // single thread
+    ggml_gemm_q4_K_8x8_q8_K(K, C, ldc, B, QA.data(), M4 * 4, N);
+    // ggml_gemm_q4_K_8x8_q8_K(K, C, ldc, B, QA.data(), M, N);
+    ::ggml_gemv_q4_K_8x8_q8_K(K, (float *)((C + (M4 * 4 * N))), N,
+                                (void *)((char *)B),
+                                QA.data() + (M4 * qa_4_rows_size), 1,  N);
+    // #pragma omp parallel for num_threads(n_threads)
+    // for (unsigned int thread_idx = 0; thread_idx < n_threads; ++thread_idx) {
+    //   unsigned int M_step_start = (thread_idx * N) / n_threads;     // = 0
+    //   unsigned int M_step_end = ((thread_idx + 1) * N) / n_threads; // ne01 = N
+      
+    //   M_step_start =
+    //     (M_step_start % 8) ? M_step_start + 8 - (M_step_start % 8) : M_step_start;
+    //   M_step_end = (M_step_end % 8) ? M_step_end + 8 - (M_step_end % 8) : M_step_end;
+
+    //   ::ggml_gemv_q4_K_8x8_q8_K(K, (float *)((C + (M4 * 4 * N)) + M_step_start), N,
+    //                             (void *)((char *)B + M_step_start * B_step),
+    //                             QA.data(), 1, M_step_end - M_step_start);
+    // }
+#if 0    
     for (unsigned int pb = 0; pb < M; ++pb){
       int n_threads = 4;
       if (K < 1592 && N < 1592) n_threads = 1;
@@ -220,6 +264,7 @@ void __ggml_q4_K_8x8_q8_K_GEMM(const unsigned int M, const unsigned int N,
                                   QA.data(), 1, M_step_end - M_step_start);
       }
     }
+#endif
   }
   else { // GEMM
     unsigned int blocks_per_4_rows = (K + QK_K - 1) / QK_K;
