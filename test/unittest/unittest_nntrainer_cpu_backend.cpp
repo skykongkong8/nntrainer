@@ -533,6 +533,39 @@ TEST(nntrainer_cpu_backend_standalone, quant_GEMM_457x3072x3072) {
   ASSERT_LE(q4_k_mse, 1.0f);
 }
 
+// fail
+TEST(nntrainer_cpu_backend_standalone, quant_GEMM_458x3072x3072) {
+  const unsigned int M = 458;
+  const unsigned int K = 3072;
+  const unsigned int N = 3072;
+  float q0_k_mse, q4_k_mse;
+  run_quant_test(M, K, N, q0_k_mse, q4_k_mse);
+  // ASSERT_LE(q0_k_mse, 1.0f);
+  ASSERT_LE(q4_k_mse, 1.0f);
+}
+
+// fail
+TEST(nntrainer_cpu_backend_standalone, quant_GEMM_459x3072x3072) {
+  const unsigned int M = 459;
+  const unsigned int K = 3072;
+  const unsigned int N = 3072;
+  float q0_k_mse, q4_k_mse;
+  run_quant_test(M, K, N, q0_k_mse, q4_k_mse);
+  // ASSERT_LE(q0_k_mse, 1.0f);
+  ASSERT_LE(q4_k_mse, 1.0f);
+}
+
+// success
+TEST(nntrainer_cpu_backend_standalone, quant_GEMM_460x3072x3072) {
+  const unsigned int M = 460;
+  const unsigned int K = 3072;
+  const unsigned int N = 3072;
+  float q0_k_mse, q4_k_mse;
+  run_quant_test(M, K, N, q0_k_mse, q4_k_mse);
+  // ASSERT_LE(q0_k_mse, 1.0f);
+  ASSERT_LE(q4_k_mse, 1.0f);
+}
+
 TEST(nntrainer_cpu_backend_standalone, quant_GEMM_512x3072x3072) {
   const unsigned int M = 512;
   const unsigned int K = 3072;
