@@ -193,7 +193,7 @@ void __ggml_q4_K_8x8_q8_K_GEMM(const unsigned int M, const unsigned int N,
                                 (void *)((char *)B + M_step_start * B_step),
                                 QA.data(), M, M_step_end - M_step_start);
     }
-  } else if (M % 256 != 0) {
+  } else if (M % 4 != 0) {
     unsigned int n_threads = 4;
     unsigned int blocks_per_4_rows = (K + QK_K - 1) / QK_K;
     unsigned int qa_4_rows_size = sizeof(block_q8_Kx4) * blocks_per_4_rows;
@@ -233,13 +233,11 @@ void __ggml_q4_K_8x8_q8_K_GEMM(const unsigned int M, const unsigned int N,
 
       ::ggml_gemm_q4_K_8x8_q8_K(K, (float*)(C + src0_start), ldc, (void *)((char *)B + src0_start * B_step),
                                 QA.data(), M4 * 4, src0_end - src0_start);
-
-      ///@experiment : if, col-maj, transpose inputs beforehand and do it again?
     }
     for (unsigned int pb = M4 * 4; pb < M; pb++) {
       ::ggml_gemv_q4_K_8x8_q8_K(K, (float *)((C + ((pb - M4 * 4) * N) + (M4 * 4 * N))), N,
                                   (void *)((char *)B),
-                                  QA.data() + (M4 * qa_4_rows_size), 1,  N);
+                                  QA.data() + (M4 * qa_4_rows_size) + (pb - M4*4) * qa_row_size, 1,  N);
     }
     // #pragma omp parallel for num_threads(n_threads)
     // for (unsigned int thread_idx = 0; thread_idx < n_threads; ++thread_idx) {
