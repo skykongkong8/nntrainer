@@ -103,6 +103,24 @@ void __ggml_q4_0_8x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
                                const unsigned int lda, const void *B,
                                const unsigned int ldb, float *C,
                                const unsigned int ldc);
+/**
+ * @brief A(M, K) * W.T(N, K) = (M, N)
+ *
+ * @param M as descripted above
+ * @param N as descripted above
+ * @param K as descripted above
+ * @param A Activation
+ * @param lda leading dimension of A
+ * @param B offline quantized and packed q4_0x8 Weight
+ * @param ldb leading dimension of B
+ * @param C dst matrix
+ * @param ldc leading dimension of C
+ */
+void __ggml_q4_0_4x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
+                               const unsigned int K, const float *A,
+                               const unsigned int lda, const void *B,
+                               const unsigned int ldb, float *C,
+                               const unsigned int ldc);
 
 /**
  * @brief A(M, K) * W.T(N, K) = (M, N)

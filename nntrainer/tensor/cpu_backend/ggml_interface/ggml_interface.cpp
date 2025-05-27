@@ -120,7 +120,10 @@ void __ggml_q4_0_8x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
       M_step_end =
         (M_step_end % 8) ? M_step_end + 8 - (M_step_end % 8) : M_step_end;
 
-      ::ggml_gemv_q4_0_8x8_q8_0(K, (float *)((C) + M_step_start), N,
+      // ::ggml_gemv_q4_0_8x8_q8_0(K, (float *)((C) + M_step_start), N,
+      //                           (void *)((char *)B + M_step_start * B_step),
+      //                           QA.data(), M, M_step_end - M_step_start);
+      ::ggml_gemv_q4_0_4x8_q8_0(K, (float *)((C) + M_step_start), N,
                                 (void *)((char *)B + M_step_start * B_step),
                                 QA.data(), M, M_step_end - M_step_start);
     }
@@ -146,7 +149,9 @@ void __ggml_q4_0_8x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
     int step_B = blocks_per_4_rows * sizeof(block_q4_0) * delta;
 #pragma omp parallel for collapse(1) num_threads(16)
     for (int i = 0; i < step_N; i++) {
-      ::ggml_gemm_q4_0_8x8_q8_0(K, C + i * step_C, ldc, (char *)B + i * step_B,
+      // ::ggml_gemm_q4_0_8x8_q8_0(K, C + i * step_C, ldc, (char *)B + i * step_B,
+      //                           QA.data(), M, delta);
+      ::ggml_gemm_q4_0_4x8_q8_0(K, C + i * step_C, ldc, (char *)B + i * step_B,
                                 QA.data(), M, delta);
     }
     /**
@@ -158,6 +163,67 @@ void __ggml_q4_0_8x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
      */
   }
 }
+
+void __ggml_q4_0_4x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
+                               const unsigned int K, const float *A,
+                               const unsigned int lda, const void *B,
+                               const unsigned int ldb, float *C,
+                               const unsigned int ldc) {
+  // auto &bspool = ThreadPoolManager::getInstance();
+  int NB_COLS = 4;
+  if (M == 1) { // GEMV
+    int n_threads = 4;
+    unsigned int B_step = sizeof(block_q4_0) * (K / QK4_0);
+    unsigned int blocks_per_row = (K + QK8_0 - 1) / QK8_0;
+    unsigned int qa_size = sizeof(block_q8_0) * blocks_per_row;
+    std::vector<char> QA = std::vector<char>(qa_size);
+    ::quantize_row_q8_0(A, QA.data(), K);
+
+#pragma omp parallel for num_threads(n_threads)
+    for (int thread_idx = 0; thread_idx < n_threads; ++thread_idx) {
+      unsigned int M_step_start = (thread_idx * N) / n_threads;     // = 0
+      unsigned int M_step_end = ((thread_idx + 1) * N) / n_threads; // ne01 = N
+
+      M_step_start = (M_step_start % NB_COLS) ? M_step_start + NB_COLS - (M_step_start % NB_COLS)
+                                        : M_step_start;
+      M_step_end =
+        (M_step_end % NB_COLS) ? M_step_end + NB_COLS - (M_step_end % NB_COLS) : M_step_end;
+
+      // ::ggml_gemv_q4_0_8x8_q8_0(K, (float *)((C) + M_step_start), N,
+      //                           (void *)((char *)B + M_step_start * B_step),
+      //                           QA.data(), M, M_step_end - M_step_start);
+      ::ggml_gemv_q4_0_4x8_q8_0(K, (float *)((C) + M_step_start), N,
+                                (void *)((char *)B + M_step_start * B_step),
+                                QA.data(), M, M_step_end - M_step_start);
+    }
+  } else { // GEMM
+    unsigned int blocks_per_4_rows = (K + QK8_0 - 1) / QK8_0;
+    unsigned int qa_4_rows_size = sizeof(block_q8_0x4) * blocks_per_4_rows;
+    unsigned int M4 = ((M + 3) / 4);
+
+    unsigned int qa_size = qa_4_rows_size * M4;
+    std::vector<char> QA = std::vector<char>(qa_size);
+
+    // Quantization of activations
+    /// @note Heuristic inspection conducted that applying multithreading on
+    /// run-time quantization hurts model latency
+    // #pragma omp parallel for collapse(1) num_threads(16)
+    for (int i = 0; i < static_cast<int>(M4); i++) {
+      ::ggml_quantize_mat_q8_0_4x8(A + 4 * i * K,
+                                   QA.data() + i * qa_4_rows_size, K);
+    }
+    int delta = 8;
+    int step_N = N / delta;
+    int step_C = delta;
+    int step_B = blocks_per_4_rows * sizeof(block_q4_0) * delta;
+#pragma omp parallel for collapse(1) num_threads(16)
+    for (int i = 0; i < step_N; i++) {
+      ::ggml_gemm_q4_0_4x8_q8_0(K, C + i * step_C, ldc, (char *)B + i * step_B,
+                                QA.data(), M, delta);
+    }
+  }
+}
+
 
 void __ggml_q4_K_8x8_q8_K_GEMM(const unsigned int M, const unsigned int N,
                                const unsigned int K, const float *A,
