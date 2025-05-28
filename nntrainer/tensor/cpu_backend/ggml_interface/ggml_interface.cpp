@@ -280,13 +280,29 @@ float __ggml_vec_dot_q6_K(const unsigned int K,
   return result;
 }
 
+// void __ggml_gemm_q6_K(const unsigned int M, const unsigned int N,
+//                       const unsigned int K, const float *A,
+//                       const unsigned int lda, const void *B,
+//                       const unsigned int ldb, float *C,
+//                       const unsigned int ldc) {
+//   int num_blocks_per_row = (K + QK_K - 1) / QK_K;
+// #pragma omp parallel for collapse(2)
+//   for (unsigned int i = 0; i < M; i++) {
+//     for (unsigned int j = 0; j < N; j++) {
+//       C[i * ldc + j] = __ggml_vec_dot_q6_K(
+//         K, (void *)((char *)B + (sizeof(block_q6_K) * num_blocks_per_row) * j),
+//         A + i * K);
+//     }
+//   }
+//   return;
+// }
+
 void __ggml_gemm_q6_K(const unsigned int M, const unsigned int N,
                       const unsigned int K, const float *A,
                       const unsigned int lda, const void *B,
                       const unsigned int ldb, float *C,
                       const unsigned int ldc) {
   int num_blocks_per_row = (K + QK_K - 1) / QK_K;
-#pragma omp parallel for collapse(2)
   for (unsigned int i = 0; i < M; i++) {
     for (unsigned int j = 0; j < N; j++) {
       C[i * ldc + j] = __ggml_vec_dot_q6_K(
@@ -296,6 +312,73 @@ void __ggml_gemm_q6_K(const unsigned int M, const unsigned int N,
   }
   return;
 }
+
+void __ggml_gemm_q6_K_multithreading(const unsigned int M, const unsigned int N,
+                      const unsigned int K, const float *A,
+                      const unsigned int lda, const void *B,
+                      const unsigned int ldb, float *C,
+                      const unsigned int ldc) {
+  int thread_num = std::thread::hardware_concurrency();
+  #pragma omp parallel for num_threads(thread_num)
+  for (int pb = 0; pb < thread_num; ++pb){
+    __ggml_gemm_q6_K(M, N, K, A, lda, B, ldb, C, ldc);
+  }
+}
+
+/*
+You are an C++ openMP multithreading expert. Study further about openMP applying.
+Now, my WIP target function is __ggml_gemm_q6_K_multithreading():
+```C++
+void __ggml_gemm_q6_K(const unsigned int M, const unsigned int N,
+                      const unsigned int K, const float *A,
+                      const unsigned int lda, const void *B,
+                      const unsigned int ldb, float *C,
+                      const unsigned int ldc) {
+  int num_blocks_per_row = (K + QK_K - 1) / QK_K;
+  for (unsigned int i = 0; i < M; i++) {
+    for (unsigned int j = 0; j < N; j++) {
+      C[i * ldc + j] = __ggml_vec_dot_q6_K(
+        K, (void *)((char *)B + (sizeof(block_q6_K) * num_blocks_per_row) * j),
+        A + i * K);
+    }
+  }
+  return;
+}
+
+void __ggml_gemm_q6_K_multithreading(const unsigned int M, const unsigned int N,
+                      const unsigned int K, const float *A,
+                      const unsigned int lda, const void *B,
+                      const unsigned int ldb, float *C,
+                      const unsigned int ldc) {
+  int thread_num = std::thread::hardware_concurrency();
+  #pragma omp parallel for num_threads(thread_num)
+  for (int pb = 0; pb < thread_num; ++pb){
+    __ggml_gemm_q6_K(M, N, K, A, lda, B, ldb, C, ldc);
+  }
+}
+```
+My reference code is like below:
+```C++
+#pragma omp parallel for collapse(1) num_threads(thread_num)
+    for (int i = 0; i < thread_num; i++) {
+      unsigned int src0_start = (i * N) / thread_num;
+      unsigned int src0_end = ((i + 1) * N) / thread_num;
+
+      src0_start =
+        (src0_start % 8) ? src0_start + 8 - (src0_start % 8) : src0_start;
+      src0_end = (src0_end % 8) ? src0_end + 8 - (src0_end % 8) : src0_end;
+
+      ::ggml_gemm_q4_K_8x8_q8_K(K, (float *)(C + src0_start), ldc,
+                                (void *)((char *)B + src0_start * B_step),
+                                QA.data(), M, src0_end - src0_start);
+    }
+``` 
+
+From the reference code, you can see that there is a loop with thread_num, and openMP will automatically select each thread to work for each loop iteration.
+In order to fix my WIP function to work like the way of reference function, I should compute a designated indices w.r.t. thread_num, or pb looping variable, and manage the address of the matrix that I want to compute for this loop.
+One difference is that for reference code, I did not have to fix M,K,N value which is matrix size, but for my current WIP function, I might fix M,K,N value since the working logic of each gemm function differs. As you can see, for reference function, gemm function computes total output gemm area, while the WIP function uses dot operation to fill the total gemm area. Thus, putting the same M,K,N value for it's function parameter might cause redundant computation workload.
+Bearing in this mind, fix the __ggml_gemm_q6_K_multithreading to work like I expect.
+*/
 
 void __ggml_dequantize_row_q4_K(const void *x_raw, float *y, int64_t k) {
   ::dequantize_row_q4_K((const block_q4_K *)x_raw, y, k);
