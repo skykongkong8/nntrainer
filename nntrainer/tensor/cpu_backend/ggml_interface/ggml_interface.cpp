@@ -189,9 +189,6 @@ void __ggml_q4_0_4x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
       M_step_end =
         (M_step_end % NB_COLS) ? M_step_end + NB_COLS - (M_step_end % NB_COLS) : M_step_end;
 
-      // ::ggml_gemv_q4_0_8x8_q8_0(K, (float *)((C) + M_step_start), N,
-      //                           (void *)((char *)B + M_step_start * B_step),
-      //                           QA.data(), M, M_step_end - M_step_start);
       ::ggml_gemv_q4_0_4x8_q8_0(K, (float *)((C) + M_step_start), N,
                                 (void *)((char *)B + M_step_start * B_step),
                                 QA.data(), M, M_step_end - M_step_start);
@@ -212,7 +209,7 @@ void __ggml_q4_0_4x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
       ::ggml_quantize_mat_q8_0_4x8(A + 4 * i * K,
                                    QA.data() + i * qa_4_rows_size, K);
     }
-    int delta = 8;
+    int delta = 4;
     int step_N = N / delta;
     int step_C = delta;
     int step_B = blocks_per_4_rows * sizeof(block_q4_0) * delta;
@@ -452,6 +449,11 @@ void __ggml_dequantize_row_q6_K(const void *x, float *y, int64_t k) {
 
 void __ggml_dequantize_row_q8_K(const void *x, float *y, int64_t k) {
   ::dequantize_row_q8_K((const block_q8_K *)x, y, k);
+}
+
+void __ggml_repack_q4_0_to_q4_0_4(void *W, void *repacked_W, size_t data_size,
+                                  const unsigned int M, const unsigned int N) {
+  ::ggml_repack_q4_0_to_q4_0_4_bl(W, 8, repacked_W, data_size, M, N);
 }
 
 void __ggml_repack_q4_0_to_q4_0_8(void *W, void *repacked_W, size_t data_size,

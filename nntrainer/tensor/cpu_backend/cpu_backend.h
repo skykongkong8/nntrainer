@@ -716,5 +716,17 @@ extern void dequantize_row_q6_K(const void *x, float *y, int64_t k);
  * @param k number of elements in x
  */
 extern void dequantize_row_q8_K(const void *x, float *y, int64_t k);
+
+/**
+ * @brief
+ *
+ * @param W
+ * @param repacked_W
+ * @param data_size
+ * @param M
+ * @param N
+ */
+extern void repack_q4_0(void *W, void *repacked_W, size_t data_size,
+                        const unsigned int M, const unsigned int N);
 #endif
 #endif

@@ -874,8 +874,8 @@ void dequantize_row_q8_K(const void *x, float *y, int64_t k);
  * @param M number of rows
  * @param N number of columns
  */
-void repack_q4_0_to_q4_0_8(void *W, void *repacked_W, size_t data_size,
-                           const unsigned int M, const unsigned int N);
+void repack_q4_0(void *W, void *repacked_W, size_t data_size,
+                 const unsigned int M, const unsigned int N);
 
 /**
  * @brief repack q4K to q4Kx8
