@@ -17,6 +17,7 @@
 #include "ggml-cpu.h"
 #include "ggml-quants.h"
 #include "ggml.h"
+#include <ggml.h>
 
 #include <bs_thread_pool_manager.hpp>
 #include <ggml_interface.h>
@@ -75,11 +76,6 @@ void __ggml_init() {
 size_t __ggml_quantize_q4_0(const float *src, void *dst, int64_t nrow,
                             int64_t n_per_row, const float *quant_weights) {
   return ::quantize_q4_0(src, dst, nrow, n_per_row, quant_weights);
-}
-
-size_t __ggml_quantize_q4_1(const float *src, void *dst, int64_t nrow,
-                            int64_t n_per_row, const float *quant_weights) {
-  return ::quantize_q4_1(src, dst, nrow, n_per_row, quant_weights);
 }
 
 size_t __ggml_quantize_q4_K(const float *src, void *dst, int64_t nrow,
@@ -438,17 +434,6 @@ float __ggml_vec_dot_q6_K_q8_K(const unsigned int K,
   return result;
 }
 
-float __ggml_vec_dot_q6_K_f32(const unsigned int K, const void *v_q6_K,
-                              const float *f) {
-  // Quantization of activations
-  int blocks_per_row = (K + QK_K - 1) / QK_K;
-  int q8_K_activation_size = sizeof(block_q8_K) * blocks_per_row;
-  std::vector<char> v_q8_activation = std::vector<char>(q8_K_activation_size);
-  ::quantize_row_q8_K(f, v_q8_activation.data(), K);
-
-  return __ggml_vec_dot_q6_K_q8_K(K, v_q6_K, v_q8_activation.data());
-}
-
 float __ggml_vec_dot_q6_K(const unsigned int K,
                           const void *GGML_RESTRICT v_q6_K,
                           const float *GGML_RESTRICT activation) {
@@ -471,53 +456,16 @@ void __ggml_gemm_q6_K(const unsigned int M, const unsigned int N,
                       const unsigned int lda, const void *B,
                       const unsigned int ldb, float *C,
                       const unsigned int ldc) {
-  static constexpr const int32_t thread_count = 16;
-
-  static constexpr const int32_t bs = 1;  // unused in ::ggml_vec_dot_q6_K_q8_K
-  static constexpr const int32_t bx = 1;  // unused in ::ggml_vec_dot_q6_K_q8_K
-  static constexpr const int32_t by = 1;  // unused in ::ggml_vec_dot_q6_K_q8_K
-  static constexpr const int32_t nrc = 1; // unused in ::ggml_vec_dot_q6_K_q8_K
-
-  const int32_t blocks_per_row = (K + QK_K - 1) / QK_K;
-  const int32_t A_row_size = sizeof(block_q8_K) * blocks_per_row;
-  const int32_t B_row_size = sizeof(block_q6_K) * blocks_per_row;
-
-  // GEMV
-  if (M == 1) {
-    std::vector<char> quantized_A(A_row_size);
-    ::quantize_row_q8_K(A, quantized_A.data(), K);
-
-    const void *const quantized_A_data = quantized_A.data();
-
-#pragma omp parallel for collapse(1) num_threads(thread_count)
-    for (int32_t thread_job = 0; thread_job < static_cast<int>(N);
-         thread_job++) {
-      const int32_t B_row_data_offset = B_row_size * thread_job;
-
-      const void *const B_data = (void *)((char *)B + B_row_data_offset);
-
-      ::ggml_vec_dot_q6_K_q8_K(K, &C[thread_job], bs, B_data, bx,
-                               quantized_A_data, by, nrc);
-    }
-  } else { // GEMM
-    const int32_t A_total_size = A_row_size * M;
-    std::vector<char> quantized_A(A_total_size);
-
-    for (int32_t thread_job = 0; thread_job < static_cast<int>(M);
-         thread_job++) {
-      const int32_t A_row_data_offset = A_row_size * thread_job;
-      void *A_data = (void *)((char *)quantized_A.data() + A_row_data_offset);
-      ::quantize_row_q8_K(A + thread_job * K, A_data, K);
-
-      for (uint32_t j = 0; j < N; j++) {
-        const int32_t B_row_data_offset = B_row_size * j;
-        const void *const B_data = (void *)((char *)B + B_row_data_offset);
-
-        ::ggml_vec_dot_q6_K_q8_K(K, &C[thread_job * ldc + j], bs, B_data, bx,
-                                 A_data, by, nrc);
-      }
+  int num_blocks_per_row = (K + QK_K - 1) / QK_K;
+#pragma omp parallel for collapse(2)
+  for (int i = 0; i < static_cast<int>(M); i++) {
+    for (int j = 0; j < static_cast<int>(N); j++) {
+      C[i * ldc + j] = __ggml_vec_dot_q6_K(
+        K, (void *)((char *)B + (sizeof(block_q6_K) * num_blocks_per_row) * j),
+        A + i * K);
     }
   }
+  return;
 }
 
 void __ggml_dequantize_row_q4_K(const void *x_raw, float *y, int64_t k) {
