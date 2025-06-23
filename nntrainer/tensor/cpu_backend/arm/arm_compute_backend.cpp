@@ -371,4 +371,13 @@ void repack_q4_K_to_q4_K_8(void *W, void *repacked_W, size_t data_size,
   __fallback_repack_q4_K_to_q4_K_8(W, repacked_W, data_size, M, N);
 #endif
 }
+
+void repack_q4_0_to_q4_0_8(void *W, void *repacked_W, size_t data_size,
+                           const unsigned int M, const unsigned int N) {
+#ifdef ENABLE_GGML
+  __ggml_repack_q4_0_to_q4_0_8(W, repacked_W, data_size, M, N);
+#else
+  __fallback_repack_q4_0_to_q4_0_8(W, repacked_W, data_size, M, N);
+#endif
+}
 } /* namespace nntrainer */

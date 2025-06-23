@@ -77,6 +77,11 @@ size_t __ggml_quantize_q4_0(const float *src, void *dst, int64_t nrow,
   return ::quantize_q4_0(src, dst, nrow, n_per_row, quant_weights);
 }
 
+size_t __ggml_quantize_q4_1(const float *src, void *dst, int64_t nrow,
+                            int64_t n_per_row, const float *quant_weights) {
+  return ::quantize_q4_1(src, dst, nrow, n_per_row, quant_weights);
+}
+
 size_t __ggml_quantize_q4_K(const float *src, void *dst, int64_t nrow,
                             int64_t n_per_row, const float *quant_weights) {
   return ::quantize_q4_K(src, dst, nrow, n_per_row, quant_weights);

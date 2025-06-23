@@ -41,6 +41,20 @@ size_t __ggml_quantize_q4_0(const float *src, void *dst, int64_t nrow,
                             int64_t n_per_row, const float *quant_weights);
 
 /**
+ * @brief Quantize float to q4_1 Quantization format
+ *
+ * @param src input src to be quantized
+ * @param dst output destination for quantized data
+ * @param nrow number of row
+ * @param n_per_row number of elements per row
+ * @param quant_weights additional information for quantization. Currently in no
+ * use.
+ * @return size_t total size of quantized data
+ */
+size_t __ggml_quantize_q4_1(const float *src, void *dst, int64_t nrow,
+                            int64_t n_per_row, const float *quant_weights);
+
+/**
  * @brief Quantize float to q4_K Quantization format
  *
  * @param src input src to be quantized
