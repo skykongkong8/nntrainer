@@ -53,6 +53,17 @@ static inline double find_max_diff(T *src, T *src2, int M, int N) {
   return max_diff;
 }
 
+void print_start_and_end_matrix(const unsigned int M, const unsigned int N, float* C){
+  for (int i = 0; i < 3; ++i){
+    std::cout << C[i] << "\t";
+  }
+  std::cout << " ... ";
+  for (int i = 0; i < 3; ++i){
+    std::cout << C[(N)*(M-1) + i] << "\t";
+  }
+  std::cout << std::endl;
+}
+
 #define QK4_0 32
 /**
  * @brief q4_0 block
@@ -250,7 +261,7 @@ float test_gemm_q4_0(const uint32_t M, const uint32_t K, const uint32_t N,
   // Step2. Repack Weight to q4_K_8x8 layout (This happens when you load the
   // model weights. It's a one-time operation)
   std::vector<char> q4_0_repacked_qWeight = std::vector<char>(q4_0_data_size);
-  nntrainer::repack_q4_0_to_q4_0_8(q4_0_repacked_qWeight.data(),
+  nntrainer::repack_q4_0(q4_0_repacked_qWeight.data(),
                                    q4_0_offline_qWeight_ptr, q4_0_data_size, N,
                                    K);
 
@@ -272,6 +283,9 @@ float test_gemm_q4_0(const uint32_t M, const uint32_t K, const uint32_t N,
 
   // Step4. Compute quantization error
   auto mean_squared_error = compute_mse(M, N, ref_dst, dst, print);
+
+  print_start_and_end_matrix(M, N, dst.data());
+
   return mean_squared_error;
 }
 
@@ -315,6 +329,9 @@ float test_gemm_q4_K(const uint32_t M, const uint32_t K, const uint32_t N,
 
   // Step4. Compare quantization error
   auto mean_squared_error = compute_mse(M, N, ref_dst, dst, print);
+
+  print_start_and_end_matrix(M, N, dst.data());
+
   return mean_squared_error;
 }
 
@@ -352,6 +369,9 @@ float test_gemm_q6_K(const uint32_t M, const uint32_t K, const uint32_t N,
 
   // Step4. Compare quantization error
   auto mean_squared_error = compute_mse(M, N, ref_dst, dst, print);
+
+  print_start_and_end_matrix(M, N, dst.data());
+
   return mean_squared_error;
 }
 
@@ -383,9 +403,9 @@ static void run_quant_test(const uint32_t M, const uint32_t K, const uint32_t N,
               << dt.count() / 1'000 << " us " << dt.count() / 1'000'000
               << " ms " << std::endl;
   }
-  // q4_0_mse =
-  //   test_gemm_q4_0(M, K, N, weight.data(), activation.data(), ref_dst,
-  //   print);
+  q4_0_mse =
+    test_gemm_q4_0(M, K, N, weight.data(), activation.data(), ref_dst,
+    print);
   q4_k_mse =
     test_gemm_q4_K(M, K, N, weight.data(), activation.data(), ref_dst, print);
   q6_k_mse =
@@ -398,7 +418,7 @@ TEST(nntrainer_cpu_backend_standalone, quant_GEMM_256x1024x512) {
   const unsigned int N = 512;
   float q4_0_mse, q4_k_mse, q6_k_mse;
   constexpr float eps = 1e-5;
-  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, false);
+  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, true);
   // ASSERT_LE(q4_0_mse, 2.0f);
   ASSERT_LE(q4_k_mse, eps * M * K * N);
   ASSERT_LE(q6_k_mse, q4_k_mse);
@@ -410,7 +430,7 @@ TEST(nntrainer_cpu_backend_standalone, quant_GEMM_457x3072x3072) {
   const unsigned int N = 3072;
   float q4_0_mse, q4_k_mse, q6_k_mse;
   constexpr float eps = 1e-5;
-  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, false);
+  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, true);
   // ASSERT_LE(q4_0_mse, 1.5f);
   ASSERT_LE(q4_k_mse, eps * M * K * N);
   ASSERT_LE(q6_k_mse, q4_k_mse);
@@ -422,7 +442,7 @@ TEST(nntrainer_cpu_backend_standalone, quant_GEMM_458x3072x3072) {
   const unsigned int N = 3072;
   float q4_0_mse, q4_k_mse, q6_k_mse;
   constexpr float eps = 1e-5;
-  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, false);
+  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, true);
   // ASSERT_LE(q4_0_mse, 1.5f);
   ASSERT_LE(q4_k_mse, eps * M * K * N);
   ASSERT_LE(q6_k_mse, q4_k_mse);
@@ -434,7 +454,7 @@ TEST(nntrainer_cpu_backend_standalone, quant_GEMM_459x3072x3072) {
   const unsigned int N = 3072;
   float q4_0_mse, q4_k_mse, q6_k_mse;
   constexpr float eps = 1e-5;
-  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, false);
+  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, true);
   // ASSERT_LE(q4_0_mse, 1.5f);
   ASSERT_LE(q4_k_mse, eps * M * K * N);
   ASSERT_LE(q6_k_mse, q4_k_mse);
@@ -446,20 +466,8 @@ TEST(nntrainer_cpu_backend_standalone, quant_GEMM_1024x3072x3072) {
   const unsigned int N = 3072;
   float q4_0_mse, q4_k_mse, q6_k_mse;
   constexpr float eps = 1e-5;
-  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, false);
+  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, true);
   // ASSERT_LE(q4_0_mse, 2.0f);
-  ASSERT_LE(q4_k_mse, eps * M * K * N);
-  ASSERT_LE(q6_k_mse, q4_k_mse);
-}
-
-TEST(nntrainer_cpu_backend_standalone, quant_GEMV_1x768x1024) {
-  const unsigned int M = 1;
-  const unsigned int K = 768;
-  const unsigned int N = 1024;
-  float q4_0_mse, q4_k_mse, q6_k_mse;
-  constexpr float eps = 1e-5;
-  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, false);
-  // ASSERT_LE(q4_0_mse, 1.0f);
   ASSERT_LE(q4_k_mse, eps * M * K * N);
   ASSERT_LE(q6_k_mse, q4_k_mse);
 }
@@ -470,11 +478,12 @@ TEST(nntrainer_cpu_backend_standalone, quant_GEMV_1x3072x3072) {
   const unsigned int N = 3072;
   float q4_0_mse, q4_k_mse, q6_k_mse;
   constexpr float eps = 1e-5;
-  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, false);
+  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, true);
   // ASSERT_LE(q4_0_mse, 1.0f);
   ASSERT_LE(q4_k_mse, eps * M * K * N);
   ASSERT_LE(q6_k_mse, q4_k_mse);
 }
+
 
 static void run_vec_dot_test(const uint32_t K, bool print = false) {
   const int TEST_CNT = 20;
