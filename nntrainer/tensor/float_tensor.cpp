@@ -757,6 +757,7 @@ Tensor &FloatTensor::dotFloat(Tensor const &input, Tensor &output, bool trans,
     sgemm((unsigned int)dim.getStorageOrder(), trans, trans_in, M, N, K, alpha,
           data, lda, mdata, ldb, beta, rdata, ldc);
   }
+  std::cout << "operation type : SGEMM" << "  | " << M << " " << K << " " << N << std::endl;
 
   return output;
 }
@@ -774,15 +775,21 @@ Tensor &FloatTensor::dotQnK(Tensor const &input, Tensor &output, bool trans,
 
   switch (dtype) {
   case Tdatatype::Q4_K:
+
     M = getDim().height();
     K = getDim().width();
     N = input.getDim().width();
+  std::cout << "operation type : Q4_K" << "  | " << M << " " << K << " " << N << std::endl;
+
     gemm_q4_K(M, N, K, data, K, (void *)mdata, N, rdata, N);
     break;
   case Tdatatype::Q6_K:
+
     M = getDim().height();
     K = getDim().width();
     N = input.getDim().height();
+  std::cout << "operation type : Q6_K" << "  | " << M << " " << K << " " << N << std::endl;
+
     gemm_q6_K(M, N, K, data, K, (void *)mdata, N, rdata, N);
     break;
   default:

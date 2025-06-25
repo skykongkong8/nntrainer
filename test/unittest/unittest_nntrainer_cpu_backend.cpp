@@ -702,6 +702,54 @@ TEST(nntrainer_cpu_backend_standalone, ele_add_3072_istr_16_ostrid_16) {
   run_ele_add_test(N, alpha, beta, i_stride, o_stride);
 }
 
+TEST(nntrainer_cpu_backend_standalone, quant_GEMM_723x1536x256) {
+  const unsigned int M = 723;
+  const unsigned int K = 1536;
+  const unsigned int N = 256;
+  float q4_0_mse, q4_k_mse, q6_k_mse;
+  constexpr float eps = 1e-5;
+  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, true);
+  // ASSERT_LE(q4_0_mse, 2.0f);
+  ASSERT_LE(q4_k_mse, eps * M * K * N);
+  ASSERT_LE(q6_k_mse, q4_k_mse);
+}
+
+TEST(nntrainer_cpu_backend_standalone, quant_GEMM_723x1536x1536) {
+  const unsigned int M = 723;
+  const unsigned int K = 1536;
+  const unsigned int N = 1536;
+  float q4_0_mse, q4_k_mse, q6_k_mse;
+  constexpr float eps = 1e-5;
+  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, true);
+  // ASSERT_LE(q4_0_mse, 2.0f);
+  ASSERT_LE(q4_k_mse, eps * M * K * N);
+  ASSERT_LE(q6_k_mse, q4_k_mse);
+}
+
+TEST(nntrainer_cpu_backend_standalone, quant_GEMM_723x1536x6144) {
+  const unsigned int M = 723;
+  const unsigned int K = 1536;
+  const unsigned int N = 6144;
+  float q4_0_mse, q4_k_mse, q6_k_mse;
+  constexpr float eps = 1e-5;
+  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, true);
+  // ASSERT_LE(q4_0_mse, 2.0f);
+  ASSERT_LE(q4_k_mse, eps * M * K * N);
+  ASSERT_LE(q6_k_mse, q4_k_mse);
+}
+
+TEST(nntrainer_cpu_backend_standalone, quant_GEMM_723x6144x1536) {
+  const unsigned int M = 723;
+  const unsigned int K = 6144;
+  const unsigned int N = 1536;
+  float q4_0_mse, q4_k_mse, q6_k_mse;
+  constexpr float eps = 1e-5;
+  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, true);
+  // ASSERT_LE(q4_0_mse, 2.0f);
+  ASSERT_LE(q4_k_mse, eps * M * K * N);
+  ASSERT_LE(q6_k_mse, q4_k_mse);
+}
+
 int main(int argc, char **argv) {
   int result = -1;
 

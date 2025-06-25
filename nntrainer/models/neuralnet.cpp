@@ -30,6 +30,14 @@
 #include <future>
 #include <iomanip>
 #include <sstream>
+#include <iostream>
+#include <chrono>
+using std::chrono::nanoseconds; // or microseconds
+using std::chrono::microseconds; // or microseconds
+using std::chrono::milliseconds; // or microseconds
+using std::chrono::seconds; // or microseconds
+using std::chrono::high_resolution_clock;
+using std::chrono::duration_cast;
 
 #include <activation_realizer.h>
 #include <common_properties.h>
@@ -450,7 +458,11 @@ sharedConstTensors NeuralNetwork::incremental_forwarding(
     if (exec_mode == ExecutionMode::TRAIN or
         (exec_mode == ExecutionMode::INFERENCE and !fsu_mode)) {
       model_graph.flushCacheExcept(f);
+      auto t1 = high_resolution_clock::now();
       node->incremental_forwarding(from, to, training);
+      auto t2 = high_resolution_clock::now();
+auto dt = duration_cast<milliseconds>(t2 - t1);
+std::cout << node->getName() << " duration time : " << dt.count() << " ms " << std::endl;
     } else {
       model_graph.checkLoadComplete(f);
       node->incremental_forwarding(from, to, training);
