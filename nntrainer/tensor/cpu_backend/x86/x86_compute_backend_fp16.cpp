@@ -15,6 +15,9 @@
 #include <avx2_impl.h>
 #include <cblas_interface.h>
 #include <fallback_internal.h>
+#ifdef ENABLE_GGML
+#include <ggml_interface.h>
+#endif
 #include <nntrainer_error.h>
 #include <tensor_dim.h>
 #include <x86_compute_backend.h>
@@ -199,6 +202,31 @@ _FP16 max_val(const unsigned int N, _FP16 *X) { return __fallback_max(N, X); }
 
 void softmax(const unsigned int N, _FP16 *X, _FP16 *Y) {
   __fallback_softmax(N, X, Y);
+}
+
+void quantize_row_q8_0(const void *x_raw, _FP16 *y, int64_t k) {
+#ifdef ENABLE_GGML
+  __ggml_quantize_row_q8_0(x_raw, y, k);
+#else
+  __fallback_quantize_row_q8_0(x_raw, y, k);
+#endif
+}
+
+size_t quantize_q8_0(const _FP16 *src, void *dst, int64_t nrow,
+                     int64_t n_per_row, const float *quant_weights) {
+#ifdef ENABLE_GGML
+  return __ggml_quantize_q8_0(src, dst, nrow, n_per_row, quant_weights);
+#else
+  return __fallback_quantize_q8_0(src, dst, nrow, n_per_row, quant_weights);
+#endif
+}
+
+void dequantize_row_q8_0(const void *x_raw, _FP16 *y, int64_t k) {
+#ifdef ENABLE_GGML
+  __ggml_dequantize_row_q8_0(x_raw, y, k);
+#else
+  __fallback_dequantize_row_q8_0(x_raw, y, k);
+#endif
 }
 
 } /* namespace nntrainer */

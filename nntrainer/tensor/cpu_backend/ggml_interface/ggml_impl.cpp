@@ -1,116 +1,132 @@
-#include <ggml_interface.h>
-#include <assert.h>
-#include <arm_neon.h>
-#include <stdint.h>
 #include "ggml-common.h"
 #include "ggml-cpu-quants.h"
 #include "ggml-cpu.h"
 #include "ggml-quants.h"
 #include "ggml.h"
-#include "ggml-impl.h"
-#include <cmath>
-#include <math.h>
 #include <algorithm>
-
+#include <assert.h>
+#include <cmath>
+#include <ggml_interface.h>
+#include <math.h>
+#include <stdint.h>
+#if defined(__ARM_NEON)
+#include <arm_neon.h>
+#endif
+namespace nntrainer {
 template <int K> constexpr int QK_0() {
-    if constexpr (K == 4) {
-        return QK4_0;
-    }
-    if constexpr (K == 8) {
-        return QK8_0;
-    }
-    return -1;
+  if constexpr (K == 4) {
+    return QK4_0;
+  }
+  if constexpr (K == 8) {
+    return QK8_0;
+  }
+  return -1;
 }
 
 template <int K, int N> struct block {
-    uint16_t d[N];                         // deltas for N qK_0 blocks
-    int8_t    qs[(QK_0<K>() * N * K) / 8];  // quants for N qK_0 blocks
+  uint16_t d[N];                      // deltas for N qK_0 blocks
+  int8_t qs[(QK_0<K>() * N * K) / 8]; // quants for N qK_0 blocks
 };
 
 using block_q8_0x4 = block<8, 4>;
 
-void __ggml_quantize_row_q8_0(const _FP16 * __restrict x, void * vy, int64_t k) {
-    assert(QK8_0 == 32);
-    assert(k % QK8_0 == 0);
-    const int nb = k / QK8_0;
+void __ggml_quantize_row_q8_0(const _FP16 *__restrict x, void *vy, int64_t k) {
+  assert(QK8_0 == 32);
+  assert(k % QK8_0 == 0);
+  const int nb = k / QK8_0;
 
-    block_q8_0 * __restrict y = (block_q8_0 * __restrict) vy;
+  block_q8_0 *__restrict y = (block_q8_0 *__restrict)vy;
 
 #if defined(__ARM_NEON)
-    for (int i = 0; i < nb; i++) {
-        float16x8_t srcv [4]; // loaded source
-        float16x8_t asrcv[4]; // absolute value of source
-        float16x8_t amaxv[4];
+  for (int i = 0; i < nb; i++) {
+    float16x8_t srcv[4];  // loaded source
+    float16x8_t asrcv[4]; // absolute value of source
+    float16x8_t amaxv[4];
 
-        for (int j = 0; j < 4; j++) srcv[j]  = vld1q_f16(x + i*32 + 8*j);
-        for (int j = 0; j < 4; j++) asrcv[j] = vabsq_f16(srcv[j]);
+    for (int j = 0; j < 4; j++)
+      srcv[j] = vld1q_f16(x + i * 32 + 8 * j);
+    for (int j = 0; j < 4; j++)
+      asrcv[j] = vabsq_f16(srcv[j]);
 
-        for (int j = 0; j < 2; j++) amaxv[2*j] = vmaxq_f16(amaxv[2*j], amaxv[2*j+1]);// 0 2 <- 0 2 VS 1 3
-        for (int j = 0; j < 1; j++) amaxv[4*j] = vmaxq_f16(amaxv[4*j], amaxv[4*j+2]);// 0 <- 0 VS 2
-        
-        const float amax = static_cast<float>(vmaxvq_f16(amaxv[0])); // TODO : test this for d and id values
-        // const _FP16 amax = vmaxvq_f16(amaxv[0]);
+    for (int j = 0; j < 2; j++)
+      amaxv[2 * j] =
+        vmaxq_f16(amaxv[2 * j], amaxv[2 * j + 1]); // 0 2 <- 0 2 VS 1 3
+    for (int j = 0; j < 1; j++)
+      amaxv[4 * j] = vmaxq_f16(amaxv[4 * j], amaxv[4 * j + 2]); // 0 <- 0 VS 2
 
-        const float d = amax / ((1 << 7) - 1);
-        const float id = d ? 1.0f/d : 0.0f;
+    const float amax = static_cast<float>(
+      vmaxvq_f16(amaxv[0])); // TODO : test this for d and id values
+    // const _FP16 amax = vmaxvq_f16(amaxv[0]);
 
-        y[i].d = GGML_FP32_TO_FP16(d);
+    const float d = amax / ((1 << 7) - 1);
+    const float id = d ? 1.0f / d : 0.0f;
 
-        for (int j = 0; j < 4; j++) {
-            const float16x8_t v  = vmulq_n_f16(srcv[j], id);
-            const int16x8_t   vi = vcvtnq_s16_f16(v);
+    y[i].d = static_cast<float>(d); ///@todo : check if this works
+    // y[i].d = GGML_FP32_TO_FP16(d);
 
-            y[i].qs[8*j + 0] = vgetq_lane_s16(vi, 0);
-            y[i].qs[8*j + 1] = vgetq_lane_s16(vi, 1);
-            y[i].qs[8*j + 2] = vgetq_lane_s16(vi, 2);
-            y[i].qs[8*j + 3] = vgetq_lane_s16(vi, 3);
-            y[i].qs[8*j + 4] = vgetq_lane_s16(vi, 4);
-            y[i].qs[8*j + 5] = vgetq_lane_s16(vi, 5);
-            y[i].qs[8*j + 6] = vgetq_lane_s16(vi, 6);
-            y[i].qs[8*j + 7] = vgetq_lane_s16(vi, 7);
-        }
+    for (int j = 0; j < 4; j++) {
+      const float16x8_t v = vmulq_n_f16(srcv[j], id);
+      const int16x8_t vi = vcvtnq_s16_f16(v);
+
+      y[i].qs[8 * j + 0] = vgetq_lane_s16(vi, 0);
+      y[i].qs[8 * j + 1] = vgetq_lane_s16(vi, 1);
+      y[i].qs[8 * j + 2] = vgetq_lane_s16(vi, 2);
+      y[i].qs[8 * j + 3] = vgetq_lane_s16(vi, 3);
+      y[i].qs[8 * j + 4] = vgetq_lane_s16(vi, 4);
+      y[i].qs[8 * j + 5] = vgetq_lane_s16(vi, 5);
+      y[i].qs[8 * j + 6] = vgetq_lane_s16(vi, 6);
+      y[i].qs[8 * j + 7] = vgetq_lane_s16(vi, 7);
     }
+  }
 #else
-///@todo convert to F16 version 
-    assert(k % QK8_0 == 0);
-    const int nb = k / QK8_0;
+  ///@todo convert to F16 version
+  for (int i = 0; i < nb; i++) {
+    float amax = 0.0f; // absolute max
 
-    for (int i = 0; i < nb; i++) {
-        float amax = 0.0f; // absolute max
-
-        for (int j = 0; j < QK8_0; j++) {
-            const float v = x[i*QK8_0 + j];
-            amax = std::max(amax, fabsf(v));
-        }
-
-        const float d = amax / ((1 << 7) - 1);
-        const float id = d ? 1.0f/d : 0.0f;
-
-        y[i].d = GGML_FP32_TO_FP16(d);
-
-        for (int j = 0; j < QK8_0; ++j) {
-            const float x0 = x[i*QK8_0 + j]*id;
-
-            y[i].qs[j] = std::roundf(x0);
-        }
+    for (int j = 0; j < QK8_0; j++) {
+      const float v = x[i * QK8_0 + j];
+      amax = std::max(amax, fabsf(v));
     }
+
+    const float d = amax / ((1 << 7) - 1);
+    const float id = d ? 1.0f / d : 0.0f;
+
+    y[i].d = static_cast<float>(d); ///@todo check if this works
+    // y[i].d = GGML_FP32_TO_FP16(d);
+
+    for (int j = 0; j < QK8_0; ++j) {
+      const float x0 = x[i * QK8_0 + j] * id;
+
+      y[i].qs[j] = std::roundf(x0);
+    }
+  }
 #endif
 }
 
-void __ggml_dequantize_row_q8_0(const block_q8_0 * GGML_RESTRICT x, _FP16 * GGML_RESTRICT y, int64_t k) {
-    static const int qk = QK8_0;
+size_t __ggml_quantize_q8_0(const _FP16 *src, void *dst, int64_t nrow,
+                            int64_t n_per_row, const float *quant_weights) {
+  const size_t row_size = ggml_row_size(GGML_TYPE_Q8_0, n_per_row);
+  __ggml_quantize_row_q8_0(src, dst, (int64_t)nrow * n_per_row);
+  return nrow * row_size;
+}
 
-    assert(k % qk == 0);
+void __ggml_dequantize_row_q8_0(const void *_x, _FP16 *__restrict y,
+                                int64_t k) {
+  static const int qk = QK8_0;
+  const block_q8_0 *__restrict x = (const block_q8_0 *__restrict)_x;
 
-    const int nb = k / qk;
+  assert(k % qk == 0);
 
-    for (int i = 0; i < nb; i++) {
-        const float d = GGML_FP16_TO_FP32(x[i].d);
+  const int nb = k / qk;
 
-        for (int j = 0; j < qk; ++j) {
-            y[i*qk + j] = x[i].qs[j]*d;
-        }
+  for (int i = 0; i < nb; i++) {
+    const _FP16 d = (x[i].d); ///@todo check if this works
+    // const float d = GGML_FP16_TO_FP32(x[i].d);
+
+    for (int j = 0; j < qk; ++j) {
+      y[i * qk + j] = x[i].qs[j] * d;
     }
+  }
 }
 
 #if 0
@@ -232,3 +248,5 @@ void __ggml_dequantize_row_q8_0(const block_q8_0 * GGML_RESTRICT x, _FP16 * GGML
 // #endif
 // }
 #endif
+
+} // namespace nntrainer

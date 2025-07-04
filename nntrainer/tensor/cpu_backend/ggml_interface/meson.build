@@ -3,8 +3,11 @@ ggml_interface_headers = [
 ]
 ggml_interface_sources = [
     'ggml_interface.cpp',
-    'ggml_impl.cpp',
 ]
+
+if get_option('enable-fp16')
+  ggml_interface_sources += 'ggml_impl.cpp'
+endif
 
 foreach s : ggml_interface_sources
   nntrainer_sources += meson.current_source_dir() / s
