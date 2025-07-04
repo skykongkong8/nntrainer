@@ -3,6 +3,7 @@ ggml_interface_headers = [
 ]
 ggml_interface_sources = [
     'ggml_interface.cpp',
+    'ggml_impl.cpp',
 ]
 
 foreach s : ggml_interface_sources

@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <tensor_dim.h>
 
 namespace nntrainer {
 
@@ -268,6 +269,39 @@ void __ggml_repack_q4_0_to_q4_0_8(void *W, void *repacked_W, size_t data_size,
  */
 void __ggml_repack_q4_K_to_q4_K_8(void *W, void *repacked_W, size_t data_size,
                                   const unsigned int M, const unsigned int N);
+
+#ifdef ENABLE_FP16
+/**
+ * @brief 
+ * 
+ * @param x 
+ * @param vy 
+ * @param k 
+ */
+void __ggml_quantize_row_q8_0(const _FP16 * __restrict x, void * __restrict vy, int64_t k);
+
+/**
+ * @brief Quantize _FP16 to q8_0 Quantization format
+ *
+ * @param src input src to be quantized
+ * @param dst output destination for quantized data
+ * @param nrow number of row
+ * @param n_per_row number of elements per row
+ * @param quant_weights additional information for quantization. Currently in no
+ * use.
+ * @return size_t total size of quantized data
+ */
+size_t __ggml_quantize_q8_0(const _FP16 *src, void *dst, int64_t nrow,
+                            int64_t n_per_row, const float *quant_weights);
+/**
+ * @brief q8_0 to _FP16 dequantize
+ *
+ * @param x_raw input src to be dequantized
+ * @param y output destination for dequantized data
+ * @param k data length
+ */
+void __ggml_dequantize_row_q8_0(const void *x_raw, _FP16 *y, int64_t k);
+#endif
 } // namespace nntrainer
 
 #endif

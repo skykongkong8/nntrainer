@@ -126,10 +126,7 @@ void __ggml_q4_0_8x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
       M_step_end =
         (M_step_end % 8) ? M_step_end + 8 - (M_step_end % 8) : M_step_end;
 
-      // ::ggml_gemv_q4_0_8x8_q8_0(K, (float *)((C) + M_step_start), N,
-      //                           (void *)((char *)B + M_step_start * B_step),
-      //                           QA.data(), M, M_step_end - M_step_start);
-      ::ggml_gemv_q4_0_4x8_q8_0(K, (float *)((C) + M_step_start), N,
+      ::ggml_gemv_q4_0_8x8_q8_0(K, (float *)((C) + M_step_start), N,
                                 (void *)((char *)B + M_step_start * B_step),
                                 QA.data(), M, M_step_end - M_step_start);
     }
@@ -155,10 +152,8 @@ void __ggml_q4_0_8x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
     int step_B = blocks_per_4_rows * sizeof(block_q4_0) * delta;
 #pragma omp parallel for collapse(1) num_threads(16)
     for (int i = 0; i < step_N; i++) {
-      // ::ggml_gemm_q4_0_8x8_q8_0(K, C + i * step_C, ldc, (char *)B + i *
-      // step_B,
-      //                           QA.data(), M, delta);
-      ::ggml_gemm_q4_0_4x8_q8_0(K, C + i * step_C, ldc, (char *)B + i * step_B,
+      ::ggml_gemm_q4_0_8x8_q8_0(K, C + i * step_C, ldc, (char *)B + i *
+      step_B,
                                 QA.data(), M, delta);
     }
     /**
@@ -176,7 +171,6 @@ void __ggml_q4_0_4x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
                                const unsigned int lda, const void *B,
                                const unsigned int ldb, float *C,
                                const unsigned int ldc) {
-  // auto &bspool = ThreadPoolManager::getInstance();
   int NB_COLS = 4;
   if (M == 1) { // GEMV
     int n_threads = 4;
@@ -203,7 +197,7 @@ void __ggml_q4_0_4x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
                                 QA.data(), M, M_step_end - M_step_start);
     }
   } else if (M % 4 != 0) {
-    int n_threads = std::thread::hardware_concurrency();
+    int n_threads = 8;
     unsigned int blocks_per_4_rows = (K + QK8_0 - 1) / QK8_0;
     unsigned int qa_4_rows_size = sizeof(block_q8_0x4) * blocks_per_4_rows;
     const size_t qa_row_size = (sizeof(block_q8_0) * K) / QK8_0;
