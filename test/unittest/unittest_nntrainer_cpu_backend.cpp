@@ -49,17 +49,18 @@ static inline double find_max_diff(T *src, T *src2, int M, int N) {
       err_sum += std::abs(src[i * N + j] - src2[i * N + j]);
     }
   }
-  // std::cout << "err_sum : " << err_sum << std::endl;
+  std::cout << "err_sum : " << err_sum << std::endl;
   return max_diff;
 }
 
-void print_start_and_end_matrix(const unsigned int M, const unsigned int N, float* C){
+template<typename T>
+void print_start_and_end_matrix(const unsigned int M, const unsigned int N, T* C){
   for (int i = 0; i < 3; ++i){
-    std::cout << C[i] << "\t";
+    std::cout << float(C[i]) << "\t";
   }
   std::cout << " ... ";
   for (int i = 0; i < 3; ++i){
-    std::cout << C[(N)*(M-1) + i] << "\t";
+    std::cout << float(C[(N)*(M-1) + i]) << "\t";
   }
   std::cout << std::endl;
 }
@@ -188,11 +189,37 @@ TEST(nntrainer_cpu_backend_standalone, q8_0_quantization) {
   auto cos_sim = cosine_similarity(weight.data(), rhs_ptr_tmp, N * K);
   auto max_differ = find_max_diff(weight.data(), rhs_ptr_tmp, N, K);
 
+  std::vector<_FP16> weight_f16 = generate_random_vector<_FP16>(N * K);
+  std::vector<_FP16> weight_tmp_f16(N * K);
+    const _FP16 *rhs_ptr_f16 = (const _FP16 *)weight_f16.data();
+  _FP16 *rhs_ptr_tmp_f16 = weight_tmp_f16.data();
+
+  nntrainer::quantize_q8_0(rhs_ptr_f16, (void *)offline_qWeight_ptr, K, N, nullptr);
+  nntrainer::dequantize_row_q8_0(offline_qWeight_ptr, rhs_ptr_tmp_f16, K * N);
+
   const float eps = 1e-5;
+
   ///@todo Find proper metric and standard to assess
   EXPECT_NEAR(mean_squared_error, 0., eps * K * N);
   EXPECT_NEAR(cos_sim, 0., eps * K * N);
   EXPECT_NEAR(max_differ, 0., eps * K * N);
+
+  auto mean_squared_error_f16 =
+    mse<_FP16, _FP16>(weight_f16.data(), rhs_ptr_tmp_f16, N * K);
+  auto cos_sim_f16 = cosine_similarity(weight_f16.data(), rhs_ptr_tmp_f16, N * K);
+  auto max_differ_f16 = find_max_diff(weight_f16.data(), rhs_ptr_tmp_f16, N, K);
+
+  ///@todo Find proper metric and standard to assess
+  EXPECT_NEAR(mean_squared_error_f16, 0., eps * K * N);
+  EXPECT_NEAR(cos_sim_f16, 0., eps * K * N);
+  EXPECT_NEAR(max_differ_f16, 0., eps * K * N);
+
+  std::cout << "mean_squared_error : " << mean_squared_error << " , mean_squared_error_f16 : " << mean_squared_error_f16 << std::endl;
+  std::cout << "cos_sim : " << cos_sim << " , cos_sim_f16 : " << cos_sim_f16 << std::endl;
+  std::cout << "max_differ : " << max_differ << " , max_differ_f16 : " << max_differ_f16 << std::endl;
+  
+  print_start_and_end_matrix<float>(N, K, rhs_ptr_tmp);
+  print_start_and_end_matrix<_FP16>(N, K, rhs_ptr_tmp_f16);
 }
 
 TEST(nntrainer_cpu_backend_standalone, q4_K_quantization) {
@@ -231,6 +258,246 @@ TEST(nntrainer_cpu_backend_standalone, q4_K_quantization) {
   EXPECT_NEAR(mean_squared_error, 0., eps * K * N);
   EXPECT_NEAR(cos_sim, 0., eps * K * N);
   EXPECT_NEAR(max_differ, 0., eps * K * N);
+}
+
+TEST(nntrainer_cpu_backend_standalone, q4_K_quant_dequant_quant) {
+  nntrainer::init_backend();
+
+  const unsigned int K = 3072;
+  const unsigned int N = 8192;
+
+  std::vector<float> weight = generate_random_vector<float>(N * K);
+  std::vector<float> weight_tmp(N * K);
+  std::vector<float> weight_tmp2(N * K);
+
+  const float *rhs_ptr = (const float *)weight.data();
+  float *rhs_ptr_tmp = weight_tmp.data();
+  float *rhs_ptr_tmp2 = weight_tmp2.data();
+
+  int64_t ne0 = N; // row length of the weight matrix
+  int64_t q4_k_block_size = 256;
+  int64_t q4_k_type_size = sizeof(block_q4_K_testonly);
+  int64_t num_blocks = (K * N) / q4_k_block_size;
+  size_t data_size = q4_k_type_size * ne0 / q4_k_block_size;
+  data_size *= K;
+
+  std::vector<char> offline_qWeight = std::vector<char>(data_size);
+  std::vector<char> offline_qWeight_2 = std::vector<char>(data_size);
+  char *offline_qWeight_ptr = (char *)offline_qWeight.data();
+  char *offline_qWeight_ptr_2 = (char *)offline_qWeight_2.data();
+
+  nntrainer::quantize_q4_K(rhs_ptr, (void *)offline_qWeight_ptr, K, N, nullptr);
+
+  nntrainer::dequantize_row_q4_K(offline_qWeight_ptr, rhs_ptr_tmp, K * N);
+
+  nntrainer::quantize_q4_K(rhs_ptr_tmp, (void *)offline_qWeight_ptr_2, K, N, nullptr);
+
+  nntrainer::dequantize_row_q4_K(offline_qWeight_ptr_2, rhs_ptr_tmp2, K * N);
+
+  if (false){
+    for (int i = 0; i < num_blocks; ++i){
+      auto first_block = ((block_q4_K_testonly *)((void *)offline_qWeight_ptr)) + i;
+      auto second_block = ((block_q4_K_testonly *)((void *)offline_qWeight_ptr_2)) + i;
+      if (first_block->d != second_block->d ||
+          first_block->dmin != second_block->dmin) {
+            std::cout << "Block1 " << i << " : d = " << first_block->d
+                      << ", dmin = " << first_block->dmin << std::endl;
+            std::cout << "Block2 " << i << " : d = " << second_block->d
+                      << ", dmin = " << second_block->dmin << std::endl;
+      }
+      for (int j = 0; j < 12; ++j) {
+        if (first_block->scales[j] != second_block->scales[j]) {
+          std::cout << "Block1 " << i << " : scales[" << j << "] = "
+                    << static_cast<int>(first_block->scales[j]) << std::endl;
+          std::cout << "Block2 " << i << " : scales[" << j << "] = "
+                    << static_cast<int>(second_block->scales[j]) << std::endl;
+        }
+      }
+      for (int j = 0; j < 256 / 2; ++j) {
+        if (first_block->qs[j] != second_block->qs[j]) {
+          std::cout << "Block1 " << i << " : qs[" << j << "] = "
+                    << static_cast<int>(first_block->qs[j]) << std::endl;
+          std::cout << "Block2 " << i << " : qs[" << j << "] = "
+                    << static_cast<int>(second_block->qs[j]) << std::endl;
+        }
+      }
+    }
+  }
+
+  auto mean_squared_error =
+    mse<float, float>(weight.data(), rhs_ptr_tmp, N * K);
+  auto cos_sim = cosine_similarity(weight.data(), rhs_ptr_tmp, N * K);
+  auto max_differ = find_max_diff(weight.data(), rhs_ptr_tmp, N, K);
+
+  auto mean_squared_error2 =
+    mse<float, float>(weight.data(), rhs_ptr_tmp2, N * K);
+  auto cos_sim2 = cosine_similarity(weight.data(), rhs_ptr_tmp2, N * K);
+  auto max_differ2 = find_max_diff(weight.data(), rhs_ptr_tmp2, N, K);
+
+  auto mean_squared_error3 =
+    mse<float, float>(rhs_ptr_tmp, rhs_ptr_tmp2, N * K);
+  auto cos_sim3 = cosine_similarity(rhs_ptr_tmp, rhs_ptr_tmp2, N * K);
+  auto max_differ3 = find_max_diff(rhs_ptr_tmp, rhs_ptr_tmp2, N, K);
+
+  const float eps = 1e-5;
+  ///@todo Find proper metric and standard to assess
+  EXPECT_NEAR(mean_squared_error, 0., eps * K * N);
+  EXPECT_NEAR(cos_sim, 0., eps * K * N);
+  EXPECT_NEAR(max_differ, 0., eps * K * N);
+
+  std::cout << "mean_squared_error : " << mean_squared_error << " VS " << mean_squared_error2 << " VS " << mean_squared_error3 << std::endl;
+  std::cout << "cos_sim : " << cos_sim << " VS " << cos_sim2 << " VS " << cos_sim3 << std::endl;
+  std::cout << "max_differ : " << max_differ << " VS " << max_differ2  << " VS " << max_differ3 << std::endl;
+
+}
+
+TEST(nntrainer_cpu_backend_standalone, q4_K_quant_dequant_quant_gemm) {
+  nntrainer::init_backend();
+
+  const unsigned int M = 3072;
+  const unsigned int K = 3072;
+  const unsigned int N = 8192;
+
+  std::vector<float> activation = generate_random_vector<float>(M * K);
+  std::vector<float> weight = generate_random_vector<float>(N * K);
+  std::vector<float> weight_tmp(N * K);
+
+  const float *rhs_ptr = (const float *)weight.data();
+  float *rhs_ptr_tmp = weight_tmp.data();
+  
+  int64_t q4_k_block_size = 256;
+  int64_t q4_k_type_size = sizeof(block_q4_K_testonly);
+  int64_t num_blocks = (K * N) / q4_k_block_size;
+  size_t data_size = q4_k_type_size * N / q4_k_block_size;
+  data_size *= K;
+
+  std::vector<char> offline_qWeight = std::vector<char>(data_size);
+  std::vector<char> offline_qWeight_2 = std::vector<char>(data_size);
+  char *offline_qWeight_ptr = (char *)offline_qWeight.data();
+  char *offline_qWeight_ptr_2 = (char *)offline_qWeight_2.data();
+
+  nntrainer::quantize_q4_K(rhs_ptr, (void *)offline_qWeight_ptr, K, N, nullptr);
+
+  nntrainer::dequantize_row_q4_K(offline_qWeight_ptr, rhs_ptr_tmp, K * N);
+
+  nntrainer::quantize_q4_K(rhs_ptr_tmp, (void *)offline_qWeight_ptr_2, K, N, nullptr);
+
+  if (false){
+    for (int i = 0; i < num_blocks; ++i){
+      auto first_block = ((block_q4_K_testonly *)((void *)offline_qWeight_ptr)) + i;
+      auto second_block = ((block_q4_K_testonly *)((void *)offline_qWeight_ptr_2)) + i;
+      if (first_block->d != second_block->d ||
+          first_block->dmin != second_block->dmin) {
+            std::cout << "Block1 " << i << " : d = " << first_block->d
+                      << ", dmin = " << first_block->dmin << std::endl;
+            std::cout << "Block2 " << i << " : d = " << second_block->d
+                      << ", dmin = " << second_block->dmin << std::endl;
+      }
+      for (int j = 0; j < 12; ++j) {
+        if (first_block->scales[j] != second_block->scales[j]) {
+          std::cout << "Block1 " << i << " : scales[" << j << "] = "
+                    << static_cast<int>(first_block->scales[j]) << std::endl;
+          std::cout << "Block2 " << i << " : scales[" << j << "] = "
+                    << static_cast<int>(second_block->scales[j]) << std::endl;
+        }
+      }
+      for (int j = 0; j < 256 / 2; ++j) {
+        if (first_block->qs[j] != second_block->qs[j]) {
+          std::cout << "Block1 " << i << " : qs[" << j << "] = "
+                    << static_cast<int>(first_block->qs[j]) << std::endl;
+          std::cout << "Block2 " << i << " : qs[" << j << "] = "
+                    << static_cast<int>(second_block->qs[j]) << std::endl;
+        }
+      }
+    }
+  }
+
+  // Case#1 Ground Truth GEMM
+  std::vector<char> repacked_qWeight = std::vector<char>(data_size);
+  nntrainer::repack_q4_K_to_q4_K_8(repacked_qWeight.data(), offline_qWeight_ptr,
+                                   data_size, N, K);
+  std::vector<float> dst(M * N);
+  nntrainer::gemm_q4_K(M, N, K, activation.data(), K, (void *)repacked_qWeight.data(),
+                       N, dst.data(), N);
+  
+  // Case#2 quant-dequant-quant GEMM -> How much loss occur?
+  std::vector<char> repacked_qWeight2 = std::vector<char>(data_size);
+  nntrainer::repack_q4_K_to_q4_K_8(repacked_qWeight2.data(), offline_qWeight_ptr_2,
+                                   data_size, N, K);
+  std::vector<float> dst2(M * N);
+  nntrainer::gemm_q4_K(M, N, K, activation.data(), K, (void *)repacked_qWeight2.data(),
+                      N, dst2.data(), N);
+
+  // Case#3 quant-dequant-quant Values, but replace qparams with GT -> is this better than Case#2?
+  // 1. Replace qparams from packed qWeight
+  for (int nb = 0; nb < num_blocks/8; ++ nb){
+    auto first_block = ((block_q4_Kx8_testonly *)((void *)repacked_qWeight.data())) + nb;
+    auto second_block = ((block_q4_Kx8_testonly *)((void *)repacked_qWeight2.data())) + nb;
+    for  (int j = 0; j < 8; ++j){
+      second_block->d[j] = first_block->d[j];
+      second_block->dmin[j] = first_block->dmin[j];
+    }
+    for (int j = 0; j < 96; ++j) {
+      second_block->scales[j] = first_block->scales[j];
+    }
+    // for (int j = 0; j < 1024; ++j) { // with  uncommented this, MSE2 & MAX_DIFFER2 should go to ZERO!
+    //   second_block->qs[j] = first_block->qs[j];
+    // }
+  }
+  // 2. run GEMM with replaced qWeight!
+  std::vector<float> dst3(M * N);
+  nntrainer::gemm_q4_K(M, N, K, activation.data(), K, (void *)repacked_qWeight2.data(),
+                      N, dst3.data(), N);
+
+  // Case#4 quant-dequant-quant Values, but replace qparams with GT, but start from unpacked ones -> Verify if Case#3 is done well
+  // 1. Replace qparams!
+  for (int nb = 0; nb < num_blocks; ++nb){
+    auto first_block = ((block_q4_K_testonly *)((void *)offline_qWeight_ptr)) + nb;
+    auto second_block = ((block_q4_K_testonly *)((void *)offline_qWeight_ptr_2)) + nb;
+    second_block->d = first_block->d;
+    second_block->dmin = first_block->dmin;
+    for (int j = 0; j < 12; ++j) {
+      second_block->scales[j] = first_block->scales[j];
+    }
+    // for (int j = 0; j < 256 / 2; ++j) {
+    //   second_block->qs[j] = first_block->qs[j];
+    // }
+  }
+  // 2. Repack once again!
+  nntrainer::repack_q4_K_to_q4_K_8(repacked_qWeight2.data(), offline_qWeight_ptr_2,
+                                  data_size, N, K);
+  // 3. run GEMM with replaced qWeight!
+  std::vector<float> dst4(M * N);
+  nntrainer::gemm_q4_K(M, N, K, activation.data(), K, (void *)repacked_qWeight2.data(),
+                      N, dst4.data(), N);
+
+  // GT VS quant-dequant
+  auto mean_squared_error =
+    mse<float, float>(dst.data(), dst2.data(),M*N);
+  auto cos_sim = cosine_similarity(dst.data(), dst2.data(),M*N);
+  auto max_differ = find_max_diff(dst.data(), dst2.data(), M, N);
+
+  // GT VS replacing original qparams for packed-wise
+  auto mean_squared_error2 =
+    mse<float, float>(dst.data(), dst3.data(),M*N);
+  auto cos_sim2 = cosine_similarity(dst.data(), dst3.data(),M*N);
+  auto max_differ2 = find_max_diff(dst.data(), dst3.data(), M, N);
+
+  // GT VS replacing original qparams for unpacked-wise
+  auto mean_squared_error3 =
+    mse<float, float>(dst.data(), dst4.data(),M*N);
+  auto cos_sim3 = cosine_similarity(dst.data(), dst4.data(),M*N);
+  auto max_differ3 = find_max_diff(dst.data(), dst4.data(), M, N);
+
+  std::cout << "[INFO] MSE: " << mean_squared_error
+            << ", COS_SIM: " << cos_sim << ", MAX_DIFFER: " << max_differ
+            << std::endl;
+  std::cout << "[INFO] MSE2: " << mean_squared_error2
+            << ", COS_SIM2: " << cos_sim2 << ", MAX_DIFFER2: " << max_differ2
+            << std::endl;
+    std::cout << "[INFO] MSE3: " << mean_squared_error3
+            << ", COS_SIM3: " << cos_sim3 << ", MAX_DIFFER3: " << max_differ3
+            << std::endl;
 }
 
 TEST(nntrainer_cpu_backend_standalone, q6_K_quantization) {

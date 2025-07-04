@@ -204,7 +204,7 @@ void softmax(const unsigned int N, _FP16 *X, _FP16 *Y) {
   __fallback_softmax(N, X, Y);
 }
 
-void quantize_row_q8_0(const void *x_raw, _FP16 *y, int64_t k) {
+void quantize_row_q8_0(const _FP16 *x_raw, void *y, int64_t k) {
 #ifdef ENABLE_GGML
   __ggml_quantize_row_q8_0(x_raw, y, k);
 #else
