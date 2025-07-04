@@ -201,6 +201,15 @@ float __ggml_vec_dot_q6_K_f32(const unsigned int K, const void *v_q6_K,
                               const float *f);
 
 /**
+ * @brief q4_0 to float dequantize
+ *
+ * @param x_raw input src to be dequantized
+ * @param y output destination for dequantized data
+ * @param k data length
+ */
+void __ggml_dequantize_row_q4_0(const void *x_raw, float *y, int64_t k);
+
+/**
  * @brief q8_0 to float dequantize
  *
  * @param x_raw input src to be dequantized

@@ -467,6 +467,10 @@ void __ggml_gemm_q6_K(const unsigned int M, const unsigned int N,
   return;
 }
 
+void __ggml_dequantize_row_q4_0(const void *x_raw, float *y, int64_t k) {
+  ::dequantize_row_q4_0((const block_q4_0 *)x_raw, y, k);
+}
+
 void __ggml_dequantize_row_q8_0(const void *x_raw, float *y, int64_t k) {
   ::dequantize_row_q8_0((const block_q8_0 *)x_raw, y, k);
 }
