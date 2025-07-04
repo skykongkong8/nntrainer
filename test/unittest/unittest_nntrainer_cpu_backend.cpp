@@ -65,6 +65,8 @@ void print_start_and_end_matrix(const unsigned int M, const unsigned int N, floa
 }
 
 #define QK4_0 32
+#define QK8_0 32
+
 /**
  * @brief q4_0 block
  *
@@ -73,6 +75,15 @@ typedef struct {
   uint16_t d;            // delta
   uint8_t qs[QK4_0 / 2]; // nibbles / quants
 } block_q4_0_testonly;
+/**
+ * @brief q8_0 block
+ * 
+ */
+typedef struct {
+    uint16_t d;       // delta
+    int8_t  qs[QK8_0]; // quants
+} block_q8_0_testonly;
+
 /**
  * @brief q4_K block
  *
@@ -88,6 +99,7 @@ typedef struct {
   uint8_t scales[12];  // scales and mins, quantized with 6 bits
   uint8_t qs[256 / 2]; // 4--bit quants
 } block_q4_K_testonly;
+
 /**
  * @brief q8_K block
  *
@@ -145,6 +157,44 @@ TEST(nntrainer_cpu_backend_standalone, ele_add) {
 }
 
 #ifdef ENABLE_GGML
+TEST(nntrainer_cpu_backend_standalone, q8_0_quantization) {
+  nntrainer::init_backend();
+
+  const unsigned int K = 768;
+  const unsigned int N = 512;
+
+  std::vector<float> weight = generate_random_vector<float>(N * K);
+  std::vector<float> weight_tmp(N * K);
+
+  const float *rhs_ptr = (const float *)weight.data();
+  float *rhs_ptr_tmp = weight_tmp.data();
+
+  int64_t ne0 = N; // row length of the weight matrix
+  int64_t q8_0_block_size = QK8_0;
+  int64_t q8_0_type_size = sizeof(block_q8_0_testonly);
+  int64_t num_blocks = (K * N) / q8_0_block_size;
+  size_t data_size = q8_0_type_size * ne0 / q8_0_block_size;
+  data_size *= K;
+
+  std::vector<char> offline_qWeight = std::vector<char>(data_size);
+  char *offline_qWeight_ptr = (char *)offline_qWeight.data();
+
+  nntrainer::quantize_q8_0(rhs_ptr, (void *)offline_qWeight_ptr, K, N, nullptr);
+
+  nntrainer::dequantize_row_q8_0(offline_qWeight_ptr, rhs_ptr_tmp, K * N);
+
+  auto mean_squared_error =
+    mse<float, float>(weight.data(), rhs_ptr_tmp, N * K);
+  auto cos_sim = cosine_similarity(weight.data(), rhs_ptr_tmp, N * K);
+  auto max_differ = find_max_diff(weight.data(), rhs_ptr_tmp, N, K);
+
+  const float eps = 1e-5;
+  ///@todo Find proper metric and standard to assess
+  EXPECT_NEAR(mean_squared_error, 0., eps * K * N);
+  EXPECT_NEAR(cos_sim, 0., eps * K * N);
+  EXPECT_NEAR(max_differ, 0., eps * K * N);
+}
+
 TEST(nntrainer_cpu_backend_standalone, q4_K_quantization) {
   nntrainer::init_backend();
 
@@ -467,7 +517,31 @@ TEST(nntrainer_cpu_backend_standalone, quant_GEMM_1024x3072x3072) {
   float q4_0_mse, q4_k_mse, q6_k_mse;
   constexpr float eps = 1e-5;
   run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, true);
-  // ASSERT_LE(q4_0_mse, 2.0f);
+  ASSERT_LE(q4_0_mse, 2.0f);
+  ASSERT_LE(q4_k_mse, eps * M * K * N);
+  ASSERT_LE(q6_k_mse, q4_k_mse);
+}
+
+TEST(nntrainer_cpu_backend_standalone, quant_GEMM_3072x3072x8192) {
+  const unsigned int M = 3072;
+  const unsigned int K = 3072;
+  const unsigned int N = 8192;
+  float q4_0_mse, q4_k_mse, q6_k_mse;
+  constexpr float eps = 1e-5;
+  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, true);
+  ASSERT_LE(q4_0_mse, 2.0f);
+  ASSERT_LE(q4_k_mse, eps * M * K * N);
+  ASSERT_LE(q6_k_mse, q4_k_mse);
+}
+
+TEST(nntrainer_cpu_backend_standalone, quant_GEMM_3072x8192x3072) {
+  const unsigned int M = 3072;
+  const unsigned int K = 8192;
+  const unsigned int N = 3072;
+  float q4_0_mse, q4_k_mse, q6_k_mse;
+  constexpr float eps = 1e-5;
+  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, true);
+  ASSERT_LE(q4_0_mse, 2.0f);
   ASSERT_LE(q4_k_mse, eps * M * K * N);
   ASSERT_LE(q6_k_mse, q4_k_mse);
 }
