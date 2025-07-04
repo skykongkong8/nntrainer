@@ -655,6 +655,18 @@ extern void gemm_q6_K(const unsigned int M, const unsigned int N,
                       const unsigned int lda, const void *B,
                       const unsigned int ldb, float *C, const unsigned int ldc);
 /**
+ * @brief quantize_q4_0 function
+ *
+ * @param src float* to quantize
+ * @param dst q4_0* to store quantized data
+ * @param nrow number of rows in src
+ * @param n_per_row number of elements in each row of src
+ * @param quant_weights unused for now -> imatrix
+ * @return size_t size of total quantized data in bytes
+ */
+extern size_t quantize_q4_0(const float *src, void *dst, int64_t nrow,
+                     int64_t n_per_row, const float *quant_weights);
+/**
  * @brief Quantize float to q6_K Quantization format
  *
  * @param src input src to be quantized
@@ -689,7 +701,14 @@ extern float dot_q6_K_q8_K(const unsigned int K, const void *v_q6_K,
  */
 extern float dot_q6_K_f32(const unsigned int K, const void *v_q6_K,
                           const float *f);
-
+/**
+ * @brief dequantize row of q8_0 data to float
+ *
+ * @param x input to be dequantized from q8_0 to float
+ * @param y dequantized data output
+ * @param k number of elements in x
+ */
+extern void dequantize_row_q8_0(const void *x, float *y, int64_t k);
 /**
  * @brief dequantize row of q4_K data to float
  *

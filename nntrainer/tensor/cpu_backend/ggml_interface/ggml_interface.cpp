@@ -78,6 +78,11 @@ size_t __ggml_quantize_q4_0(const float *src, void *dst, int64_t nrow,
   return ::quantize_q4_0(src, dst, nrow, n_per_row, quant_weights);
 }
 
+size_t __ggml_quantize_q8_0(const float *src, void *dst, int64_t nrow,
+                            int64_t n_per_row, const float *quant_weights) {
+  return ::quantize_q8_0(src, dst, nrow, n_per_row, quant_weights);
+}
+
 size_t __ggml_quantize_q4_K(const float *src, void *dst, int64_t nrow,
                             int64_t n_per_row, const float *quant_weights) {
   return ::quantize_q4_K(src, dst, nrow, n_per_row, quant_weights);
@@ -466,6 +471,10 @@ void __ggml_gemm_q6_K(const unsigned int M, const unsigned int N,
     }
   }
   return;
+}
+
+void __ggml_dequantize_row_q8_0(const void *x_raw, float *y, int64_t k) {
+  ::dequantize_row_q8_0((const block_q8_0 *)x_raw, y, k);
 }
 
 void __ggml_dequantize_row_q4_K(const void *x_raw, float *y, int64_t k) {

@@ -41,6 +41,20 @@ size_t __ggml_quantize_q4_0(const float *src, void *dst, int64_t nrow,
                             int64_t n_per_row, const float *quant_weights);
 
 /**
+ * @brief Quantize float to q8_0 Quantization format
+ *
+ * @param src input src to be quantized
+ * @param dst output destination for quantized data
+ * @param nrow number of row
+ * @param n_per_row number of elements per row
+ * @param quant_weights additional information for quantization. Currently in no
+ * use.
+ * @return size_t total size of quantized data
+ */
+size_t __ggml_quantize_q8_0(const float *src, void *dst, int64_t nrow,
+                            int64_t n_per_row, const float *quant_weights);
+                            
+/**
  * @brief Quantize float to q4_1 Quantization format
  *
  * @param src input src to be quantized
@@ -184,6 +198,15 @@ float __ggml_vec_dot_q6_K_q8_K(const unsigned int K, const void *v_q6_K,
 
 float __ggml_vec_dot_q6_K_f32(const unsigned int K, const void *v_q6_K,
                               const float *f);
+
+/**
+ * @brief q8_0 to float dequantize
+ *
+ * @param x_raw input src to be dequantized
+ * @param y output destination for dequantized data
+ * @param k data length
+ */
+void __ggml_dequantize_row_q8_0(const void *x_raw, float *y, int64_t k);
 
 /**
  * @brief q4K to float dequantize
