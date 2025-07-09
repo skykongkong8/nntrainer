@@ -330,6 +330,11 @@ extern void inv_sqrt_inplace(const unsigned int N, _FP16 *X);
 extern void transpose_matrix(const unsigned int M, const unsigned int N,
                              const _FP16 *src, unsigned int ld_src, _FP16 *dst,
                              unsigned int ld_dst);
+
+extern void quantize_row_q8_0_ref_lossless(const float * x, void * _y, int64_t k, void * y_ref);
+extern void quantize_row_q4_K_ref_lossless(const float *__restrict x,
+    void *__restrict _y, int64_t k,
+    void *__restrict y_ref);
 #endif
 /**
  * @brief Get half-sized angles, transform them into each cos, sin, and scopy in

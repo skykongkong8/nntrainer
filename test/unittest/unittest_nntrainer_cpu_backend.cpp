@@ -222,6 +222,59 @@ TEST(nntrainer_cpu_backend_standalone, q8_0_quantization) {
   print_start_and_end_matrix<_FP16>(N, K, rhs_ptr_tmp_f16);
 }
 
+TEST(nntrainer_cpu_backend_standalone, q8_0_quant_dequant_quant) {
+  nntrainer::init_backend();
+
+  const unsigned int K = 256;
+  const unsigned int N = 256;
+
+  std::vector<float> weight = generate_random_vector<float>(N * K);
+  std::vector<float> weight_tmp(N * K);
+
+  const float *rhs_ptr = (const float *)weight.data();
+  float *rhs_ptr_tmp = weight_tmp.data();
+
+  int64_t ne0 = N; // row length of the weight matrix
+  int64_t q8_0_block_size = QK8_0;
+  int64_t q8_0_type_size = sizeof(block_q8_0_testonly);
+  int64_t num_blocks = (K * N) / q8_0_block_size;
+  size_t data_size = q8_0_type_size * ne0 / q8_0_block_size;
+  data_size *= K;
+
+  std::vector<char> offline_qWeight = std::vector<char>(data_size);
+  char *offline_qWeight_ptr = (char *)offline_qWeight.data();
+
+  std::vector<char> offline_qWeight2 = std::vector<char>(data_size);
+  char *offline_qWeight_ptr2 = (char *)offline_qWeight2.data();
+
+  nntrainer::quantize_q8_0(rhs_ptr, (void *)offline_qWeight_ptr, K, N, nullptr);
+
+  nntrainer::dequantize_row_q8_0(offline_qWeight_ptr, rhs_ptr_tmp, K * N);
+
+  nntrainer::quantize_row_q8_0_ref_lossless(rhs_ptr_tmp, (void *)offline_qWeight_ptr2, K*N, offline_qWeight_ptr);
+  
+  for (int i = 0; i < num_blocks; ++i){
+    auto first_block = ((block_q8_0_testonly *)((void *)offline_qWeight_ptr)) + i;
+    auto second_block = ((block_q8_0_testonly *)((void *)offline_qWeight_ptr2)) + i;
+    if (first_block->d != second_block->d) {
+          std::cout << "Block1 " << i << " : d = " << first_block->d
+                    <<std::endl;
+          std::cout << "Block2 " << i << " : d = " << second_block->d
+                    << std::endl;
+    }
+    for (int j = 0; j < QK8_0; ++j) {
+      if (first_block->qs[j] != second_block->qs[j]) {
+        std::cout << "Block1 " << i << " : qs[" << j << "] = "
+                  << static_cast<int>(first_block->qs[j]) << std::endl;
+        std::cout << "Block2 " << i << " : qs[" << j << "] = "
+                  << static_cast<int>(second_block->qs[j]) << std::endl;
+      }
+    }
+  }
+
+}
+
+
 TEST(nntrainer_cpu_backend_standalone, q4_K_quantization) {
   nntrainer::init_backend();
 
@@ -290,11 +343,11 @@ TEST(nntrainer_cpu_backend_standalone, q4_K_quant_dequant_quant) {
 
   nntrainer::dequantize_row_q4_K(offline_qWeight_ptr, rhs_ptr_tmp, K * N);
 
-  nntrainer::quantize_q4_K(rhs_ptr_tmp, (void *)offline_qWeight_ptr_2, K, N, nullptr);
+  nntrainer::quantize_row_q4_K_ref_lossless(rhs_ptr_tmp, (void *)offline_qWeight_ptr_2, K*N, (void *)offline_qWeight_ptr);
 
   nntrainer::dequantize_row_q4_K(offline_qWeight_ptr_2, rhs_ptr_tmp2, K * N);
 
-  if (false){
+  if (true){
     for (int i = 0; i < num_blocks; ++i){
       auto first_block = ((block_q4_K_testonly *)((void *)offline_qWeight_ptr)) + i;
       auto second_block = ((block_q4_K_testonly *)((void *)offline_qWeight_ptr_2)) + i;
@@ -348,7 +401,6 @@ TEST(nntrainer_cpu_backend_standalone, q4_K_quant_dequant_quant) {
   std::cout << "mean_squared_error : " << mean_squared_error << " VS " << mean_squared_error2 << " VS " << mean_squared_error3 << std::endl;
   std::cout << "cos_sim : " << cos_sim << " VS " << cos_sim2 << " VS " << cos_sim3 << std::endl;
   std::cout << "max_differ : " << max_differ << " VS " << max_differ2  << " VS " << max_differ3 << std::endl;
-
 }
 
 TEST(nntrainer_cpu_backend_standalone, q4_K_quant_dequant_quant_gemm) {
@@ -380,9 +432,10 @@ TEST(nntrainer_cpu_backend_standalone, q4_K_quant_dequant_quant_gemm) {
 
   nntrainer::dequantize_row_q4_K(offline_qWeight_ptr, rhs_ptr_tmp, K * N);
 
-  nntrainer::quantize_q4_K(rhs_ptr_tmp, (void *)offline_qWeight_ptr_2, K, N, nullptr);
+  nntrainer::quantize_row_q4_K_ref_lossless(rhs_ptr_tmp, (void *)offline_qWeight_ptr_2, K* N, (void *)offline_qWeight_ptr);
+  // nntrainer::quantize_q4_K(rhs_ptr_tmp, (void *)offline_qWeight_ptr_2, K, N, nullptr);
 
-  if (false){
+  if (true){
     for (int i = 0; i < num_blocks; ++i){
       auto first_block = ((block_q4_K_testonly *)((void *)offline_qWeight_ptr)) + i;
       auto second_block = ((block_q4_K_testonly *)((void *)offline_qWeight_ptr_2)) + i;

@@ -206,7 +206,7 @@ void softmax(const unsigned int N, _FP16 *X, _FP16 *Y) {
 
 void quantize_row_q8_0(const _FP16 *x_raw, void *y, int64_t k) {
 #ifdef ENABLE_GGML
-  __ggml_quantize_row_q8_0(x_raw, y, k);
+  __nntr_quantize_row_q8_0(x_raw, y, k);
 #else
   __fallback_quantize_row_q8_0(x_raw, y, k);
 #endif
@@ -215,7 +215,7 @@ void quantize_row_q8_0(const _FP16 *x_raw, void *y, int64_t k) {
 size_t quantize_q8_0(const _FP16 *src, void *dst, int64_t nrow,
                      int64_t n_per_row, const float *quant_weights) {
 #ifdef ENABLE_GGML
-  return __ggml_quantize_q8_0(src, dst, nrow, n_per_row, quant_weights);
+  return __nntr_quantize_q8_0(src, dst, nrow, n_per_row, quant_weights);
 #else
   return __fallback_quantize_q8_0(src, dst, nrow, n_per_row, quant_weights);
 #endif
@@ -223,7 +223,7 @@ size_t quantize_q8_0(const _FP16 *src, void *dst, int64_t nrow,
 
 void dequantize_row_q8_0(const void *x_raw, _FP16 *y, int64_t k) {
 #ifdef ENABLE_GGML
-  __ggml_dequantize_row_q8_0(x_raw, y, k);
+  __nntr_dequantize_row_q8_0(x_raw, y, k);
 #else
   __fallback_dequantize_row_q8_0(x_raw, y, k);
 #endif

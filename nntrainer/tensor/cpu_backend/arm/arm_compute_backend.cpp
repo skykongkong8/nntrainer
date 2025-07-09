@@ -292,7 +292,7 @@ size_t quantize_q4_0(const float *src, void *dst, int64_t nrow,
 size_t quantize_q8_0(const float *src, void *dst, int64_t nrow,
                      int64_t n_per_row, const float *quant_weights) {
 #ifdef ENABLE_GGML
-  return __ggml_quantize_q8_0(src, dst, nrow, n_per_row, quant_weights);
+  return __nntr_quantize_q8_0(src, dst, nrow, n_per_row, quant_weights);
 #else
   return __fallback_quantize_q8_0(src, dst, nrow, n_per_row, quant_weights);
 #endif
@@ -333,7 +333,7 @@ void quantize_row_q8_K(const float *src, void *dst, int64_t k) {
 
 void dequantize_row_q8_0(const void *x_raw, float *y, int64_t k) {
 #ifdef ENABLE_GGML
-  __ggml_dequantize_row_q8_0(x_raw, y, k);
+  __nntr_dequantize_row_q8_0(x_raw, y, k);
 #else
   __fallback_dequantize_row_q8_0(x_raw, y, k);
 #endif
@@ -389,4 +389,21 @@ void repack_q4_0_to_q4_0_8(void *W, void *repacked_W, size_t data_size,
   __fallback_repack_q4_0_to_q4_0_8(W, repacked_W, data_size, M, N);
 #endif
 }
+
+void quantize_row_q8_0_ref_lossless(const float * __restrict x, void * __restrict _y, int64_t k, void * __restrict _y_ref){
+#ifdef ENABLE_GGML
+  __nntr_quantize_row_q8_0_ref_lossless(x, _y, k, _y_ref);
+#else
+  return;
+#endif
+}
+
+void quantize_row_q4_K_ref_lossless(const float * __restrict x, void * __restrict _y, int64_t k, void * __restrict _y_ref){
+#ifdef ENABLE_GGML
+  __nntr_quantize_row_q4_K_ref_lossless(x, _y, k, _y_ref);
+#else
+  return;
+#endif
+}
+
 } /* namespace nntrainer */
