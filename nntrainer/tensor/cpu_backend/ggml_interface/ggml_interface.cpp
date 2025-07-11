@@ -110,9 +110,10 @@ void __ggml_q4_0_8x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
 
   if (M == 1) { // GEMV
     int n_threads = 4;
-    unsigned int B_step = sizeof(block_q4_0) * (K / QK4_0);
     unsigned int blocks_per_row = (K + QK8_0 - 1) / QK8_0;
     unsigned int qa_size = sizeof(block_q8_0) * blocks_per_row;
+    unsigned int B_step = sizeof(block_q4_0) * (K / QK4_0);
+
     std::vector<char> QA = std::vector<char>(qa_size);
     ::quantize_row_q8_0(A, QA.data(), K);
 

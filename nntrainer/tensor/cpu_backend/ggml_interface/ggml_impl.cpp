@@ -32,6 +32,13 @@ typedef struct {
   } GGML_COMMON_AGGR_U;
   uint8_t scales[K_SCALE_SIZE]; // scales and mins, quantized with 6 bits
 } q4_K_qparams;
+
+struct block_q4_Kx8_impl {
+    ggml_half d[8];      // super-block scale for quantized scales
+    ggml_half dmin[8];   // super-block scale for quantized mins
+    uint8_t scales[96];  // scales and mins, quantized with 6 bits
+    uint8_t qs[1024];    // 4--bit quants
+};
 namespace nntrainer {
 
 template <int K> constexpr int QK_0() {
@@ -82,6 +89,15 @@ static inline int nearest_int(float fval) {
   int i;
   memcpy(&i, &val, sizeof(int));
   return (i & 0x007fffff) - 0x00400000;
+}
+
+inline void extract_qparam_q4_K(void* src, void* dst){
+  block_q4_K *GGML_RESTRICT q4_k = (block_q4_K *)src;
+  q4_K_qparams *GGML_RESTRICT qparams = (q4_K_qparams *)dst;
+  qparams->dm = q4_k->dm;
+  memcpy(qparams->scales, q4_k->scales, sizeof(q4_k->scales));
+  qparams->d = q4_k->d;
+  qparams->dmin = q4_k->dmin;
 }
 
 void __nntr_quantize_row_q8_0(const _FP16 *__restrict x, void *vy, int64_t k) {
@@ -375,13 +391,15 @@ void __ggml_q4_0_4x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
                                const unsigned int ldb, _FP16 *C,
                                const unsigned int ldc) {
   int NB_COLS = 4;
+  std::vector<float> C32 = std::vector<float>(M * N);
+
+  // q40 GEMV accuracy explodes?
   if (M == 1) { // GEMV
     int n_threads = 4;
     unsigned int B_step = sizeof(block_q4_0) * (K / QK4_0);
     unsigned int blocks_per_row = (K + QK8_0 - 1) / QK8_0;
     unsigned int qa_size = sizeof(block_q8_0) * blocks_per_row;
     std::vector<char> QA = std::vector<char>(qa_size);
-    std::vector<float> C32 = std::vector<float>(M * N);
     __nntr_quantize_row_q8_0(A, (void *)QA.data(), K);
 
 #pragma omp parallel for num_threads(n_threads)
@@ -400,16 +418,7 @@ void __ggml_q4_0_4x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
                                 (void *)((char *)B + M_step_start * B_step),
                                 QA.data(), M, M_step_end - M_step_start);
     }
-    
-    for (int i = 0; i < M * N; i += 8) {
-      vst1q_f16(
-        (C + i),
-        vcombine_f16(vcvt_f16_f32(vld1q_f32((float *)(C32.data() + i))),
-                     vcvt_f16_f32(vld1q_f32((float *)(C32.data() + i + 4)))));
-    }
   }
-
-#if 0
   else {
     int n_threads = 8;
     unsigned int blocks_per_4_rows = (K + QK8_0 - 1) / QK8_0;
@@ -423,14 +432,14 @@ void __ggml_q4_0_4x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
 
     // Quantize 4-divisible-M row portion with matrix-wise function
     for (unsigned int i = 0; i < M4; i++) {
-      ::ggml_quantize_mat_q8_0_4x8(A + 4 * i * K,
-                                   QA.data() + i * qa_4_rows_size, K);
+      __nntr_quantize_mat_q8_0_4x8(A + 4 * i * K,
+                                   (void*)(QA.data() + i * qa_4_rows_size), K);
     }
     // Quantize leftover 1 ~ 3 rows with row-wise function
     for (unsigned int i = M4 * 4; i < M; i++) {
-      ::quantize_row_q8_0(
-        (float *)A + i * K,
-        (QA.data() + (M4 * qa_4_rows_size) + (i - M4 * 4) * qa_row_size), K);
+      __nntr_quantize_row_q8_0(
+        A + i * K,
+        (void*)(QA.data() + (M4 * qa_4_rows_size) + (i - M4 * 4) * qa_row_size), K);
     }
 
 // Compute 4-divisible-M row portion with multithreaded GEMM
@@ -446,7 +455,7 @@ void __ggml_q4_0_4x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
                    ? src0_end + NB_COLS - (src0_end % NB_COLS)
                    : src0_end;
 
-      ::ggml_gemm_q4_0_4x8_q8_0(K, (float *)(C + src0_start), ldc,
+      ::ggml_gemm_q4_0_4x8_q8_0(K, (float *)((C32.data()) + src0_start), ldc,
                                 (void *)((char *)B + src0_start * B_step),
                                 QA.data(), M4 * 4, src0_end - src0_start);
     }
@@ -468,14 +477,312 @@ void __ggml_q4_0_4x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
                        : M_step_end;
 
         ::ggml_gemv_q4_0_4x8_q8_0(
-          K, (float *)((C + ((pb - M4 * 4) * N) + (M4 * 4 * N)) + M_step_start),
+          K, (float *)(((C32.data()) + ((pb - M4 * 4) * N) + (M4 * 4 * N)) + M_step_start),
           N, (void *)((char *)B + M_step_start * B_step),
           QA.data() + (M4 * qa_4_rows_size) + (pb - M4 * 4) * qa_row_size, 1,
           M_step_end - M_step_start);
       }
     }
+
+
+
   }
+  #if defined(__ARM_NEON)
+    for (int i = 0; i < M * N; i += 8) {
+      vst1q_f16(
+        (C + i),
+        vcombine_f16(vcvt_f16_f32(vld1q_f32((float *)(C32.data() + i))),
+                     vcvt_f16_f32(vld1q_f32((float *)(C32.data() + i + 4)))));
+    }
+#else
+    for (unsigned int i = 0; i < M * N; i++) {
+      C[i] = static_cast<_FP16>(C32[i]);
+    }
 #endif
 }
 
+#if 1
+
+int __ggml_unpack_q4_K_8_bl_to_q4_K(block_q4_K *dst, const block_q4_Kx8_impl *src, int interleave_block, size_t n_blocks) {  
+    GGML_ASSERT(interleave_block == 8);  
+    const size_t nrows_interleaved = 8;  
+
+    if (n_blocks % nrows_interleaved != 0) {  
+        return -1;  
+    }  
+
+    for (size_t blk = 0; blk < n_blocks; blk += nrows_interleaved) {  
+        const block_q4_Kx8_impl *blk_src = &src[blk / nrows_interleaved];  
+        block_q4_K *blk_dst = &dst[blk];  
+
+        // Step 1: Unpack d and dmin  
+        for (int i = 0; i < 8; i++) {  
+            blk_dst[i].d = blk_src->d[i];  
+            blk_dst[i].dmin = blk_src->dmin[i];  
+        }  
+
+        // Step 2: De-interleave qs  
+        const int end = QK_K * 4 / interleave_block; // QK_K=256, interleave_block=8 -> end=128  
+        for (int i = 0; i < end; i++) {  
+            int dst_id = i % 8;  
+            int dst_offset = (i / 8) * interleave_block;  
+            int src_offset = i * interleave_block;  
+
+            uint64_t elems;  
+            memcpy(&elems, &blk_src->qs[src_offset], sizeof(uint64_t));  
+            memcpy(&blk_dst[dst_id].qs[dst_offset], &elems, sizeof(uint64_t));  
+        }  
+
+        // Step 3: Repack scales  
+        for (int i = 0; i < 4; i++) {  
+            const uint8_t *b00 = &blk_src->scales[i * 12];  
+            const uint8_t *b11 = &blk_src->scales[48 + i * 12];  
+
+            // Reconstruct first 8 scales (indices 0-7) for all 8 blocks  
+            for (int j = 0; j < 8; j++) {  
+                // Reconstruct s[j] for index i  
+                uint8_t s_low6, s_high2;  
+                uint8_t m_low6, m_high2;  
+                uint8_t s_low4, m_low4;  
+
+                if (j < 4) {  
+                    s_low6 = b00[j] & 0x3F;  
+                    s_high2 = (b00[j] >> 6) | ((b11[j] & 0x03) << 2);  
+                    m_low6 = b00[j + 4] & 0x3F;  
+                    m_high2 = (b00[j + 4] >> 6) | ((b11[j + 4] & 0x03) << 2);  
+                    s_low4 = b00[8 + j] & 0x0F;  
+                    m_low4 = b00[8 + j] >> 4;  
+                } else {  
+                    int j_idx = j - 4;  
+                    s_low6 = (b00[j_idx] >> 6) | ((b00[8 + j_idx] & 0x0F) << 2);  
+                    s_high2 = (b11[j_idx] >> 2) & 0x03;  
+                    m_low6 = (b00[j_idx + 4] >> 6) | ((b00[8 + j_idx] >> 4) << 2);  
+                    m_high2 = (b11[j_idx + 4] >> 2) & 0x03;  
+                }  
+
+                // Combine into original scales  
+                blk_dst[j].scales[i] = s_low6 | (s_high2 << 6);  
+                blk_dst[j].scales[i + 4] = m_low6 | (m_high2 << 6);  
+                blk_dst[j].scales[i + 8] = s_low4 | (m_low4 << 4);  
+            }  
+        }  
+    }  
+
+    return 0;  
+}  
+#endif
+
+#if 0
+int __ggml_unpack_q4_K_8_bl_to_q4_K(void * GGML_RESTRICT dst, const void * GGML_RESTRICT src, size_t data_size, size_t nrow, size_t k) { constexpr size_t nrows_interleaved = 8;
+
+block_q4_K * dst_blocks = (block_q4_K*) dst;
+const block_q4_Kx8_impl * src_blocks = (const block_q4_Kx8_impl*) src;
+
+int nblocks = k / QK_K;
+
+GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_q4_K));
+
+if (nrow % nrows_interleaved != 0 || k % 8 != 0) {
+    return -1;
+}
+
+for (size_t b = 0; b < nrow; b += nrows_interleaved) {
+    for (int64_t x = 0; x < nblocks; x++) {
+        const block_q4_Kx8_impl &src_block = *src_blocks++;
+
+        for (size_t i = 0; i < nrows_interleaved; i++) {
+            block_q4_K &dst_block = dst_blocks[x + i * nblocks];
+
+            // Copy d and dmin
+            dst_block.d = src_block.d[i];
+            dst_block.dmin = src_block.dmin[i];
+
+            // Extract 6-bit scales (packed scales and mins)
+            size_t scales_offset = i * 12; // 96 scales / 8 blocks = 12 per block
+            memcpy(dst_block.scales, &src_block.scales[scales_offset], 12);
+
+            // Extract qs (4-bit quantized values)
+            size_t qs_offset = i * (QK_K / 2); // 1024 qs / 8 blocks
+            memcpy(dst_block.qs, &src_block.qs[qs_offset], QK_K / 2);
+        }
+    }
+
+    dst_blocks += nrows_interleaved * nblocks;
+}
+
+return 0;
+
+}
+#endif
+
 } // namespace nntrainer
+
+/*
+typedef struct {
+    GGML_EXTENSION union {
+        struct {
+            ggml_half d;    // super-block scale for quantized scales
+            ggml_half dmin; // super-block scale for quantized mins
+        } GGML_COMMON_AGGR_S;
+        ggml_half2 dm;
+    } GGML_COMMON_AGGR_U;
+    uint8_t scales[K_SCALE_SIZE]; // scales and mins, quantized with 6 bits
+    uint8_t qs[QK_K/2];           // 4--bit quants
+} block_q4_K;
+static_assert(sizeof(block_q4_K) == 2*sizeof(ggml_half) + K_SCALE_SIZE + QK_K/2, "wrong q4_K block size/padding");
+
+struct block_q4_Kx8 {
+    ggml_half d[8];      // super-block scale for quantized scales
+    ggml_half dmin[8];   // super-block scale for quantized mins
+    uint8_t scales[96];  // scales and mins, quantized with 6 bits
+    uint8_t qs[1024];    // 4--bit quants
+};
+
+static block_q4_Kx8 make_block_q4_Kx8(block_q4_K * in, unsigned int blck_size_interleave) {
+    block_q4_Kx8 out;
+    //Delta(scale) and dmin values of the eight Q4_K structures are copied onto the output interleaved structure
+    for (int i = 0; i < 8; i++) {
+        out.d[i] = in[i].GGML_COMMON_AGGR_U.GGML_COMMON_AGGR_S.d;
+    }
+
+    for (int i = 0; i < 8; i++) {
+        out.dmin[i] = in[i].GGML_COMMON_AGGR_U.GGML_COMMON_AGGR_S.dmin;
+    }
+
+    const int end = QK_K * 4 / blck_size_interleave;
+
+    // Interleave Q4_K quants by taking 8 bytes at a time
+    for (int i = 0; i < end; ++i) {
+        int src_id = i % 8;
+        int src_offset = (i / 8) * blck_size_interleave;
+        int dst_offset = i * blck_size_interleave;
+
+        uint64_t elems;
+        memcpy(&elems, &in[src_id].qs[src_offset], sizeof(uint64_t));
+        memcpy(&out.qs[dst_offset], &elems, sizeof(uint64_t));
+    }
+
+    // The below logic is designed so as to unpack and rearrange scales and mins values in Q4_K
+    // Currently the Q4_K structure has 8 scales and 8 mins packed in 12 bytes ( 6 bits for each value)
+    // The output Q4_Kx8 structure has 96 bytes
+    // Every 12 byte is packed such that it contains scales and mins for corresponding sub blocks from Q4_K structure
+    // For eg - First 12 bytes contains 8 scales and 8 mins - each of first sub block from different Q4_K structures
+    uint8_t s[8], m[8];
+
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 8; j++) {
+            s[j] = in[j].scales[i] & 63;
+            m[j] = in[j].scales[i + 4] & 63;
+        }
+
+        out.scales[i * 12]      = (s[0] & 63) + ((s[4] & 48) << 2);
+        out.scales[i * 12 + 1]  = (s[1] & 63) + ((s[5] & 48) << 2);
+        out.scales[i * 12 + 2]  = (s[2] & 63) + ((s[6] & 48) << 2);
+        out.scales[i * 12 + 3]  = (s[3] & 63) + ((s[7] & 48) << 2);
+        out.scales[i * 12 + 4]  = (m[0] & 63) + ((m[4] & 48) << 2);
+        out.scales[i * 12 + 5]  = (m[1] & 63) + ((m[5] & 48) << 2);
+        out.scales[i * 12 + 6]  = (m[2] & 63) + ((m[6] & 48) << 2);
+        out.scales[i * 12 + 7]  = (m[3] & 63) + ((m[7] & 48) << 2);
+        out.scales[i * 12 + 8]  = (s[4] & 15) + ((m[4] & 15) << 4);
+        out.scales[i * 12 + 9]  = (s[5] & 15) + ((m[5] & 15) << 4);
+        out.scales[i * 12 + 10] = (s[6] & 15) + ((m[6] & 15) << 4);
+        out.scales[i * 12 + 11] = (s[7] & 15) + ((m[7] & 15) << 4);
+
+    }
+
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 8; j++) {
+            s[j] = ((in[j].scales[i] & 192) >> 2) | (in[j].scales[i+8] & 15);
+            m[j] = ((in[j].scales[i + 4] & 192) >> 2) | ((in[j].scales[i+8] & 240) >> 4);
+        }
+
+        out.scales[i * 12 + 48] = (s[0] & 63) + ((s[4] & 48) << 2);
+        out.scales[i * 12 + 49] = (s[1] & 63) + ((s[5] & 48) << 2);
+        out.scales[i * 12 + 50] = (s[2] & 63) + ((s[6] & 48) << 2);
+        out.scales[i * 12 + 51] = (s[3] & 63) + ((s[7] & 48) << 2);
+        out.scales[i * 12 + 52] = (m[0] & 63) + ((m[4] & 48) << 2);
+        out.scales[i * 12 + 53] = (m[1] & 63) + ((m[5] & 48) << 2);
+        out.scales[i * 12 + 54] = (m[2] & 63) + ((m[6] & 48) << 2);
+        out.scales[i * 12 + 55] = (m[3] & 63) + ((m[7] & 48) << 2);
+        out.scales[i * 12 + 56] = (s[4] & 15) + ((m[4] & 15) << 4);
+        out.scales[i * 12 + 57] = (s[5] & 15) + ((m[5] & 15) << 4);
+        out.scales[i * 12 + 58] = (s[6] & 15) + ((m[6] & 15) << 4);
+        out.scales[i * 12 + 59] = (s[7] & 15) + ((m[7] & 15) << 4);
+
+    }
+
+    return out;
+}
+
+// The method was modified (from repack_q4_0_to_q4_0_4_bl) to be used by nntrainer
+int ggml_repack_q4_0_to_q4_0_4_bl(void * GGML_RESTRICT dst, int interleave_block, const void * GGML_RESTRICT data, size_t data_size, size_t nrow, size_t k) {
+    GGML_ASSERT(interleave_block == 4 || interleave_block == 8);
+    constexpr int nrows_interleaved = 4;
+
+    block_q4_0x4 * dst_ = (block_q4_0x4 *)dst;
+    const block_q4_0 * src = (const block_q4_0 *)data;
+    block_q4_0 dst_tmp[4];
+    int nblocks = k / QK4_0;
+
+    GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_q4_0));
+
+    if (nrow % nrows_interleaved != 0 || k % 8 != 0) {
+        return -1;
+    }
+
+    for (size_t b = 0; b < nrow; b += nrows_interleaved) {
+        for (int64_t x = 0; x < nblocks; x++) {
+            for (size_t i = 0; i < nrows_interleaved; i++) {
+                dst_tmp[i] = src[x + i * nblocks];
+            }
+            *dst_++ = make_block_q4_0x4(dst_tmp, interleave_block);
+        }
+        src += nrows_interleaved * nblocks;
+    }
+    return 0;
+
+    GGML_UNUSED(data_size);
+}
+
+int ggml_repack_q4_K_to_q4_K_8_bl(void * GGML_RESTRICT dst, int interleave_block, const void * GGML_RESTRICT data, size_t data_size, size_t nrow, size_t k) {
+    GGML_ASSERT(interleave_block == 8);
+    constexpr size_t nrows_interleaved = 8;
+
+    block_q4_Kx8 * dst_ = (block_q4_Kx8*)dst;
+    const block_q4_K * src = (const block_q4_K*) data;
+    block_q4_K dst_tmp[8];
+    int nblocks = k / QK_K;
+
+    GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_q4_K));
+
+    if (nrow % nrows_interleaved != 0 || k % 8 != 0) {
+        return -1;
+    }
+
+    for (size_t b = 0; b < nrow; b += nrows_interleaved) {
+        for (int64_t x = 0; x < nblocks; x++) {
+            for (size_t i  = 0; i < nrows_interleaved; i++ ) {
+                dst_tmp[i] = src[x + i * nblocks];
+            }
+            *dst_++ = make_block_q4_Kx8(dst_tmp, interleave_block);
+        }
+        src += nrows_interleaved * nblocks;
+    }
+    return 0;
+
+    GGML_UNUSED(data_size);
+}
+
+Examine the code above, and implement a function:
+int ggml_unpack_q4_K_8_bl_to_q4_K(void * GGML_RESTRICT _dst, const void * GGML_RESTRICT _src, size_t data_size, size_t nrow, size_t k)
+{
+    block_q4_K *dst = (block_q4_K *)_dst;
+    block_q4_Kx8 *src = (block_q4_Kx8 *)_src;
+
+    // This function should unpack the q4_Kx8 blocks back to q4_K blocks.
+    // The implementation will depend on the structure of block_q4_Kx8 and block_q4_K.
+    // It should reverse the process done in ggml_repack_q4_K_to_q4_K_8_bl.
+    // The function signature and return type should match the expected behavior.
+    return 0; // Placeholder return value, implement the actual logic.
+}
+*/
