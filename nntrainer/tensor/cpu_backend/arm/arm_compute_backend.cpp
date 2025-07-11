@@ -382,6 +382,14 @@ void repack_q4_K_to_q4_K_8(void *W, void *repacked_W, size_t data_size,
 #endif
 }
 
+int unpack_q4_K_8_bl_to_q4_K(void * __restrict dst, const void * __restrict src, size_t src_size, size_t nrow, size_t k){
+#ifdef ENABLE_GGML
+  return __ggml_unpack_q4_K_8_bl_to_q4_K(dst, src, src_size, nrow, k);
+#else
+  return 0;
+#endif
+}
+
 void repack_q4_0_to_q4_0_8(void *W, void *repacked_W, size_t data_size,
                            const unsigned int M, const unsigned int N) {
 #ifdef ENABLE_GGML

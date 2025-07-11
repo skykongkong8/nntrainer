@@ -280,6 +280,8 @@ void __ggml_repack_q4_0_to_q4_0_8(void *W, void *repacked_W, size_t data_size,
 void __ggml_repack_q4_K_to_q4_K_8(void *W, void *repacked_W, size_t data_size,
                                   const unsigned int M, const unsigned int N);
 
+int __ggml_unpack_q4_K_8_bl_to_q4_K(void * __restrict dst, const void * __restrict src, size_t src_size, size_t nrow, size_t k);
+
 void __nntr_quantize_row_q8_0_ref_lossless(const float *__restrict x,
                                            void *__restrict _y, int64_t k,
                                            void *__restrict y_ref);

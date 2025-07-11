@@ -337,6 +337,18 @@ extern void quantize_row_q4_K_ref_lossless(const float *__restrict x,
     void *__restrict y_ref);
 #endif
 /**
+ * @brief 
+ * 
+ * @param dst 
+ * @param src 
+ * @param src_size 
+ * @param nrow 
+ * @param k 
+ * @return int 
+ */
+extern int unpack_q4_K_8_bl_to_q4_K(void * __restrict dst, const void * __restrict src, size_t src_size, size_t nrow, size_t k);
+
+/**
  * @brief Get half-sized angles, transform them into each cos, sin, and scopy in
  * the same vector : cos_ = cos(freq).extend(cos(freq)), sin_ =
  * sin(freq).extend(sin_(req))
