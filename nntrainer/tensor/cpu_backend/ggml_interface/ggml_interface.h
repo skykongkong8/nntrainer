@@ -145,10 +145,11 @@ void __ggml_q4_0_8x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
  * @param C dst matrix
  * @param ldc leading dimension of C
  */
+template <typename T>
 void __ggml_q4_0_4x8_q8_0_GEMM(const unsigned int M, const unsigned int N,
-                               const unsigned int K, const float *A,
+                               const unsigned int K, const T *A,
                                const unsigned int lda, const void *B,
-                               const unsigned int ldb, float *C,
+                               const unsigned int ldb, T *C,
                                const unsigned int ldc);
 
 /**

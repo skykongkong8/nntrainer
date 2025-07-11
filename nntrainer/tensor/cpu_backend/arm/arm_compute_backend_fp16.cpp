@@ -260,4 +260,15 @@ void dequantize_row_q8_0(const void *x_raw, _FP16 *y, int64_t k) {
 #endif
 }
 
+template<>
+void gemm_q4_0(const unsigned int M, const unsigned int N, const unsigned int K,
+               const _FP16 *A, const unsigned int lda, const void *B,
+               const unsigned int ldb, _FP16 *C, const unsigned int ldc) {
+#ifdef ENABLE_GGML
+  return __ggml_q4_0_4x8_q8_0_GEMM<_FP16>(M, N, K, A, lda, B, ldb, C, ldc);
+#else
+  return __fallback_gemm_q4_0(M, N, K, A, lda, B, ldb, C, ldc);
+#endif
+}
+
 } /* namespace nntrainer */

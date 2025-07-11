@@ -651,10 +651,11 @@ extern bool is_valid(const unsigned int N, const float *X);
  * @param C float* output
  * @param ldc Leading dimension of C
  */
+template <typename T = float>
 extern void gemm_q4_0(const unsigned int M, const unsigned int N,
-                      const unsigned int K, const float *A,
+                      const unsigned int K, const T *A,
                       const unsigned int lda, const void *B,
-                      const unsigned int ldb, float *C, const unsigned int ldc);
+                      const unsigned int ldb, T *C, const unsigned int ldc);
 
 /**
  * @brief q4_K GEMM : A (M,K) * W.T (N,K) = O (M,N)
