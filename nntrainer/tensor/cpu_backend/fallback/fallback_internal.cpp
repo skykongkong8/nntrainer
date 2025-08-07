@@ -37,6 +37,192 @@
   } while (0);
 namespace nntrainer {
 
+void __fallback_int4_gemm(const int8_t *input, const uint8_t *qweight,
+                          const float *scale, const int8_t *zero_point,
+                          float *output, size_t B, size_t K, size_t N) {
+  const size_t kpack = (K + 1) / 2;
+  for (size_t b = 0; b < B; ++b) {
+    for (size_t n = 0; n < N; ++n) {
+      int32_t acc = 0;
+      for (size_t k = 0; k < K; ++k) {
+        size_t packed_idx = n * kpack + k / 2;
+        int8_t a = input[b * K + k];
+        uint8_t packed = qweight[packed_idx];
+        uint8_t nibble = (k % 2 == 0) ? (packed & 0x0F) : (packed >> 4 & 0x0F);
+        int8_t w = (nibble > 7) ? (nibble - 16) : nibble;
+        int8_t w_deq = w - zero_point[n];
+        acc += a * w_deq;
+      }
+      output[b * N + n] = static_cast<float>(acc) * scale[n];
+    }
+  }
+}
+
+void int4_gemm_tiled(
+    const int8_t* input,         // [B x K]
+    const uint8_t* qweight,      // [N x ceil(K/2)] (4bit packed weights)
+    const float* scale,          // [N]
+    const int8_t* zero_point,    // [N]
+    float* output,               // [B x N]
+    size_t B, size_t K, size_t N,
+    size_t tile_N = 8            // output channel tile size
+) {
+     constexpr size_t TILE_K = 128; // tile 크기 (K dimension 기준)
+
+    for (size_t b = 0; b < B; ++b) {
+        for (size_t n = 0; n < N; ++n) {
+            __m256i acc = _mm256_setzero_si256();
+
+            for (size_t kt = 0; kt < K; kt += TILE_K) {
+                size_t kend = std::min(K, kt + TILE_K);
+
+                for (size_t k = kt; k + 32 <= kend; k += 32) {
+                    const int8_t* a_ptr = input + b * K + k;
+
+                    __m128i a_lo = _mm_loadu_si128((__m128i const*)(a_ptr));
+                    __m128i a_hi = _mm_loadu_si128((__m128i const*)(a_ptr + 16));
+
+                    const uint8_t* w_pack_ptr = qweight + n * (K / 2) + (k / 2);
+                    alignas(32) int8_t w_deq[32];
+                    for (int i = 0; i < 16; ++i) {
+                        uint8_t packed = w_pack_ptr[i];
+                        int8_t lo = static_cast<int8_t>(packed & 0x0F);
+                        int8_t hi = static_cast<int8_t>((packed >> 4) & 0x0F);
+                        w_deq[2 * i]     = (lo > 7) ? lo - 16 : lo;
+                        w_deq[2 * i + 1] = (hi > 7) ? hi - 16 : hi;
+                    }
+
+                    __m128i w_lo = _mm_load_si128((__m128i const*)(w_deq));
+                    __m128i w_hi = _mm_load_si128((__m128i const*)(w_deq + 16));
+
+                    __m256i w_256 = _mm256_set_m128i(w_hi, w_lo);
+                    __m256i zp = _mm256_set1_epi8(zero_point[n]);
+                    w_256 = _mm256_sub_epi8(w_256, zp);
+
+                    __m128i w_lo_zp = _mm256_castsi256_si128(w_256);
+                    __m128i w_hi_zp = _mm256_extracti128_si256(w_256, 1);
+
+                    __m256i w_lo_16 = _mm256_cvtepi8_epi16(w_lo_zp);
+                    __m256i w_hi_16 = _mm256_cvtepi8_epi16(w_hi_zp);
+                    __m256i a_lo_16 = _mm256_cvtepi8_epi16(a_lo);
+                    __m256i a_hi_16 = _mm256_cvtepi8_epi16(a_hi);
+
+                    __m256i mul_lo = _mm256_mullo_epi16(a_lo_16, w_lo_16);
+                    __m256i mul_hi = _mm256_mullo_epi16(a_hi_16, w_hi_16);
+
+                    __m256i sum32_lo = _mm256_madd_epi16(mul_lo, _mm256_set1_epi16(1));
+                    __m256i sum32_hi = _mm256_madd_epi16(mul_hi, _mm256_set1_epi16(1));
+                    __m256i sum32 = _mm256_add_epi32(sum32_lo, sum32_hi);
+
+                    acc = _mm256_add_epi32(acc, sum32);
+                }
+
+                // Tail within tile
+                for (size_t k = (kend & ~31); k < kend; ++k) {
+                    int8_t a = input[b * K + k];
+                    uint8_t packed = qweight[n * (K / 2) + k / 2];
+                    uint8_t nibble = (k % 2 == 0) ? (packed & 0x0F) : (packed >> 4);
+                    int8_t w = (nibble > 7) ? nibble - 16 : nibble;
+                    int8_t w_deq = w - zero_point[n];
+                    acc = _mm256_add_epi32(acc, _mm256_set1_epi32(a * w_deq)); // scalar broadcast
+                }
+            }
+
+            // Store result
+            alignas(32) int32_t acc_buf[8];
+            _mm256_store_si256((__m256i*)acc_buf, acc);
+            int32_t sum = 0;
+            for (int i = 0; i < 8; ++i)
+                sum += acc_buf[i];
+
+            output[b * N + n] = scale[n] * static_cast<float>(sum);
+        }
+    }
+}
+
+void int4_gemm(
+    const int8_t* input,         // [B x K]
+    const uint8_t* qweight,      // [N x K/2] (4bit packed)
+    const float* scale,          // [N]
+    const int8_t* zero_point,    // [N]
+    float* output,               // [B x N]
+    size_t B, size_t K, size_t N // batch, in_features, out_features
+) {
+
+     for (size_t b = 0; b < B; ++b) {
+        for (size_t n = 0; n < N; ++n) {
+            __m256i acc = _mm256_setzero_si256(); 
+            size_t k = 0;
+            for (; k + 32 <= K; k += 32) {
+                const int8_t* a_ptr = input + b * K + k;
+
+                // --- Load input int8 (activation) ---
+                __m128i a_lo = _mm_loadu_si128((__m128i const*)(a_ptr));        // [0..15]
+                __m128i a_hi = _mm_loadu_si128((__m128i const*)(a_ptr + 16));   // [16..31]
+
+                // --- Unpack 4bit → int8 weight vector (w_deq[32]) ---
+                const uint8_t* w_pack_ptr = qweight + n * (K / 2) + (k / 2);
+                alignas(32) int8_t w_deq[32];
+                for (int i = 0; i < 16; ++i) {
+                    uint8_t packed = w_pack_ptr[i];
+                    int8_t lo = static_cast<int8_t>(packed & 0x0F);
+                    int8_t hi = static_cast<int8_t>((packed >> 4) & 0x0F);
+                    w_deq[2 * i]     = (lo > 7) ? lo - 16 : lo;
+                    w_deq[2 * i + 1] = (hi > 7) ? hi - 16 : hi;
+                }
+                __m128i w_lo = _mm_load_si128((__m128i const*)(w_deq));         // [0..15]
+                __m128i w_hi = _mm_load_si128((__m128i const*)(w_deq + 16));    // [16..31]
+
+                // --- Zero point 처리 (fixed) ---
+                __m256i w_256 = _mm256_set_m128i(w_hi, w_lo);
+                __m256i zp = _mm256_set1_epi8(zero_point[n]);
+                w_256 = _mm256_sub_epi8(w_256, zp);
+
+                // 다시 나눠서 128-bit로 분리 후 변환
+                __m128i w_lo_zp = _mm256_castsi256_si128(w_256);
+                __m128i w_hi_zp = _mm256_extracti128_si256(w_256, 1);
+
+                __m256i w_lo_16 = _mm256_cvtepi8_epi16(w_lo_zp);
+                __m256i w_hi_16 = _mm256_cvtepi8_epi16(w_hi_zp);
+                __m256i a_lo_16 = _mm256_cvtepi8_epi16(a_lo);
+                __m256i a_hi_16 = _mm256_cvtepi8_epi16(a_hi);
+
+                // int16 × int16 → int16 (pairwise)
+                __m256i mul_lo = _mm256_mullo_epi16(a_lo_16, w_lo_16);
+                __m256i mul_hi = _mm256_mullo_epi16(a_hi_16, w_hi_16);
+
+                // int16 pair sum → int32
+                __m256i sum32_lo = _mm256_madd_epi16(mul_lo, _mm256_set1_epi16(1));
+                __m256i sum32_hi = _mm256_madd_epi16(mul_hi, _mm256_set1_epi16(1));
+                __m256i sum32 = _mm256_add_epi32(sum32_lo, sum32_hi);
+
+                acc = _mm256_add_epi32(acc, sum32);
+            }
+
+            // Tail 처리
+            int32_t tail_acc = 0;
+            for (; k < K; ++k) {
+                int8_t a = input[b * K + k];
+                uint8_t packed = qweight[n * (K / 2) + k / 2];
+                uint8_t nibble = (k % 2 == 0) ? (packed & 0x0F) : (packed >> 4);
+                int8_t w = (nibble > 7) ? nibble - 16 : nibble;
+                int8_t w_deq = w - zero_point[n];
+                tail_acc += static_cast<int32_t>(a) * static_cast<int32_t>(w_deq);
+            }
+
+            // Accumulate 8-lane int32 + tail
+            alignas(32) int32_t acc_buf[8];
+            _mm256_store_si256((__m256i*)acc_buf, acc);
+            int32_t sum = tail_acc;
+            for (int i = 0; i < 8; ++i)
+                sum += acc_buf[i];
+
+            output[b * N + n] = scale[n] * static_cast<float>(sum);
+        }
+    }
+}
+
+
 void __fallback_sscal(const unsigned int N, const float alpha, float *X,
                       const unsigned int incX) {
   assert(incX > 0);
