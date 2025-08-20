@@ -19,6 +19,7 @@
 #ifdef ARMV7
 #include <armv7_neon.h>
 #endif
+#include <iostream>
 
 namespace nntrainer::neon {
 bool is_valid(const unsigned int N, const __fp16 *input) {
@@ -1570,7 +1571,67 @@ void compute_fp16vcache_fp32_transposed(int row_num, const float *in,
       }
     }
   }
+    for (int i = 0; i < 3; ++i){
+  std::cout << output[i] << "\t"; 
+  }
+  std::cout << std::endl;
 }
+
+// void compute_fp16vcache_fp32_transposed(int row_num, const float *in,
+//                                         const __fp16 *vcache, float *output,
+//                                         int num_cache_head, int gqa_size,
+//                                         int head_dim) {
+//   for (int n = 0; n < num_cache_head; ++n) {
+//     int num_blocks = head_dim / 8;
+//     int rem = head_dim % 8;
+
+//     std::vector<float16x8_t> sumVec(num_blocks * gqa_size, vdupq_n_f16(0.0f));
+//     std::vector<__fp16> sumRem(gqa_size * rem, 0.0f);
+
+//     for (int j = 0; j <= row_num; ++j) {
+//       const __fp16 *vptr = vcache + (j * num_cache_head + n) * head_dim;
+
+//       for (int h = 0; h < gqa_size; ++h) {
+//         float a_val = in[j * gqa_size * num_cache_head + n * gqa_size + h];
+//         float16x8_t inVec = vdupq_n_f16(a_val);
+
+//         for (int b = 0; b < num_blocks; ++b) {
+//           float16x8_t bVec = vld1q_f16(&vptr[b * 8]);
+//           sumVec[h * num_blocks + b] =
+//             vfmaq_f16(sumVec[h * num_blocks + b], inVec, bVec);
+//         }
+
+//         __fp16 *remPtr = &sumRem.data()[h * rem];
+//         int base = num_blocks * 8;
+//         for (int r = 0; r < rem; ++r) {
+//           remPtr[r] += a_val * vptr[base + r];
+//         }
+//       }
+//     }
+
+//     for (int h = 0; h < gqa_size; ++h) {
+//       for (int b = 0; b < num_blocks; ++b) {
+//         int out_base = (n * gqa_size + h) * head_dim + b * 8;
+//         vst1q_f32(&output[out_base],
+//                   vcvt_f32_f16(vget_low_f16(sumVec[h * num_blocks + b])));
+//         vst1q_f32(&output[out_base + 4],
+//                   vcvt_f32_f16(vget_high_f16(sumVec[h * num_blocks + b])));
+//       }
+
+//       __fp16 *remPtr = &sumRem.data()[h * rem];
+//       int base = num_blocks * 8;
+//       for (int r = 0; r < rem; ++r) {
+//         int out_idx = (n * gqa_size + h) * head_dim + base + r;
+//         output[out_idx] = remPtr[r];
+//       }
+//     }
+//   }
+
+//   for (int i = 0; i < 3; ++i){
+//   std::cout << output[i] << "\t"; 
+//   }
+//   std::cout << std::endl;
+// }
 
 void compute_fp16vcache_transposed(int row_num, const __fp16 *in,
                                    const __fp16 *vcache, __fp16 *output,
