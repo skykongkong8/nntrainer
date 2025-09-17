@@ -1162,6 +1162,11 @@ void nntr_gemm_qai8dxp_qsi4cxp(size_t m, size_t n, size_t k,
                                void *rhs_scales, T *dst_mtx, bool transB = true,
                                T lower_bound = std::numeric_limits<T>::lowest(),
                                T upper_bound = std::numeric_limits<T>::max());
+
+void nntr_gqu4_gemm(size_t M, size_t N, size_t K, const float *A, size_t lda,
+                    const void *QuantBData,
+                    const float *QuantBScale, const void *QuantBZeroPoint,
+                    const float *Bias, float *C, size_t ldc);
 } /* namespace nntrainer */
 #endif /* __cplusplus */
 #endif /* __x86_COMPUTE_BACKEND_H__ */

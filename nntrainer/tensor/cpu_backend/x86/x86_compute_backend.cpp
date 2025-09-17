@@ -20,6 +20,7 @@
 #include <fallback_internal.h>
 #include <ggml_interface.h>
 #include <nntrainer_error.h>
+#include <sqnbitgemm_interface.h>
 #include <x86_compute_backend.h>
 
 #define ROW_MAJOR 0
@@ -469,5 +470,13 @@ void nntr_gemm_qai8dxp_qsi4cxp(size_t m, size_t n, size_t k,
   __fallback_nntr_gemm_qai8dxp_qsi4cxp(
     m, n, k, lhs_native_mtx_f32, rhs_native_mtx_qs4cx, rhs_scales_f32,
     dst_mtx_f32, transB, lower_bound, upper_bound);
+}
+
+void nntr_gqu4_gemm(size_t M, size_t N, size_t K, const float *A, size_t lda,
+                    const void *QuantBData,
+                    const float *QuantBScale, const void *QuantBZeroPoint,
+                    const float *Bias, float *C, size_t ldc) {
+  nntr_sqn_gqu4_gemm<4, 64>(M, N, K, A, lda, QuantBData,
+                     QuantBScale, QuantBZeroPoint, Bias, C, ldc);
 }
 } /* namespace nntrainer */
