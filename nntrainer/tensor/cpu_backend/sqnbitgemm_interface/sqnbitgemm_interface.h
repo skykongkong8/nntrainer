@@ -2,9 +2,9 @@
 #include "mlas_qnbit.h"
 
 template <size_t BlkBitWidth, size_t BlkLen>
-void nntr_sqn_gqu4_rhs_nt_t(const float *B, const void *_QuantBData,
-                            const float *_QuantBScale,
-                            const void *_QuantBZeroPoint, size_t N, size_t K,
+void nntr_sqn_gqu4_rhs_nt_t(const float *B, void *_QuantBData,
+                            float *_QuantBScale,
+                            void *_QuantBZeroPoint, size_t N, size_t K,
                             bool Symmetric);
 
 template <size_t BlkBitWidth, size_t BlkLen>
@@ -15,8 +15,8 @@ void nntr_sqn_gqu4_gemm(size_t M, size_t N, size_t K, const float *A,
                         MLAS_SQNBIT_GEMM_COMPUTE_TYPE ComputeType = CompFp32,
                         MLAS_THREADPOOL *Threadpool = nullptr);
 
-extern template void nntr_sqn_gqu4_rhs_nt_t<4, 64>(const float *, const void *,
-                                                   const float *, const void *,
+extern template void nntr_sqn_gqu4_rhs_nt_t<4, 64>(const float *, void *,
+                                                   float *, void *,
                                                    size_t, size_t, bool);
 
 extern template void

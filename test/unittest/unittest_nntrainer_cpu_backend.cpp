@@ -1300,10 +1300,11 @@ float test_gemm_sqnbitgemm(const uint32_t M, const uint32_t K, const uint32_t N,
   void *_QuantBData = nullptr;
   float *_QuantBScale = nullptr;
   void *_QuantBZeroPoint = nullptr;
+  bool isSymmetricQuantization = false;
 
   // Step2. 4-bit Weight quantization, for qs4cx format, with fp32 scale
   nntrainer::nntr_gqu4_rhs_nt_t_quant(weights, _QuantBData, _QuantBScale,
-                                      _QuantBZeroPoint, N, K, false);
+                                      _QuantBZeroPoint, N, K, isSymmetricQuantization);
                                       std::cout << "nntr_gqu4_rhs_nt_t_quant\n";
 
   // Step3. Run GEMM! (Online activation quantization + kernel routine + return

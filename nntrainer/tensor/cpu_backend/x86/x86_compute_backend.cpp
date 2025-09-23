@@ -472,9 +472,9 @@ void nntr_gemm_qai8dxp_qsi4cxp(size_t m, size_t n, size_t k,
     dst_mtx_f32, transB, lower_bound, upper_bound);
 }
 
-void nntr_gqu4_rhs_nt_t_quant(const float *B, const void *_QuantBData,
-                              const float *_QuantBScale,
-                              const void *_QuantBZeroPoint, size_t N, size_t K,
+void nntr_gqu4_rhs_nt_t_quant(const float *B, void *&_QuantBData,
+                              float *&_QuantBScale,
+                              void *&_QuantBZeroPoint, size_t N, size_t K,
                               bool Symmetric) {
   nntr_sqn_gqu4_rhs_nt_t<4, 64>(B, _QuantBData, _QuantBScale, _QuantBZeroPoint, N,
                             K, Symmetric);

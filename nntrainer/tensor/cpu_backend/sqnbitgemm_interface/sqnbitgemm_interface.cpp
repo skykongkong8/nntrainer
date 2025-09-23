@@ -32,9 +32,9 @@ void CallGemm(size_t M, size_t N, size_t K, const float *A, size_t lda,
 }
 
 template <size_t BlkBitWidth, size_t BlkLen>
-void nntr_sqn_gqu4_rhs_nt_t(const float *B, const void *_QuantBData,
-                            const float *_QuantBScale,
-                            const void *_QuantBZeroPoint, size_t N, size_t K,
+void nntr_sqn_gqu4_rhs_nt_t(const float *B, void *_QuantBData,
+                            float *_QuantBScale,
+                            void *_QuantBZeroPoint, size_t N, size_t K,
                             bool Symmetric) {
   MatrixGuardBuffer<uint8_t> BufferQuantBData;
   MatrixGuardBuffer<float> BufferQuantBScale;
@@ -108,8 +108,8 @@ void nntr_sqn_gqu4_gemm(size_t M, size_t N, size_t K, const float *A,
 
 }
 
-template void nntr_sqn_gqu4_rhs_nt_t<4, 64>(const float *, const void *,
-                                                   const float *, const void *,
+template void nntr_sqn_gqu4_rhs_nt_t<4, 64>(const float *, void *,
+                                                   float *, void *,
                                                    size_t, size_t, bool);
 
 template void nntr_sqn_gqu4_gemm<4, 64>(size_t, size_t, size_t, const float *,

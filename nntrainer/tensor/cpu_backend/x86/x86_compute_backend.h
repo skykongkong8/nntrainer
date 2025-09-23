@@ -1168,9 +1168,9 @@ void nntr_gqu4_gemm(size_t M, size_t N, size_t K, const float *A, size_t lda,
                     const void *QuantBZeroPoint, const float *Bias, float *C,
                     size_t ldc);
 
-void nntr_gqu4_rhs_nt_t_quant(const float *B, const void *_QuantBData,
-                              const float *_QuantBScale,
-                              const void *_QuantBZeroPoint, size_t N, size_t K,
+void nntr_gqu4_rhs_nt_t_quant(const float *B, void *&_QuantBData,
+                              float *&_QuantBScale,
+                              void *&_QuantBZeroPoint, size_t N, size_t K,
                               bool Symmetric);
 } /* namespace nntrainer */
 #endif /* __cplusplus */
