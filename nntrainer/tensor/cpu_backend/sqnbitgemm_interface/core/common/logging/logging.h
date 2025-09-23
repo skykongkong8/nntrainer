@@ -11,13 +11,13 @@
 #include <mutex>
 #include <string>
 
-#include "core/common/common.h"
-#include "core/common/profiler_common.h"
-#include "core/common/logging/capture.h"
-#include "core/common/logging/macros.h"
-#include "core/common/logging/severity.h"
-#include "core/common/logging/sink_types.h"
-#include "core/platform/ort_mutex.h"
+#include "../common.h"
+#include "../profiler_common.h"
+#include "./capture.h"
+#include "./macros.h"
+#include "./severity.h"
+#include "./sink_types.h"
+#include "../../platform/ort_mutex.h"
 
 /*
 
@@ -88,7 +88,7 @@ using Timestamp = std::chrono::time_point<std::chrono::system_clock>;
 #if _WIN32 || ORT_USE_CXX20_STD_CHRONO
 namespace timestamp_ns = std::chrono;
 #else
-namespace timestamp_ns = ::date;
+// namespace timestamp_ns = ::date;
 #endif
 
 #undef ORT_USE_CXX20_STD_CHRONO

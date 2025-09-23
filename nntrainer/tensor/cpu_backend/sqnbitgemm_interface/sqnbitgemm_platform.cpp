@@ -16,8 +16,8 @@ Abstract:
 --*/
 
 #include <system_error>          // ← 반드시 가장 먼저  
-
-// 2️⃣ 매크로가 이미 정의돼 있을 경우 해제  
+#include <thread>
+#include <mutex>
 #ifdef error_category  
 #undef error_category  
 #endif  
@@ -31,8 +31,6 @@ Abstract:
 
 #include "mlasi.h"
 
-#include <thread>
-#include <mutex>
 
 #if defined(MLAS_TARGET_POWER)
 #if defined(__linux__)
@@ -255,12 +253,12 @@ Return Value:
 --*/
 {
 
-    this->ConvDepthwiseU8S8Kernel = MlasConvDepthwiseKernel<uint8_t, int8_t>;
-    this->ConvDepthwiseU8U8Kernel = MlasConvDepthwiseKernel<uint8_t, uint8_t>;
-    this->ConvDepthwiseS8S8Kernel = MlasConvDepthwiseKernel<int8_t, int8_t>;
-    this->ConvDepthwiseS8U8Kernel = MlasConvDepthwiseKernel<int8_t, uint8_t>;
-    this->CastF16ToF32Kernel = nullptr;
-    this->CastF32ToF16Kernel = nullptr;
+    // this->ConvDepthwiseU8S8Kernel = MlasConvDepthwiseKernel<uint8_t, int8_t>;
+    // this->ConvDepthwiseU8U8Kernel = MlasConvDepthwiseKernel<uint8_t, uint8_t>;
+    // this->ConvDepthwiseS8S8Kernel = MlasConvDepthwiseKernel<int8_t, int8_t>;
+    // this->ConvDepthwiseS8U8Kernel = MlasConvDepthwiseKernel<int8_t, uint8_t>;
+    // this->CastF16ToF32Kernel = nullptr;
+    // this->CastF32ToF16Kernel = nullptr;
 
 #if defined(MLAS_TARGET_AMD64_IX86)
 
@@ -268,40 +266,40 @@ Return Value:
     // Default to the baseline SSE2 support.
     //
 
-    this->GemmFloatKernel = MlasGemmFloatKernelSse;
-    this->GemmU8S8Dispatch = &MlasGemmU8X8DispatchSse;
-    this->GemmU8U8Dispatch = &MlasGemmU8X8DispatchSse;
+    // this->GemmFloatKernel = MlasGemmFloatKernelSse;
+    // this->GemmU8S8Dispatch = &MlasGemmU8X8DispatchSse;
+    // this->GemmU8U8Dispatch = &MlasGemmU8X8DispatchSse;
 
 #if defined(MLAS_TARGET_AMD64)
 
-    this->TransposePackB16x4Routine = MlasSgemmTransposePackB16x4Sse;
-    this->GemmDoubleKernel = MlasGemmDoubleKernelSse;
-    this->ConvNchwFloatKernel = MlasConvNchwFloatKernelSse;
-    this->ConvNchwcFloatKernel = MlasConvNchwcFloatKernelSse;
-    this->ConvDepthwiseFloatKernel = MlasConvDepthwiseFloatKernelSse;
-    this->ConvPointwiseFloatKernel = MlasConvPointwiseFloatKernelSse;
-    this->PoolFloatKernel[MlasMaximumPooling] = MlasPoolMaximumFloatKernelSse;
-    this->PoolFloatKernel[MlasAveragePoolingExcludePad] = MlasPoolAverageExcludePadFloatKernelSse;
-    this->PoolFloatKernel[MlasAveragePoolingIncludePad] = MlasPoolAverageIncludePadFloatKernelSse;
-    this->ComputeExpF32Kernel = MlasComputeExpF32Kernel;
-    this->LogisticKernelRoutine = MlasLogisticKernel;
-    this->TanhKernelRoutine = MlasTanhKernel;
-    this->ErfKernelRoutine = MlasErfKernel;
-    this->ComputeSumExpF32Kernel = MlasComputeSumExpF32Kernel;
-    this->ComputeSoftmaxOutputF32Kernel = MlasComputeSoftmaxOutputF32Kernel;
-    this->ComputeLogSoftmaxOutputF32Kernel = MlasComputeLogSoftmaxOutputF32Kernel;
-    this->ReduceMaximumF32Kernel = MlasReduceMaximumF32Kernel;
-    this->ReduceMinimumMaximumF32Kernel = MlasReduceMinimumMaximumF32Kernel;
-    this->QLinearAddS8Kernel = MlasQLinearAddS8Kernel;
-    this->QLinearAddU8Kernel = MlasQLinearAddU8Kernel;
-    this->QuantizeLinearS8Kernel = MlasQuantizeLinearS8Kernel;
-    this->QuantizeLinearU8Kernel = MlasQuantizeLinearU8Kernel;
-    this->QuantizeLinearS16Kernel = MlasQuantizeLinearS16Kernel;
-    this->QuantizeLinearU16Kernel = MlasQuantizeLinearU16Kernel;
-    this->QuantizeLinearS4Kernel = MlasQuantizeLinearS4Kernel;
-    this->QuantizeLinearU4Kernel = MlasQuantizeLinearU4Kernel;
+    // this->TransposePackB16x4Routine = MlasSgemmTransposePackB16x4Sse;
+    // this->GemmDoubleKernel = MlasGemmDoubleKernelSse;
+    // this->ConvNchwFloatKernel = MlasConvNchwFloatKernelSse;
+    // this->ConvNchwcFloatKernel = MlasConvNchwcFloatKernelSse;
+    // this->ConvDepthwiseFloatKernel = MlasConvDepthwiseFloatKernelSse;
+    // this->ConvPointwiseFloatKernel = MlasConvPointwiseFloatKernelSse;
+    // this->PoolFloatKernel[MlasMaximumPooling] = MlasPoolMaximumFloatKernelSse;
+    // this->PoolFloatKernel[MlasAveragePoolingExcludePad] = MlasPoolAverageExcludePadFloatKernelSse;
+    // this->PoolFloatKernel[MlasAveragePoolingIncludePad] = MlasPoolAverageIncludePadFloatKernelSse;
+    // this->ComputeExpF32Kernel = MlasComputeExpF32Kernel;
+    // this->LogisticKernelRoutine = MlasLogisticKernel;
+    // this->TanhKernelRoutine = MlasTanhKernel;
+    // this->ErfKernelRoutine = MlasErfKernel;
+    // this->ComputeSumExpF32Kernel = MlasComputeSumExpF32Kernel;
+    // this->ComputeSoftmaxOutputF32Kernel = MlasComputeSoftmaxOutputF32Kernel;
+    // this->ComputeLogSoftmaxOutputF32Kernel = MlasComputeLogSoftmaxOutputF32Kernel;
+    // this->ReduceMaximumF32Kernel = MlasReduceMaximumF32Kernel;
+    // this->ReduceMinimumMaximumF32Kernel = MlasReduceMinimumMaximumF32Kernel;
+    // this->QLinearAddS8Kernel = MlasQLinearAddS8Kernel;
+    // this->QLinearAddU8Kernel = MlasQLinearAddU8Kernel;
+    // this->QuantizeLinearS8Kernel = MlasQuantizeLinearS8Kernel;
+    // this->QuantizeLinearU8Kernel = MlasQuantizeLinearU8Kernel;
+    // this->QuantizeLinearS16Kernel = MlasQuantizeLinearS16Kernel;
+    // this->QuantizeLinearU16Kernel = MlasQuantizeLinearU16Kernel;
+    // this->QuantizeLinearS4Kernel = MlasQuantizeLinearS4Kernel;
+    // this->QuantizeLinearU4Kernel = MlasQuantizeLinearU4Kernel;
 #ifndef __APPLE__
-    this->CastF16ToF32Kernel = &MlasCastF16ToF32KernelSse;
+    // this->CastF16ToF32Kernel = &MlasCastF16ToF32KernelSse;
 #endif  // __APPLE__
 
     this->NchwcBlockSize = 8;
@@ -344,26 +342,26 @@ Return Value:
 
         if ((xcr0 & 0x6) == 0x6) {
 
-            this->GemmFloatKernel = MlasGemmFloatKernelAvx;
+            // this->GemmFloatKernel = MlasGemmFloatKernelAvx;
 
 #if defined(MLAS_TARGET_AMD64)
 
-            this->KernelM1Routine = MlasSgemmKernelM1Avx;
-            this->KernelM1TransposeBRoutine = MlasSgemmKernelM1TransposeBAvx;
-            this->TransposePackB16x4Routine = MlasSgemmTransposePackB16x4Avx;
-            this->GemmDoubleKernel = MlasGemmDoubleKernelAvx;
-            this->ConvNchwFloatKernel = MlasConvNchwFloatKernelAvx;
-            this->ConvNchwcFloatKernel = MlasConvNchwcFloatKernelAvx;
-            this->ConvDepthwiseFloatKernel = MlasConvDepthwiseFloatKernelAvx;
-            this->ConvPointwiseFloatKernel = MlasConvPointwiseFloatKernelAvx;
-            this->PoolFloatKernel[MlasMaximumPooling] = MlasPoolMaximumFloatKernelAvx;
-            this->PoolFloatKernel[MlasAveragePoolingExcludePad] = MlasPoolAverageExcludePadFloatKernelAvx;
-            this->PoolFloatKernel[MlasAveragePoolingIncludePad] = MlasPoolAverageIncludePadFloatKernelAvx;
-            this->ComputeSoftmaxOutputF32Kernel = MlasComputeSoftmaxOutputF32KernelAvx;
-            this->ComputeLogSoftmaxOutputF32Kernel = MlasComputeLogSoftmaxOutputF32KernelAvx;
-            this->ReduceMaximumF32Kernel = MlasReduceMaximumF32KernelAvx;
-            this->ReduceMinimumMaximumF32Kernel = MlasReduceMinimumMaximumF32KernelAvx;
-            this->GemmU8U8Kernel = nullptr;
+            // this->KernelM1Routine = MlasSgemmKernelM1Avx;
+            // this->KernelM1TransposeBRoutine = MlasSgemmKernelM1TransposeBAvx;
+            // this->TransposePackB16x4Routine = MlasSgemmTransposePackB16x4Avx;
+            // this->GemmDoubleKernel = MlasGemmDoubleKernelAvx;
+            // this->ConvNchwFloatKernel = MlasConvNchwFloatKernelAvx;
+            // this->ConvNchwcFloatKernel = MlasConvNchwcFloatKernelAvx;
+            // this->ConvDepthwiseFloatKernel = MlasConvDepthwiseFloatKernelAvx;
+            // this->ConvPointwiseFloatKernel = MlasConvPointwiseFloatKernelAvx;
+            // this->PoolFloatKernel[MlasMaximumPooling] = MlasPoolMaximumFloatKernelAvx;
+            // this->PoolFloatKernel[MlasAveragePoolingExcludePad] = MlasPoolAverageExcludePadFloatKernelAvx;
+            // this->PoolFloatKernel[MlasAveragePoolingIncludePad] = MlasPoolAverageIncludePadFloatKernelAvx;
+            // this->ComputeSoftmaxOutputF32Kernel = MlasComputeSoftmaxOutputF32KernelAvx;
+            // this->ComputeLogSoftmaxOutputF32Kernel = MlasComputeLogSoftmaxOutputF32KernelAvx;
+            // this->ReduceMaximumF32Kernel = MlasReduceMaximumF32KernelAvx;
+            // this->ReduceMinimumMaximumF32Kernel = MlasReduceMinimumMaximumF32KernelAvx;
+            // this->GemmU8U8Kernel = nullptr;
 
             //
             // Check if the processor supports AVX2/FMA3 features.
@@ -378,33 +376,33 @@ Return Value:
 
             if (((Cpuid1[2] & 0x1000) != 0) && ((Cpuid7[1] & 0x20) != 0)) {
 
-                this->GemmU8S8Dispatch = &MlasGemmU8S8DispatchAvx2;
-                this->GemmU8S8Kernel = MlasGemmU8S8KernelAvx2;
-                this->GemvU8S8Kernel = MlasGemvU8S8KernelAvx2;
-                this->GemmU8U8Dispatch = &MlasGemmU8U8DispatchAvx2;
-                this->GemmU8U8Kernel = MlasGemmU8U8KernelAvx2;
-                this->ConvSymU8S8Dispatch = &MlasConvSymDispatchAvx2;
+                // this->GemmU8S8Dispatch = &MlasGemmU8S8DispatchAvx2;
+                // this->GemmU8S8Kernel = MlasGemmU8S8KernelAvx2;
+                // this->GemvU8S8Kernel = MlasGemvU8S8KernelAvx2;
+                // this->GemmU8U8Dispatch = &MlasGemmU8U8DispatchAvx2;
+                // this->GemmU8U8Kernel = MlasGemmU8U8KernelAvx2;
+                // this->ConvSymU8S8Dispatch = &MlasConvSymDispatchAvx2;
 
-                this->GemmFloatKernel = MlasGemmFloatKernelFma3;
-                this->GemmDoubleKernel = MlasGemmDoubleKernelFma3;
-                this->ConvNchwFloatKernel = MlasConvNchwFloatKernelFma3;
-                this->ConvNchwcFloatKernel = MlasConvNchwcFloatKernelFma3;
-                this->ConvDepthwiseFloatKernel = MlasConvDepthwiseFloatKernelFma3;
-                this->ConvPointwiseFloatKernel = MlasConvPointwiseFloatKernelFma3;
-                this->ComputeExpF32Kernel = MlasComputeExpF32KernelFma3;
-                this->LogisticKernelRoutine = MlasComputeLogisticF32KernelFma3;
-                this->TanhKernelRoutine = MlasComputeTanhF32KernelFma3;
-                this->ErfKernelRoutine = MlasErfKernelFma3;
-                this->QLinearAddS8Kernel = MlasQLinearAddS8KernelAvx2;
-                this->QLinearAddU8Kernel = MlasQLinearAddU8KernelAvx2;
-                this->ConvDepthwiseU8S8Kernel = MlasConvDepthwiseKernelAvx2<uint8_t, int8_t>;
-                this->ConvDepthwiseU8U8Kernel = MlasConvDepthwiseKernelAvx2<uint8_t, uint8_t>;
-                this->ConvDepthwiseS8S8Kernel = MlasConvDepthwiseKernelAvx2<int8_t, int8_t>;
-                this->ConvDepthwiseS8U8Kernel = MlasConvDepthwiseKernelAvx2<int8_t, uint8_t>;
-                this->ComputeSumExpF32Kernel = MlasComputeSumExpF32KernelFma3;
+                // this->GemmFloatKernel = MlasGemmFloatKernelFma3;
+                // this->GemmDoubleKernel = MlasGemmDoubleKernelFma3;
+                // this->ConvNchwFloatKernel = MlasConvNchwFloatKernelFma3;
+                // this->ConvNchwcFloatKernel = MlasConvNchwcFloatKernelFma3;
+                // this->ConvDepthwiseFloatKernel = MlasConvDepthwiseFloatKernelFma3;
+                // this->ConvPointwiseFloatKernel = MlasConvPointwiseFloatKernelFma3;
+                // this->ComputeExpF32Kernel = MlasComputeExpF32KernelFma3;
+                // this->LogisticKernelRoutine = MlasComputeLogisticF32KernelFma3;
+                // this->TanhKernelRoutine = MlasComputeTanhF32KernelFma3;
+                // this->ErfKernelRoutine = MlasErfKernelFma3;
+                // this->QLinearAddS8Kernel = MlasQLinearAddS8KernelAvx2;
+                // this->QLinearAddU8Kernel = MlasQLinearAddU8KernelAvx2;
+                // this->ConvDepthwiseU8S8Kernel = MlasConvDepthwiseKernelAvx2<uint8_t, int8_t>;
+                // this->ConvDepthwiseU8U8Kernel = MlasConvDepthwiseKernelAvx2<uint8_t, uint8_t>;
+                // this->ConvDepthwiseS8S8Kernel = MlasConvDepthwiseKernelAvx2<int8_t, int8_t>;
+                // this->ConvDepthwiseS8U8Kernel = MlasConvDepthwiseKernelAvx2<int8_t, uint8_t>;
+                // this->ComputeSumExpF32Kernel = MlasComputeSumExpF32KernelFma3;
                 this->SQNBitGemmDispatch = &MlasSQNBitGemmDispatchAvx2;
-                this->CastF16ToF32Kernel = &MlasCastF16ToF32KernelAvx2;
-                this->CastF32ToF16Kernel = &MlasCastF32ToF16KernelAvx2;
+                // this->CastF16ToF32Kernel = &MlasCastF16ToF32KernelAvx2;
+                // this->CastF32ToF16Kernel = &MlasCastF32ToF16KernelAvx2;
 
 
                 //
@@ -428,10 +426,10 @@ Return Value:
 
                 if ((Cpuid7_1[0] & 0x10) != 0) {
 
-                    this->GemmU8U8Dispatch = &MlasGemmU8S8DispatchAvx2;
-                    this->GemmU8S8Kernel = MlasGemmU8S8KernelAvxVnni;
-                    this->GemvU8S8Kernel = MlasGemvU8S8KernelAvxVnni;
-                    this->ConvSymU8S8Dispatch = &MlasConvSymDispatchAvxVnni;
+                    // this->GemmU8U8Dispatch = &MlasGemmU8S8DispatchAvx2;
+                    // this->GemmU8S8Kernel = MlasGemmU8S8KernelAvxVnni;
+                    // this->GemvU8S8Kernel = MlasGemvU8S8KernelAvxVnni;
+                    // this->ConvSymU8S8Dispatch = &MlasConvSymDispatchAvxVnni;
                     this->SQNBitGemmDispatch = &MlasSQNBitGemmDispatchAvx2vnni;
                 }
 
@@ -444,20 +442,20 @@ Return Value:
 
                 if (((Cpuid7[1] & 0x10000) != 0) && ((xcr0 & 0xE0) == 0xE0)) {
 
-                    this->GemmFloatKernel = MlasGemmFloatKernelAvx512F;
-                    this->GemmDoubleKernel = MlasGemmDoubleKernelAvx512F;
-                    this->ConvNchwFloatKernel = MlasConvNchwFloatKernelAvx512F;
-                    this->ConvNchwcFloatKernel = MlasConvNchwcFloatKernelAvx512F;
-                    this->ConvDepthwiseFloatKernel = MlasConvDepthwiseFloatKernelAvx512F;
-                    this->ConvPointwiseFloatKernel = MlasConvPointwiseFloatKernelAvx512F;
-                    this->PoolFloatKernel[MlasMaximumPooling] = MlasPoolMaximumFloatKernelAvx512F;
-                    this->PoolFloatKernel[MlasAveragePoolingExcludePad] = MlasPoolAverageExcludePadFloatKernelAvx512F;
-                    this->PoolFloatKernel[MlasAveragePoolingIncludePad] = MlasPoolAverageIncludePadFloatKernelAvx512F;
-                    this->ComputeExpF32Kernel = MlasComputeExpF32KernelAvx512F;
-                    this->ComputeSumExpF32Kernel = MlasComputeSumExpF32KernelAvx512F;
-                    this->ReduceMaximumF32Kernel = MlasReduceMaximumF32KernelAvx512F;
-                    this->QuantizeLinearS8Kernel = MlasQuantizeLinearS8KernelAvx512F;
-                    this->QuantizeLinearU8Kernel = MlasQuantizeLinearU8KernelAvx512F;
+                    // this->GemmFloatKernel = MlasGemmFloatKernelAvx512F;
+                    // this->GemmDoubleKernel = MlasGemmDoubleKernelAvx512F;
+                    // this->ConvNchwFloatKernel = MlasConvNchwFloatKernelAvx512F;
+                    // this->ConvNchwcFloatKernel = MlasConvNchwcFloatKernelAvx512F;
+                    // this->ConvDepthwiseFloatKernel = MlasConvDepthwiseFloatKernelAvx512F;
+                    // this->ConvPointwiseFloatKernel = MlasConvPointwiseFloatKernelAvx512F;
+                    // this->PoolFloatKernel[MlasMaximumPooling] = MlasPoolMaximumFloatKernelAvx512F;
+                    // this->PoolFloatKernel[MlasAveragePoolingExcludePad] = MlasPoolAverageExcludePadFloatKernelAvx512F;
+                    // this->PoolFloatKernel[MlasAveragePoolingIncludePad] = MlasPoolAverageIncludePadFloatKernelAvx512F;
+                    // this->ComputeExpF32Kernel = MlasComputeExpF32KernelAvx512F;
+                    // this->ComputeSumExpF32Kernel = MlasComputeSumExpF32KernelAvx512F;
+                    // this->ReduceMaximumF32Kernel = MlasReduceMaximumF32KernelAvx512F;
+                    // this->QuantizeLinearS8Kernel = MlasQuantizeLinearS8KernelAvx512F;
+                    // this->QuantizeLinearU8Kernel = MlasQuantizeLinearU8KernelAvx512F;
                     this->NchwcBlockSize = 16;
                     this->PreferredBufferAlignment = 64;
 
@@ -468,12 +466,12 @@ Return Value:
 
                     if ((Cpuid7[1] & 0xC0020000) == 0xC0020000) {
 
-                        this->GemmU8S8Kernel = MlasGemmU8S8KernelAvx512Core;
-                        this->GemvU8S8Kernel = MlasGemvU8S8KernelAvx512Core;
-                        this->GemmU8U8Kernel = MlasGemmU8U8KernelAvx512Core;
-                        this->ConvSymU8S8Dispatch = &MlasConvSymDispatchAvx512Core;
-                        this->FpQ4GemmDispatch = &MlasFpQ4GemmDispatchAvx512;
-                        this->SQNBitGemmDispatch = &MlasSQNBitGemmDispatchAvx512;
+                        // this->GemmU8S8Kernel = MlasGemmU8S8KernelAvx512Core;
+                        // this->GemvU8S8Kernel = MlasGemvU8S8KernelAvx512Core;
+                        // this->GemmU8U8Kernel = MlasGemmU8U8KernelAvx512Core;
+                        // this->ConvSymU8S8Dispatch = &MlasConvSymDispatchAvx512Core;
+                        // this->FpQ4GemmDispatch = &MlasFpQ4GemmDispatchAvx512;
+                        // this->SQNBitGemmDispatch = &MlasSQNBitGemmDispatchAvx512;
 
                         //
                         // Check if the processor supports AVX512VNNI.
@@ -481,12 +479,12 @@ Return Value:
 
                         if ((Cpuid7[2] & 0x800) != 0) {
 
-                            this->GemmU8U8Dispatch = &MlasGemmU8S8DispatchAvx2;
-                            this->GemmU8S8Kernel = MlasGemmU8S8KernelAvx512Vnni;
-                            this->GemvU8S8Kernel = MlasGemvU8S8KernelAvx512Vnni;
-                            this->ConvSymU8S8Dispatch = &MlasConvSymDispatchAvx512Vnni;
-                            this->Q8Q4GemmDispatch = &MlasQ8Q4GemmDispatchAvx512vnni;
-                            this->SQNBitGemmDispatch = &MlasSQNBitGemmDispatchAvx512vnni;
+                            // this->GemmU8U8Dispatch = &MlasGemmU8S8DispatchAvx2;
+                            // this->GemmU8S8Kernel = MlasGemmU8S8KernelAvx512Vnni;
+                            // this->GemvU8S8Kernel = MlasGemvU8S8KernelAvx512Vnni;
+                            // this->ConvSymU8S8Dispatch = &MlasConvSymDispatchAvx512Vnni;
+                            // this->Q8Q4GemmDispatch = &MlasQ8Q4GemmDispatchAvx512vnni;
+                            // this->SQNBitGemmDispatch = &MlasSQNBitGemmDispatchAvx512vnni;
                         }
                     }
                 }
@@ -495,11 +493,11 @@ Return Value:
                 // Check if the processor supports AVX-VNNI-INT8
                 //
                 if ((Cpuid7_1[3] & 0x10) != 0) {
-                    this->GemmU8U8Dispatch = &MlasGemmU8U8DispatchAvx2Vnni;
-                    this->GemmS8S8Dispatch = &MlasGemmS8S8DispatchAvx2Vnni;
-                    this->GemmS8S8Kernel = MlasGemmS8S8KernelAvx2Vnni;
-                    this->GemmS8U8Dispatch = &MlasGemmS8U8DispatchAvx2Vnni;
-                    this->GemmS8U8Kernel = MlasGemmS8U8KernelAvx2Vnni;
+                    // this->GemmU8U8Dispatch = &MlasGemmU8U8DispatchAvx2Vnni;
+                    // this->GemmS8S8Dispatch = &MlasGemmS8S8DispatchAvx2Vnni;
+                    // this->GemmS8S8Kernel = MlasGemmS8S8KernelAvx2Vnni;
+                    // this->GemmS8U8Dispatch = &MlasGemmS8U8DispatchAvx2Vnni;
+                    // this->GemmS8U8Kernel = MlasGemmS8U8KernelAvx2Vnni;
                 }
 
 #ifndef __APPLE__
@@ -508,7 +506,7 @@ Return Value:
                 // Check if the processor supports AVX NE CONVERT.
                 //
                 if ((Cpuid7_1[3] & (0b1 << 5)) != 0) {
-                    this->CastF16ToF32Kernel = &MlasCastF16ToF32KernelAvx;
+                    // this->CastF16ToF32Kernel = &MlasCastF16ToF32KernelAvx;
                 }
 #endif  // (defined(_MSC_VER) && (_MSC_VER >= 1933)) || (defined(__GNUC__) && (__GNUC__ >= 13))
 
@@ -521,8 +519,8 @@ Return Value:
                     (Cpuid7[3] & 0b1 << 25) != 0 &&
                     (xcr0 & XFEATURE_MASK_XTILE) == XFEATURE_MASK_XTILE) {
                     if (MlasInitAMX()) {
-                        this->GemmU8U8Dispatch = &MlasGemmU8S8DispatchAmx;
-                        this->GemmU8S8Dispatch = &MlasGemmU8S8DispatchAmx;
+                        // this->GemmU8U8Dispatch = &MlasGemmU8S8DispatchAmx;
+                        // this->GemmU8S8Dispatch = &MlasGemmU8S8DispatchAmx;
                     }
                 }
 #endif // __APPLE__
@@ -540,12 +538,12 @@ Return Value:
 
 #if defined(MLAS_TARGET_ARM64)
 
-    this->GemmU8U8Dispatch = &MlasGemmU8X8DispatchNeon;
-    this->GemmU8S8Dispatch = &MlasGemmX8S8DispatchNeon;
-    this->GemmS8S8Dispatch = &MlasGemmX8S8DispatchNeon;
-    this->SymmQgemmDispatch = &MlasSymmQgemmS8DispatchNeon;
-    this->ConvSymU8S8Dispatch = &MlasConvSymU8DispatchNeon;
-    this->ConvSymS8S8Dispatch = &MlasConvSymS8DispatchNeon;
+    // this->GemmU8U8Dispatch = &MlasGemmU8X8DispatchNeon;
+    // this->GemmU8S8Dispatch = &MlasGemmX8S8DispatchNeon;
+    // this->GemmS8S8Dispatch = &MlasGemmX8S8DispatchNeon;
+    // this->SymmQgemmDispatch = &MlasSymmQgemmS8DispatchNeon;
+    // this->ConvSymU8S8Dispatch = &MlasConvSymU8DispatchNeon;
+    // this->ConvSymS8S8Dispatch = &MlasConvSymS8DispatchNeon;
 
     //
     // Check if the processor supports ASIMD dot product instructions.
@@ -569,12 +567,12 @@ Return Value:
 #endif
 
     if (HasDotProductInstructions) {
-        this->GemmU8U8Dispatch = &MlasGemmU8X8DispatchUdot;
-        this->GemmU8S8Dispatch = &MlasGemmU8X8DispatchUdot;
-        this->GemmS8S8Dispatch = &MlasGemmS8S8DispatchSdot;
-        this->SymmQgemmDispatch = &MlasSymmQgemmS8DispatchSdot;
-        this->ConvSymU8S8Dispatch = &MlasConvSymU8DispatchDot;
-        this->ConvSymS8S8Dispatch = &MlasConvSymS8DispatchDot;
+        // this->GemmU8U8Dispatch = &MlasGemmU8X8DispatchUdot;
+        // this->GemmU8S8Dispatch = &MlasGemmU8X8DispatchUdot;
+        // this->GemmS8S8Dispatch = &MlasGemmS8S8DispatchSdot;
+        // this->SymmQgemmDispatch = &MlasSymmQgemmS8DispatchSdot;
+        // this->ConvSymU8S8Dispatch = &MlasConvSymU8DispatchDot;
+        // this->ConvSymS8S8Dispatch = &MlasConvSymS8DispatchDot;
 
         // MlasSQNBitGemmDispatchNeon has a dependency on dot product instructions
         this->SQNBitGemmDispatch = &MlasSQNBitGemmDispatchNeon;
@@ -585,27 +583,27 @@ Return Value:
     // Check if the processor supports ASIMD I8MM instructions.
     //
     if (MLAS_CPUIDINFO::GetCPUIDInfo().HasArmNeon_I8MM()) {
-        this->GemmU8U8Dispatch = &MlasGemmU8X8DispatchUmmla;
-        this->GemmU8S8Dispatch = &MlasGemmU8X8DispatchUmmla;
-        this->GemmS8S8Dispatch = &MlasGemmS8S8DispatchSmmla;
+        // this->GemmU8U8Dispatch = &MlasGemmU8X8DispatchUmmla;
+        // this->GemmU8S8Dispatch = &MlasGemmU8X8DispatchUmmla;
+        // this->GemmS8S8Dispatch = &MlasGemmS8S8DispatchSmmla;
     }
 #endif
 
 #if defined(MLAS_F16VEC_INTRINSICS_SUPPORTED)
-    this->CastF16ToF32Kernel = &MlasCastF16ToF32KernelNeon;
-    this->CastF32ToF16Kernel = &MlasCastF32ToF16KernelNeon;
+    // this->CastF16ToF32Kernel = &MlasCastF16ToF32KernelNeon;
+    // this->CastF32ToF16Kernel = &MlasCastF32ToF16KernelNeon;
 #endif
 
 #endif // MLAS_TARGET_ARM64
 #if defined(MLAS_TARGET_POWER)
-    this->GemmFloatKernel = MlasSgemmKernel;
-    this->GemmDoubleKernel = MlasDgemmKernel;
-    this->QuantizeLinearS8Kernel = MlasQuantizeLinearS8Kernel;
-    this->QuantizeLinearU8Kernel = MlasQuantizeLinearU8Kernel;
-    this->QuantizeLinearS16Kernel = MlasQuantizeLinearS16Kernel;
-    this->QuantizeLinearU16Kernel = MlasQuantizeLinearU16Kernel;
-    this->QuantizeLinearS4Kernel = MlasQuantizeLinearS4Kernel;
-    this->QuantizeLinearU4Kernel = MlasQuantizeLinearU4Kernel;
+    // this->GemmFloatKernel = MlasSgemmKernel;
+    // this->GemmDoubleKernel = MlasDgemmKernel;
+    // this->QuantizeLinearS8Kernel = MlasQuantizeLinearS8Kernel;
+    // this->QuantizeLinearU8Kernel = MlasQuantizeLinearU8Kernel;
+    // this->QuantizeLinearS16Kernel = MlasQuantizeLinearS16Kernel;
+    // this->QuantizeLinearU16Kernel = MlasQuantizeLinearU16Kernel;
+    // this->QuantizeLinearS4Kernel = MlasQuantizeLinearS4Kernel;
+    // this->QuantizeLinearU4Kernel = MlasQuantizeLinearU4Kernel;
 
 #if defined(__linux__)
     unsigned long hwcap2 = getauxval(AT_HWCAP2);
@@ -615,8 +613,8 @@ Return Value:
     bool HasP9Instructions = __power_9_andup();
 #endif // __linux__
     if (HasP9Instructions) {
-        this->QuantizeLinearS8Kernel = MlasQuantizeLinearS8KernelVSX;
-        this->QuantizeLinearU8Kernel = MlasQuantizeLinearU8KernelVSX;
+        // this->QuantizeLinearS8Kernel = MlasQuantizeLinearS8KernelVSX;
+        // this->QuantizeLinearU8Kernel = MlasQuantizeLinearU8KernelVSX;
     }
 
 #if defined(POWER10)
@@ -628,9 +626,9 @@ Return Value:
     bool HasP10Instructions = (__power_10_andup() && __power_mma_version() == MMA_V31);
 #endif // __linux__
     if (HasP10Instructions) {
-        this->GemmFloatKernel = MlasSgemmKernelPOWER10;
-        this->GemmDoubleKernel = MlasDgemmKernelPOWER10;
-        this->GemmU8X8Dispatch = &MlasGemm8X8DispatchPOWER10;
+        // this->GemmFloatKernel = MlasSgemmKernelPOWER10;
+        // this->GemmDoubleKernel = MlasDgemmKernelPOWER10;
+        // this->GemmU8X8Dispatch = &MlasGemm8X8DispatchPOWER10;
     }
 #endif
 #endif
@@ -648,43 +646,43 @@ Return Value:
     bool cap_lsx = hwcap & HWCAP_LOONGARCH_LSX;
 
     if( cap_lasx ){
-        this->GemmFloatKernel = MlasGemmFloatKernelLasx;
-        this->GemmDoubleKernel = MlasGemmDoubleKernelLasx;
-        this->ConvNchwFloatKernel = MlasConvNchwFloatKernelLasx;
-        this->ConvNchwcFloatKernel = MlasConvNchwcFloatKernelLasx;
-        this->ConvDepthwiseFloatKernel = MlasConvDepthwiseFloatKernelLasx;
-        this->ConvPointwiseFloatKernel = MlasConvPointwiseFloatKernelLasx;
-        this->PoolFloatKernel[MlasMaximumPooling] = MlasPoolMaximumFloatKernelLasx;
-        this->PoolFloatKernel[MlasAveragePoolingExcludePad] = MlasPoolAverageExcludePadFloatKernelLasx;
-        this->PoolFloatKernel[MlasAveragePoolingIncludePad] = MlasPoolAverageIncludePadFloatKernelLasx;
-        this->ReduceMaximumF32Kernel = MlasReduceMaximumF32KernelLasx;
-        this->ComputeSoftmaxOutputF32Kernel = MlasComputeSoftmaxOutputF32KernelLasx;
-        this->ComputeLogSoftmaxOutputF32Kernel = MlasComputeLogSoftmaxOutputF32KernelLasx;
-        this->TransposePackB16x4Routine = MlasSgemmTransposePackB16x4Lasx;
+        // this->GemmFloatKernel = MlasGemmFloatKernelLasx;
+        // this->GemmDoubleKernel = MlasGemmDoubleKernelLasx;
+        // this->ConvNchwFloatKernel = MlasConvNchwFloatKernelLasx;
+        // this->ConvNchwcFloatKernel = MlasConvNchwcFloatKernelLasx;
+        // this->ConvDepthwiseFloatKernel = MlasConvDepthwiseFloatKernelLasx;
+        // this->ConvPointwiseFloatKernel = MlasConvPointwiseFloatKernelLasx;
+        // this->PoolFloatKernel[MlasMaximumPooling] = MlasPoolMaximumFloatKernelLasx;
+        // this->PoolFloatKernel[MlasAveragePoolingExcludePad] = MlasPoolAverageExcludePadFloatKernelLasx;
+        // this->PoolFloatKernel[MlasAveragePoolingIncludePad] = MlasPoolAverageIncludePadFloatKernelLasx;
+        // this->ReduceMaximumF32Kernel = MlasReduceMaximumF32KernelLasx;
+        // this->ComputeSoftmaxOutputF32Kernel = MlasComputeSoftmaxOutputF32KernelLasx;
+        // this->ComputeLogSoftmaxOutputF32Kernel = MlasComputeLogSoftmaxOutputF32KernelLasx;
+        // this->TransposePackB16x4Routine = MlasSgemmTransposePackB16x4Lasx;
 
-        this->GemmU8S8Dispatch = &MlasGemmU8X8DispatchLSX;
-        this->GemmU8U8Dispatch = &MlasGemmU8X8DispatchLSX;
+        // this->GemmU8S8Dispatch = &MlasGemmU8X8DispatchLSX;
+        // this->GemmU8U8Dispatch = &MlasGemmU8X8DispatchLSX;
     }else if( cap_lsx ){
-        this->GemmFloatKernel = MlasGemmFloatKernelLSX;
-        this->GemmU8S8Dispatch = &MlasGemmU8X8DispatchLSX;
-        this->GemmU8U8Dispatch = &MlasGemmU8X8DispatchLSX;
-        this->TransposePackB16x4Routine = MlasSgemmTransposePackB16x4LSX;
-        this->GemmDoubleKernel = MlasGemmDoubleKernelLSX;
-        this->ConvNchwFloatKernel = MlasConvNchwFloatKernelLSX;
-        this->ConvNchwcFloatKernel = MlasConvNchwcFloatKernelLSX;
-        this->ConvDepthwiseFloatKernel = MlasConvDepthwiseFloatKernelLSX;
-        this->ConvPointwiseFloatKernel = MlasConvPointwiseFloatKernelLSX;
+        // this->GemmFloatKernel = MlasGemmFloatKernelLSX;
+        // this->GemmU8S8Dispatch = &MlasGemmU8X8DispatchLSX;
+        // this->GemmU8U8Dispatch = &MlasGemmU8X8DispatchLSX;
+        // this->TransposePackB16x4Routine = MlasSgemmTransposePackB16x4LSX;
+        // this->GemmDoubleKernel = MlasGemmDoubleKernelLSX;
+        // this->ConvNchwFloatKernel = MlasConvNchwFloatKernelLSX;
+        // this->ConvNchwcFloatKernel = MlasConvNchwcFloatKernelLSX;
+        // this->ConvDepthwiseFloatKernel = MlasConvDepthwiseFloatKernelLSX;
+        // this->ConvPointwiseFloatKernel = MlasConvPointwiseFloatKernelLSX;
 
-        this->PoolFloatKernel[MlasMaximumPooling] = MlasPoolMaximumFloatKernelLSX;
-        this->PoolFloatKernel[MlasAveragePoolingExcludePad] = MlasPoolAverageExcludePadFloatKernelLSX;
-        this->PoolFloatKernel[MlasAveragePoolingIncludePad] = MlasPoolAverageIncludePadFloatKernelLSX;
-        this->ReduceMaximumF32Kernel = MlasReduceMaximumF32Kernel;
-        this->ComputeSoftmaxOutputF32Kernel = MlasComputeSoftmaxOutputF32Kernel;
-        this->ComputeLogSoftmaxOutputF32Kernel = MlasComputeLogSoftmaxOutputF32Kernel;
+        // this->PoolFloatKernel[MlasMaximumPooling] = MlasPoolMaximumFloatKernelLSX;
+        // this->PoolFloatKernel[MlasAveragePoolingExcludePad] = MlasPoolAverageExcludePadFloatKernelLSX;
+        // this->PoolFloatKernel[MlasAveragePoolingIncludePad] = MlasPoolAverageIncludePadFloatKernelLSX;
+        // this->ReduceMaximumF32Kernel = MlasReduceMaximumF32Kernel;
+        // this->ComputeSoftmaxOutputF32Kernel = MlasComputeSoftmaxOutputF32Kernel;
+        // this->ComputeLogSoftmaxOutputF32Kernel = MlasComputeLogSoftmaxOutputF32Kernel;
     }else{
-        this->ReduceMaximumF32Kernel = MlasReduceMaximumF32Kernel;
-        this->ComputeSoftmaxOutputF32Kernel = MlasComputeSoftmaxOutputF32Kernel;
-        this->ComputeLogSoftmaxOutputF32Kernel = MlasComputeLogSoftmaxOutputF32Kernel;
+        // this->ReduceMaximumF32Kernel = MlasReduceMaximumF32Kernel;
+        // this->ComputeSoftmaxOutputF32Kernel = MlasComputeSoftmaxOutputF32Kernel;
+        // this->ComputeLogSoftmaxOutputF32Kernel = MlasComputeLogSoftmaxOutputF32Kernel;
     }
 
     this->NchwcBlockSize = 8;

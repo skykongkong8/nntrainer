@@ -1292,6 +1292,83 @@ TEST(nntrainer_cpu_backend_standalone, qai8dxp_qsi4cxp_3072x768x1024) {
   ASSERT_LE(qai8dxp_qsi4cxp_q4_0_mse, eps * M * K * N);
 }
 
+float test_gemm_sqnbitgemm(const uint32_t M, const uint32_t K, const uint32_t N,
+                           const float *weights, const float *activations,
+                           std::vector<float> &ref_dst, bool transB = true,
+                           bool print = false) {
+  // Step1. Set sqnbitgemm quant test components
+  void *_QuantBData = nullptr;
+  float *_QuantBScale = nullptr;
+  void *_QuantBZeroPoint = nullptr;
+
+  // Step2. 4-bit Weight quantization, for qs4cx format, with fp32 scale
+  nntrainer::nntr_gqu4_rhs_nt_t_quant(weights, _QuantBData, _QuantBScale,
+                                      _QuantBZeroPoint, N, K, false);
+                                      std::cout << "nntr_gqu4_rhs_nt_t_quant\n";
+
+  // Step3. Run GEMM! (Online activation quantization + kernel routine + return
+  // float)
+  std::vector<float> dst(static_cast<size_t>(M) * N);
+  auto t1 = high_resolution_clock::now();
+  // #### MAIN TESTED METHOD ####
+  nntrainer::nntr_gqu4_gemm(M, N, K, activations, K, _QuantBData, _QuantBScale,
+                            _QuantBZeroPoint, nullptr, dst.data(), N);
+  // #### MAIN TESTED METHOD ####
+  auto t2 = high_resolution_clock::now();
+  auto dt = duration_cast<nanoseconds>(t2 - t1);
+  if (print) {
+    std::cout << "[INFO] test_gemm_sqnbitgemm : " << dt.count() << " ns "
+              << dt.count() / 1'000 << " us " << dt.count() / 1'000'000
+              << " ms " << std::endl;
+  }
+
+  // Step4. Compute quantization error
+  auto mean_squared_error = compute_mse(M, N, ref_dst, dst, print);
+
+  return mean_squared_error;
+}
+
+static void run_sqnbitgemm_test(const uint32_t M, const uint32_t K,
+                                     const uint32_t N,
+                                     float &qai8dxp_qsi4cxp_mse,
+                                     bool transB = true, bool print = false) {
+  if (print) {
+    std::cout << "[INFO] sqnbitgemm Test (M:" << M << ", K:" << K
+              << ", N:" << N << ")" << std::endl;
+  }
+  ///@note A(M, K) * W.T(N, K) = (M, N)
+
+  std::vector<float> activation =
+    generate_random_vector<float>(static_cast<std::size_t>(M) * K);
+  std::vector<float> weight =
+    generate_random_vector<float>(static_cast<std::size_t>(N) * K);
+  std::vector<float> ref_dst(static_cast<std::size_t>(M) * N);
+
+  // GROUND TRUTH TRANSB SGEMM for reference
+  auto t1 = high_resolution_clock::now();
+  nntrainer::sgemm(0, false, true, M, N, K, 1.F, activation.data(), K,
+                   weight.data(), K, 0.F, ref_dst.data(), N);
+  auto t2 = high_resolution_clock::now();
+  auto dt = duration_cast<nanoseconds>(t2 - t1);
+  if (print) {
+    std::cout << "[INFO] sgemm :    " << dt.count() << " ns "
+              << dt.count() / 1'000 << " us " << dt.count() / 1'000'000
+              << " ms " << std::endl;
+  }
+  qai8dxp_qsi4cxp_mse = test_gemm_sqnbitgemm(
+    M, K, N, weight.data(), activation.data(), ref_dst, transB, print);
+}
+
+TEST(nntrainer_cpu_backend_standalone, sqnbitgemm_3072x768x1024) {
+  const unsigned int M = 3072;
+  const unsigned int K = 768;
+  const unsigned int N = 1024;
+  float qai8dxp_qsi4cxp_q4_0_mse;
+  constexpr float eps = 1e-5;
+  run_sqnbitgemm_test(M, K, N, qai8dxp_qsi4cxp_q4_0_mse, true, true);
+  ASSERT_LE(qai8dxp_qsi4cxp_q4_0_mse, eps * M * K * N);
+}
+
 int main(int argc, char **argv) {
   int result = -1;
 

@@ -13,3 +13,7 @@ nntrainer_inc_abs += meson.current_source_dir() / 'platform'
 subdir('session')
 nntrainer_inc += include_directories('session')
 nntrainer_inc_abs += meson.current_source_dir() / 'session'
+
+subdir('posix')
+nntrainer_inc += include_directories('posix')
+nntrainer_inc_abs += meson.current_source_dir() / 'posix'

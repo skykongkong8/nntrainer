@@ -4,12 +4,14 @@ sqnbitgemm_headers = [
   'mlas_q4.h',
   'mlas_qnbit.h',
   'mlas.h',
+  # 'mlasi.h',
   'mlasi.h',
   'q4common.h',
-  'sqnbitgemm_interface.h',
   'sqnbitgemm_q8_block.h',
   'sqnbitgemm.h',
   'test_util.h',
+  'mlas_float16.h',
+  'qgemm.h',
 ]
 
 sqnbitgemm_sources = [
@@ -18,6 +20,10 @@ sqnbitgemm_sources = [
   'sqnbitgemm.cpp',
   'threading.cpp',
   'sqnbitgemm_platform.cpp',
+  'qgemm.cpp',
+  'qgemm_kernel_default.cpp',
+  'quantize.cpp',
+  'nntr_sqnbitgemm_threadpool.cpp',
 ]
 
 subdir('core')
