@@ -472,12 +472,19 @@ void nntr_gemm_qai8dxp_qsi4cxp(size_t m, size_t n, size_t k,
     dst_mtx_f32, transB, lower_bound, upper_bound);
 }
 
-void nntr_gqu4_rhs_nt_t_quant(const float *B, void *&_QuantBData,
-                              float *&_QuantBScale,
-                              void *&_QuantBZeroPoint, size_t N, size_t K,
-                              bool Symmetric) {
-  nntr_sqn_gqu4_rhs_nt_t<4, 64>(B, _QuantBData, _QuantBScale, _QuantBZeroPoint, N,
-                            K, Symmetric);
+void nntr_get_gqu4_rhs_nt_t_quant_size(size_t N, size_t K,
+                                       size_t &QuantBDataSizeInBytes,
+                                       size_t &QuantBScaleSize,
+                                       size_t &QuantBZeroPointSizeInBytes) {
+  nntr_sqn_get_gqu4_rhs_nt_t_quant_size<4, 64>(
+    N, K, QuantBDataSizeInBytes, QuantBScaleSize, QuantBZeroPointSizeInBytes);
+}
+
+void nntr_gqu4_rhs_nt_t_quant(const float *B, void *_QuantBData,
+                              float *_QuantBScale, void *_QuantBZeroPoint,
+                              size_t N, size_t K, bool Symmetric) {
+  nntr_sqn_gqu4_rhs_nt_t<4, 64>(B, _QuantBData, _QuantBScale, _QuantBZeroPoint,
+                                N, K, Symmetric);
 }
 
 void nntr_gqu4_gemm(size_t M, size_t N, size_t K, const float *A, size_t lda,

@@ -1,6 +1,15 @@
+#include <iostream>
 #include <sqnbitgemm_interface.h>
 #include <test_util.h>
+
+
+#include <chrono>
 #include <iostream>
+using std::chrono::duration_cast;
+using std::chrono::high_resolution_clock;
+using std::chrono::microseconds;
+using std::chrono::milliseconds;
+using std::chrono::nanoseconds;
 
 template <size_t BlkBitWidth, size_t BlkLen>
 void CallGemm(size_t M, size_t N, size_t K, const float *A, size_t lda,
@@ -32,30 +41,40 @@ void CallGemm(size_t M, size_t N, size_t K, const float *A, size_t lda,
 }
 
 template <size_t BlkBitWidth, size_t BlkLen>
+void nntr_sqn_get_gqu4_rhs_nt_t_quant_size(size_t N, size_t K,
+                                           size_t &QuantBDataSizeInBytes,
+                                           size_t &QuantBScaleSize,
+                                           size_t &QuantBZeroPointSizeInBytes) {
+  MlasBlockwiseQuantizedBufferSizes(BlkBitWidth, BlkLen, /* columnwise */ true,
+                                    static_cast<int>(K), static_cast<int>(N),
+                                    QuantBDataSizeInBytes, QuantBScaleSize,
+                                    &QuantBZeroPointSizeInBytes);
+}
+
+template <size_t BlkBitWidth, size_t BlkLen>
 void nntr_sqn_gqu4_rhs_nt_t(const float *B, void *_QuantBData,
-                            float *_QuantBScale,
-                            void *_QuantBZeroPoint, size_t N, size_t K,
-                            bool Symmetric) {
-  MatrixGuardBuffer<uint8_t> BufferQuantBData;
-  MatrixGuardBuffer<float> BufferQuantBScale;
-  MatrixGuardBuffer<uint8_t> BufferQuantBZeroPoint;
+                            float *_QuantBScale, void *_QuantBZeroPoint,
+                            size_t N, size_t K, bool Symmetric) {
+  // MatrixGuardBuffer<uint8_t> BufferQuantBData;
+  // MatrixGuardBuffer<float> BufferQuantBScale;
+  // MatrixGuardBuffer<uint8_t> BufferQuantBZeroPoint;
 
   uint8_t *QuantBData = (uint8_t *)_QuantBData;
   float *QuantBScale = (float *)_QuantBScale;
   uint8_t *QuantBZeroPoint = (uint8_t *)_QuantBZeroPoint;
   {
-    size_t QuantBDataSizeInBytes, QuantBScaleSize, QuantBZeroPointSizeInBytes;
-    MlasBlockwiseQuantizedBufferSizes(
-      BlkBitWidth, BlkLen, /* columnwise */ true, static_cast<int>(K),
-      static_cast<int>(N), QuantBDataSizeInBytes, QuantBScaleSize,
-      &QuantBZeroPointSizeInBytes);
+    // size_t QuantBDataSizeInBytes, QuantBScaleSize, QuantBZeroPointSizeInBytes;
+    // MlasBlockwiseQuantizedBufferSizes(
+    //   BlkBitWidth, BlkLen, /* columnwise */ true, static_cast<int>(K),
+    //   static_cast<int>(N), QuantBDataSizeInBytes, QuantBScaleSize,
+    //   &QuantBZeroPointSizeInBytes);
 
-    QuantBData = BufferQuantBData.GetBuffer(QuantBDataSizeInBytes);
-    QuantBScale = BufferQuantBScale.GetBuffer(QuantBScaleSize);
-    if (!Symmetric) {
-      QuantBZeroPoint =
-        BufferQuantBZeroPoint.GetBuffer(QuantBZeroPointSizeInBytes);
-    }
+    // QuantBData = BufferQuantBData.GetBuffer(QuantBDataSizeInBytes);
+    // QuantBScale = BufferQuantBScale.GetBuffer(QuantBScaleSize);
+    // if (!Symmetric) {
+    //   QuantBZeroPoint =
+    //     BufferQuantBZeroPoint.GetBuffer(QuantBZeroPointSizeInBytes);
+    // }
 
     MlasQuantizeBlockwise<float, BlkBitWidth>(
       QuantBData, QuantBScale, QuantBZeroPoint, B, BlkLen,
@@ -73,6 +92,7 @@ void nntr_sqn_gqu4_gemm(size_t M, size_t N, size_t K, const float *A,
                         MLAS_THREADPOOL *Threadpool) {
   MatrixGuardBuffer<std::byte> BufferWorkspace;
   MatrixGuardBuffer<std::byte> BufferPackedQuantBData;
+  auto t1 = high_resolution_clock::now();
 
   void *Workspace = nullptr;
   if (const auto WorkspaceSize = MlasSQNBitGemmBatchWorkspaceSize(
@@ -80,8 +100,6 @@ void nntr_sqn_gqu4_gemm(size_t M, size_t N, size_t K, const float *A,
       WorkspaceSize > 0) {
     Workspace = BufferWorkspace.GetBuffer(WorkspaceSize);
   }
-  std::cout << "MlasSQNBitGemmBatchWorkspaceSize\n";
-
 
   void *PackedQuantBDataWorkspace = nullptr;
   if (const auto PackedQuantBDataSize = MlasSQNBitGemmPackQuantBDataSize(
@@ -90,7 +108,6 @@ void nntr_sqn_gqu4_gemm(size_t M, size_t N, size_t K, const float *A,
     PackedQuantBDataWorkspace =
       BufferPackedQuantBData.GetBuffer(PackedQuantBDataSize);
 
-  std::cout << "MlasSQNBitGemmPackQuantBDataSize\n";
 
     bool has_zp_input = QuantBZeroPoint != nullptr;
     MlasSQNBitGemmPackQuantBData(N, K, BlkBitWidth, BlkLen, ComputeType,
@@ -98,22 +115,31 @@ void nntr_sqn_gqu4_gemm(size_t M, size_t N, size_t K, const float *A,
                                  QuantBScale, has_zp_input, QuantBZeroPoint,
                                  GetMlasThreadPool());
   }
-
-  std::cout << "MlasSQNBitGemmPackQuantBData\n";
+  auto t2 = high_resolution_clock::now();
+  auto dt2 = duration_cast<nanoseconds>(t2 - t1);
+  std::cout << "  [INFO] MlasSQNBitGemmPackQuantBData :    " << dt2.count() << " ns "
+            << dt2.count() / 1'000 << " us " << dt2.count() / 1'000'000
+            << " ms " << std::endl;
 
   CallGemm<BlkBitWidth, BlkLen>(
     M, N, K, A, /* lda */ K, QuantBData, PackedQuantBDataWorkspace, QuantBScale,
     QuantBZeroPoint, Bias, C, /* ldc */ N, Workspace, ComputeType, Threadpool);
-  std::cout << "CallGemm\n";
-
+  auto t_last = high_resolution_clock::now();
+  auto dt_last = duration_cast<nanoseconds>(t_last - t2);
+  std::cout << "  [INFO] CallGemm :    " << dt_last.count() << " ns "
+            << dt_last.count() / 1'000 << " us " << dt_last.count() / 1'000'000
+            << " ms " << std::endl;
 }
 
-template void nntr_sqn_gqu4_rhs_nt_t<4, 64>(const float *, void *,
-                                                   float *, void *,
-                                                   size_t, size_t, bool);
+template void nntr_sqn_gqu4_rhs_nt_t<4, 64>(const float *, void *, float *,
+                                            void *, size_t, size_t, bool);
 
 template void nntr_sqn_gqu4_gemm<4, 64>(size_t, size_t, size_t, const float *,
                                         size_t, const void *, const float *,
                                         const void *, const float *, float *,
                                         size_t, MLAS_SQNBIT_GEMM_COMPUTE_TYPE,
                                         MLAS_THREADPOOL *);
+
+template void nntr_sqn_get_gqu4_rhs_nt_t_quant_size<4, 64>(size_t, size_t,
+                                                           size_t &, size_t &,
+                                                           size_t &);

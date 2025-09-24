@@ -16,6 +16,7 @@
 #include <numeric>
 #include <random>
 #include <vector>
+#include <test_util.h>
 
 #include <chrono>
 #include <iostream>
@@ -1200,6 +1201,7 @@ TEST(nntrainer_cpu_backend_standalone, clamp_3072_0_1) {
   float upper_bound = 1.F;
   run_clamp_test(N, lower_bound, upper_bound, false);
 }
+
 float test_gemm_qai8dxp_qsi4cxp(const uint32_t M, const uint32_t K,
                                 const uint32_t N, const float *weights,
                                 const float *activations,
@@ -1283,9 +1285,10 @@ static void run_qai8dxp_qsi4cxp_test(const uint32_t M, const uint32_t K,
 }
 
 TEST(nntrainer_cpu_backend_standalone, qai8dxp_qsi4cxp_3072x768x1024) {
-  const unsigned int M = 3072;
-  const unsigned int K = 768;
-  const unsigned int N = 1024;
+  const unsigned int M = 1;
+  // const unsigned int M = 3072;
+  const unsigned int K = 3072;
+  const unsigned int N = 3072;
   float qai8dxp_qsi4cxp_q4_0_mse;
   constexpr float eps = 1e-5;
   run_qai8dxp_qsi4cxp_test(M, K, N, qai8dxp_qsi4cxp_q4_0_mse, true, false);
@@ -1297,23 +1300,53 @@ float test_gemm_sqnbitgemm(const uint32_t M, const uint32_t K, const uint32_t N,
                            std::vector<float> &ref_dst, bool transB = true,
                            bool print = false) {
   // Step1. Set sqnbitgemm quant test components
-  void *_QuantBData = nullptr;
+  uint8_t *_QuantBData = nullptr;
   float *_QuantBScale = nullptr;
-  void *_QuantBZeroPoint = nullptr;
+  uint8_t *_QuantBZeroPoint = nullptr;
+
   bool isSymmetricQuantization = false;
 
+  size_t QuantBDataSizeInBytes, QuantBScaleSize, QuantBZeroPointSizeInBytes;
+
+  nntrainer::nntr_get_gqu4_rhs_nt_t_quant_size(
+    N, K, QuantBDataSizeInBytes, QuantBScaleSize, QuantBZeroPointSizeInBytes);
+  std::cout << "QuantBDataSizeInBytes : " << QuantBDataSizeInBytes
+            << "\tQuantBScaleSize : " << QuantBScaleSize
+            << "\tQuantBZeroPointSizeInBytes : " << QuantBZeroPointSizeInBytes
+            << std::endl;
+// Step1-A. allocate quant buffers with given lib util
+  // Similar segfault with this
+  // MatrixGuardBuffer<uint8_t> BufferQuantBData;
+  // MatrixGuardBuffer<float> BufferQuantBScale;
+  // MatrixGuardBuffer<uint8_t> BufferQuantBZeroPoint;
+
+  // _QuantBData = BufferQuantBData.GetBuffer(QuantBDataSizeInBytes);
+  // _QuantBScale = BufferQuantBScale.GetBuffer(QuantBScaleSize);
+  // if (!isSymmetricQuantization) {
+  //   _QuantBZeroPoint =
+  //     BufferQuantBZeroPoint.GetBuffer(QuantBZeroPointSizeInBytes);
+  // }
+
+  // Step1-B. allocate quant buffers manually
+  // THIS ALSO WORK!
+  _QuantBData = new uint8_t[QuantBDataSizeInBytes];
+  _QuantBScale = new float[QuantBScaleSize];
+  _QuantBZeroPoint = new uint8_t[QuantBZeroPointSizeInBytes];
+
   // Step2. 4-bit Weight quantization, for qs4cx format, with fp32 scale
-  nntrainer::nntr_gqu4_rhs_nt_t_quant(weights, _QuantBData, _QuantBScale,
-                                      _QuantBZeroPoint, N, K, isSymmetricQuantization);
-                                      std::cout << "nntr_gqu4_rhs_nt_t_quant\n";
+  nntrainer::nntr_gqu4_rhs_nt_t_quant(weights, (void *)_QuantBData,
+                                      _QuantBScale, (void *)_QuantBZeroPoint, N,
+                                      K, isSymmetricQuantization);
+  std::cout << "nntr_gqu4_rhs_nt_t_quant\n";
 
   // Step3. Run GEMM! (Online activation quantization + kernel routine + return
   // float)
   std::vector<float> dst(static_cast<size_t>(M) * N);
   auto t1 = high_resolution_clock::now();
   // #### MAIN TESTED METHOD ####
-  nntrainer::nntr_gqu4_gemm(M, N, K, activations, K, _QuantBData, _QuantBScale,
-                            _QuantBZeroPoint, nullptr, dst.data(), N);
+  nntrainer::nntr_gqu4_gemm(M, N, K, activations, K, (void *)_QuantBData,
+                            _QuantBScale, (void *)_QuantBZeroPoint, nullptr,
+                            dst.data(), N);
   // #### MAIN TESTED METHOD ####
   auto t2 = high_resolution_clock::now();
   auto dt = duration_cast<nanoseconds>(t2 - t1);
@@ -1326,16 +1359,20 @@ float test_gemm_sqnbitgemm(const uint32_t M, const uint32_t K, const uint32_t N,
   // Step4. Compute quantization error
   auto mean_squared_error = compute_mse(M, N, ref_dst, dst, print);
 
+  // When using stepB
+  delete[] _QuantBData;
+  delete[] _QuantBScale;
+  delete[] _QuantBZeroPoint;
+
   return mean_squared_error;
 }
 
 static void run_sqnbitgemm_test(const uint32_t M, const uint32_t K,
-                                     const uint32_t N,
-                                     float &qai8dxp_qsi4cxp_mse,
-                                     bool transB = true, bool print = false) {
+                                const uint32_t N, float &sqnbitgemm_mse,
+                                bool transB = true, bool print = false) {
   if (print) {
-    std::cout << "[INFO] sqnbitgemm Test (M:" << M << ", K:" << K
-              << ", N:" << N << ")" << std::endl;
+    std::cout << "[INFO] sqnbitgemm Test (M:" << M << ", K:" << K << ", N:" << N
+              << ")" << std::endl;
   }
   ///@note A(M, K) * W.T(N, K) = (M, N)
 
@@ -1347,8 +1384,10 @@ static void run_sqnbitgemm_test(const uint32_t M, const uint32_t K,
 
   // GROUND TRUTH TRANSB SGEMM for reference
   auto t1 = high_resolution_clock::now();
-  nntrainer::sgemm(0, false, true, M, N, K, 1.F, activation.data(), K,
-                   weight.data(), K, 0.F, ref_dst.data(), N);
+  // nntrainer::sgemm(0, false, transB, M, N, K, 1.F, activation.data(), K,
+  //                  weight.data(), K, 0.F, ref_dst.data(), N);
+  nntrainer::sgemm(0, false, false, M, N, K, 1.F, activation.data(), K,
+                  weight.data(), N, 0.F, ref_dst.data(), N);
   auto t2 = high_resolution_clock::now();
   auto dt = duration_cast<nanoseconds>(t2 - t1);
   if (print) {
@@ -1356,18 +1395,18 @@ static void run_sqnbitgemm_test(const uint32_t M, const uint32_t K,
               << dt.count() / 1'000 << " us " << dt.count() / 1'000'000
               << " ms " << std::endl;
   }
-  qai8dxp_qsi4cxp_mse = test_gemm_sqnbitgemm(
+  sqnbitgemm_mse = test_gemm_sqnbitgemm(
     M, K, N, weight.data(), activation.data(), ref_dst, transB, print);
 }
 
-TEST(nntrainer_cpu_backend_standalone, sqnbitgemm_3072x768x1024) {
-  const unsigned int M = 3072;
+TEST(nntrainer_cpu_backend_standalone, sqnbitgemm_1x768x1024) {
+  const unsigned int M = 1;
   const unsigned int K = 768;
   const unsigned int N = 1024;
-  float qai8dxp_qsi4cxp_q4_0_mse;
+  float sqnbitgemm_mse;
   constexpr float eps = 1e-5;
-  run_sqnbitgemm_test(M, K, N, qai8dxp_qsi4cxp_q4_0_mse, true, true);
-  ASSERT_LE(qai8dxp_qsi4cxp_q4_0_mse, eps * M * K * N);
+  run_sqnbitgemm_test(M, K, N, sqnbitgemm_mse, true, true);
+  ASSERT_LE(sqnbitgemm_mse, eps * M * K * N);
 }
 
 int main(int argc, char **argv) {

@@ -2,10 +2,15 @@
 #include "mlas_qnbit.h"
 
 template <size_t BlkBitWidth, size_t BlkLen>
+void nntr_sqn_get_gqu4_rhs_nt_t_quant_size(size_t N, size_t K,
+                                           size_t &QuantBDataSizeInBytes,
+                                           size_t &QuantBScaleSize,
+                                           size_t &QuantBZeroPointSizeInBytes);
+
+template <size_t BlkBitWidth, size_t BlkLen>
 void nntr_sqn_gqu4_rhs_nt_t(const float *B, void *_QuantBData,
-                            float *_QuantBScale,
-                            void *_QuantBZeroPoint, size_t N, size_t K,
-                            bool Symmetric);
+                            float *_QuantBScale, void *_QuantBZeroPoint,
+                            size_t N, size_t K, bool Symmetric);
 
 template <size_t BlkBitWidth, size_t BlkLen>
 void nntr_sqn_gqu4_gemm(size_t M, size_t N, size_t K, const float *A,
@@ -16,11 +21,14 @@ void nntr_sqn_gqu4_gemm(size_t M, size_t N, size_t K, const float *A,
                         MLAS_THREADPOOL *Threadpool = nullptr);
 
 extern template void nntr_sqn_gqu4_rhs_nt_t<4, 64>(const float *, void *,
-                                                   float *, void *,
-                                                   size_t, size_t, bool);
+                                                   float *, void *, size_t,
+                                                   size_t, bool);
 
 extern template void
 nntr_sqn_gqu4_gemm<4, 64>(size_t, size_t, size_t, const float *, size_t,
                           const void *, const float *, const void *,
                           const float *, float *, size_t,
                           MLAS_SQNBIT_GEMM_COMPUTE_TYPE, MLAS_THREADPOOL *);
+extern template void
+nntr_sqn_get_gqu4_rhs_nt_t_quant_size<4, 64>(size_t, size_t, size_t &, size_t &,
+                                             size_t &);
