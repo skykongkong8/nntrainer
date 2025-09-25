@@ -520,13 +520,13 @@ TEST(nntrainer_cpu_backend_standalone, quant_GEMV_1x768x1024) {
   ASSERT_LE(q6_k_mse, q4_k_mse);
 }
 
-TEST(nntrainer_cpu_backend_standalone, quant_GEMV_1x3072x3072) {
+TEST(nntrainer_cpu_backend_standalone, quant_GEMV_1x3072x8192) {
   const unsigned int M = 1;
   const unsigned int K = 3072;
-  const unsigned int N = 3072;
+  const unsigned int N = 8192;
   float q4_0_mse, q4_k_mse, q6_k_mse;
   constexpr float eps = 1e-5;
-  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, false);
+  run_quant_test(M, K, N, q4_0_mse, q4_k_mse, q6_k_mse, true);
   ASSERT_LE(q4_0_mse, eps * M * K * N);
   ASSERT_LE(q4_k_mse, q4_0_mse);
   ASSERT_LE(q6_k_mse, q4_k_mse);
@@ -1310,10 +1310,7 @@ float test_gemm_sqnbitgemm(const uint32_t M, const uint32_t K, const uint32_t N,
 
   nntrainer::nntr_get_gqu4_rhs_nt_t_quant_size(
     N, K, QuantBDataSizeInBytes, QuantBScaleSize, QuantBZeroPointSizeInBytes);
-  std::cout << "QuantBDataSizeInBytes : " << QuantBDataSizeInBytes
-            << "\tQuantBScaleSize : " << QuantBScaleSize
-            << "\tQuantBZeroPointSizeInBytes : " << QuantBZeroPointSizeInBytes
-            << std::endl;
+
 // Step1-A. allocate quant buffers with given lib util
   // Similar segfault with this
   // MatrixGuardBuffer<uint8_t> BufferQuantBData;
@@ -1337,7 +1334,6 @@ float test_gemm_sqnbitgemm(const uint32_t M, const uint32_t K, const uint32_t N,
   nntrainer::nntr_gqu4_rhs_nt_t_quant(weights, (void *)_QuantBData,
                                       _QuantBScale, (void *)_QuantBZeroPoint, N,
                                       K, isSymmetricQuantization);
-  std::cout << "nntr_gqu4_rhs_nt_t_quant\n";
 
   // Step3. Run GEMM! (Online activation quantization + kernel routine + return
   // float)
@@ -1386,7 +1382,7 @@ static void run_sqnbitgemm_test(const uint32_t M, const uint32_t K,
   auto t1 = high_resolution_clock::now();
   // nntrainer::sgemm(0, false, transB, M, N, K, 1.F, activation.data(), K,
   //                  weight.data(), K, 0.F, ref_dst.data(), N);
-  nntrainer::sgemm(0, false, false, M, N, K, 1.F, activation.data(), K,
+  nntrainer::sgemm(0, false, transB, M, N, K, 1.F, activation.data(), K,
                   weight.data(), N, 0.F, ref_dst.data(), N);
   auto t2 = high_resolution_clock::now();
   auto dt = duration_cast<nanoseconds>(t2 - t1);
@@ -1405,7 +1401,47 @@ TEST(nntrainer_cpu_backend_standalone, sqnbitgemm_1x768x1024) {
   const unsigned int N = 1024;
   float sqnbitgemm_mse;
   constexpr float eps = 1e-5;
-  run_sqnbitgemm_test(M, K, N, sqnbitgemm_mse, true, true);
+  run_sqnbitgemm_test(M, K, N, sqnbitgemm_mse, false, true);
+  ASSERT_LE(sqnbitgemm_mse, eps * M * K * N);
+}
+
+TEST(nntrainer_cpu_backend_standalone, sqnbitgemm_1x3072x8192) {
+  const unsigned int M = 1;
+  const unsigned int K = 3072;
+  const unsigned int N = 8192;
+  float sqnbitgemm_mse;
+  constexpr float eps = 1e-5;
+  run_sqnbitgemm_test(M, K, N, sqnbitgemm_mse, false, true);
+  ASSERT_LE(sqnbitgemm_mse, eps * M * K * N);
+}
+
+TEST(nntrainer_cpu_backend_standalone, sqnbitgemm_128x128x128) {
+  const unsigned int M = 128;
+  const unsigned int K = 128;
+  const unsigned int N = 128;
+  float sqnbitgemm_mse;
+  constexpr float eps = 1e-5;
+  run_sqnbitgemm_test(M, K, N, sqnbitgemm_mse, false, true);
+  ASSERT_LE(sqnbitgemm_mse, eps * M * K * N);
+}
+
+TEST(nntrainer_cpu_backend_standalone, sqnbitgemm_768x768x768) {
+  const unsigned int M = 768;
+  const unsigned int K = 768;
+  const unsigned int N = 768;
+  float sqnbitgemm_mse;
+  constexpr float eps = 1e-5;
+  run_sqnbitgemm_test(M, K, N, sqnbitgemm_mse, false, true);
+  ASSERT_LE(sqnbitgemm_mse, eps * M * K * N);
+}
+
+TEST(nntrainer_cpu_backend_standalone, sqnbitgemm_768x3072x8192) {
+  const unsigned int M = 768;
+  const unsigned int K = 3072;
+  const unsigned int N = 8192;
+  float sqnbitgemm_mse;
+  constexpr float eps = 1e-5;
+  run_sqnbitgemm_test(M, K, N, sqnbitgemm_mse, false, true);
   ASSERT_LE(sqnbitgemm_mse, eps * M * K * N);
 }
 

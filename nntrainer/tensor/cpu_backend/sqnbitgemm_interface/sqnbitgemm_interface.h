@@ -17,7 +17,8 @@ void nntr_sqn_gqu4_gemm(size_t M, size_t N, size_t K, const float *A,
                         size_t lda, const void *QuantBData,
                         const float *QuantBScale, const void *QuantBZeroPoint,
                         const float *Bias, float *C, size_t ldc,
-                        MLAS_SQNBIT_GEMM_COMPUTE_TYPE ComputeType = CompFp32,
+                        MLAS_SQNBIT_GEMM_COMPUTE_TYPE ComputeType = CompInt8,
+                        // MLAS_SQNBIT_GEMM_COMPUTE_TYPE ComputeType = CompFp32,
                         MLAS_THREADPOOL *Threadpool = nullptr);
 
 extern template void nntr_sqn_gqu4_rhs_nt_t<4, 64>(const float *, void *,

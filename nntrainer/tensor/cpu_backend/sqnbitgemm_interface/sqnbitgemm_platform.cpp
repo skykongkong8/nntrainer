@@ -342,7 +342,7 @@ Return Value:
 
         if ((xcr0 & 0x6) == 0x6) {
 
-            // this->GemmFloatKernel = MlasGemmFloatKernelAvx;
+            this->GemmFloatKernel = MlasGemmFloatKernelAvx;
 
 #if defined(MLAS_TARGET_AMD64)
 

@@ -10,6 +10,8 @@ project('nntrainer', 'c', 'cpp',
     'buildtype=release'
   ]
 )
+add_languages('c')
+
 common_win_subproject_cmake_defines = {
   'CMAKE_MSVC_RUNTIME_LIBRARY': 'MultiThreaded',
   'CMAKE_BUILD_TYPE': 'Release',
@@ -574,42 +576,42 @@ else
     iniparser_dep = iniparser_subproject.dependency('iniparser-static')
   endif
 endif
+ruy_dep =[]
+# # Configure the Ruy project (CMake)
+# if get_option('platform') == 'android'
+#   ruy_root = subprojects_dir_absolute / 'ruy'
+#   ruy_dep = declare_dependency()
+# elif get_option('platform') == 'windows'
+#   ruy_dir_relative = subprojects_dir_relative / 'ruy'
+#   ruy_include = include_directories(ruy_dir_relative)
+#   ruy_dep = declare_dependency(include_directories: ruy_include)
+# else
+#   ruy_options = cmake.subproject_options()
+#   ruy_options.add_cmake_defines({'RUY_MINIMAL_BUILD': true})
+#   ruy_options.add_cmake_defines({'CMAKE_POLICY_VERSION_MINIMUM': '3.5'})
 
-# Configure the Ruy project (CMake)
-if get_option('platform') == 'android'
-  ruy_root = subprojects_dir_absolute / 'ruy'
-  ruy_dep = declare_dependency()
-elif get_option('platform') == 'windows'
-  ruy_dir_relative = subprojects_dir_relative / 'ruy'
-  ruy_include = include_directories(ruy_dir_relative)
-  ruy_dep = declare_dependency(include_directories: ruy_include)
-else
-  ruy_options = cmake.subproject_options()
-  ruy_options.add_cmake_defines({'RUY_MINIMAL_BUILD': true})
-  ruy_options.add_cmake_defines({'CMAKE_POLICY_VERSION_MINIMUM': '3.5'})
+#   ruy_flags = [
+#     '-Wno-error=unused-result',
+#     '-Wno-error=comment',
+#     '-Wno-error=unknown-pragmas',
+#     '-Wno-error=unused-function'
+#     ]
 
-  ruy_flags = [
-    '-Wno-error=unused-result',
-    '-Wno-error=comment',
-    '-Wno-error=unknown-pragmas',
-    '-Wno-error=unused-function'
-    ]
-
-  if cxx_compiler_id == 'clang'
-    ruy_flags += '-Wno-error=uninitialized'
-  else
-    ruy_flags += '-Wno-error=maybe-uninitialized'
-    ruy_flags += '-Wno-error=stringop-overread'
-    ruy_flags += '-Wno-error=array-parameter'
-  endif
+#   if cxx_compiler_id == 'clang'
+#     ruy_flags += '-Wno-error=uninitialized'
+#   else
+#     ruy_flags += '-Wno-error=maybe-uninitialized'
+#     ruy_flags += '-Wno-error=stringop-overread'
+#     ruy_flags += '-Wno-error=array-parameter'
+#   endif
   
-  ruy_options.append_compile_args('c', '-Wno-implicit-function-declaration')
-  ruy_options.append_compile_args('c', ruy_flags)
-  ruy_options.append_compile_args('cpp', ruy_flags)
+#   ruy_options.append_compile_args('c', '-Wno-implicit-function-declaration')
+#   ruy_options.append_compile_args('c', ruy_flags)
+#   ruy_options.append_compile_args('cpp', ruy_flags)
 
-  ruy_proj = cmake.subproject('ruy', options: ruy_options, required: true)
-  ruy_dep = ruy_proj.dependency('ruy').partial_dependency(includes: true)
-endif
+#   ruy_proj = cmake.subproject('ruy', options: ruy_options, required: true)
+#   ruy_dep = ruy_proj.dependency('ruy').partial_dependency(includes: true)
+# endif
 
 if get_option('platform') == 'android'
   message('preparing ml api')
