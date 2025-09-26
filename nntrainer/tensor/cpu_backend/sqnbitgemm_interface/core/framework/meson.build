@@ -1,6 +1,7 @@
 sqnbitgemm_core_framework_headers = [
   'endian.h',
   'float16.h',
+  'my_narrow.h'
 ]
 
 foreach h : sqnbitgemm_core_framework_headers

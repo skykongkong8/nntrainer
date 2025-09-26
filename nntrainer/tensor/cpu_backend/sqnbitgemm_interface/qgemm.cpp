@@ -22,8 +22,7 @@ Abstract:
     operation (QGEMM).
 
 --*/
-#include "qgemm.h"
-#include "./core/common/cpuid_info.h"
+
 #include <system_error>
 #ifdef error_category
 #undef error_category
@@ -34,6 +33,9 @@ Abstract:
 #ifdef generic_category
 #undef generic_category
 #endif
+
+#include "./core/common/cpuid_info.h"
+#include "qgemm.h"
 
 //
 // Define the parameters to execute segments of a QGEMM operation on worker

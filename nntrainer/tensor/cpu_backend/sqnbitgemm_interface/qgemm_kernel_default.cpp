@@ -22,7 +22,6 @@ Abstract:
 
 --*/
 
-#include "qgemm.h"
 #include <system_error>
 #ifdef error_category
 #undef error_category
@@ -33,6 +32,8 @@ Abstract:
 #ifdef generic_category
 #undef generic_category
 #endif
+
+#include "qgemm.h"
 
 struct MLAS_GEMM_QUANT_KERNEL_DEFAULT {
   typedef uint8_t PackedAType;

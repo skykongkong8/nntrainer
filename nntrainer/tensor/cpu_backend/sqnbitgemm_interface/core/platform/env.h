@@ -34,7 +34,6 @@ limitations under the License.
 
 #include "../common/common.h"
 #include "../common/path_string.h"
-#include "../framework/callback.h"
 #include "../session/onnxruntime_c_api.h"
 
 #ifndef _WIN32

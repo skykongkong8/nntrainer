@@ -77,7 +77,6 @@ void nntr_sqn_gqu4_gemm(size_t M, size_t N, size_t K, const float *A,
                         MLAS_THREADPOOL *Threadpool) {
   MatrixGuardBuffer<std::byte> BufferWorkspace;
   MatrixGuardBuffer<std::byte> BufferPackedQuantBData;
-  auto t1 = high_resolution_clock::now();
 
   void *Workspace = nullptr;
   if (const auto WorkspaceSize = MlasSQNBitGemmBatchWorkspaceSize(
