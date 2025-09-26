@@ -584,6 +584,9 @@ cp -r result %{buildroot}%{_datadir}/nntrainer/unittest/
 %{_includedir}/nntrainer/nntr_ggml_impl_utils.h
 %{_includedir}/nntrainer/bs_thread_pool.h
 %{_includedir}/nntrainer/bs_thread_pool_manager.hpp
+%ifarch %{ix86} x86_64
+%{_includedir}/nntrainer/x86_compute_backend.h
+%{_includedir}/nntrainer/avx2_impl.h
 %{_includedir}/nntrainer/sqnbitgemm_interface.h
 %{_includedir}/nntrainer/mlas_gemm_postprocessor.h
 %{_includedir}/nntrainer/mlas_q4.h
@@ -599,7 +602,6 @@ cp -r result %{buildroot}%{_datadir}/nntrainer/unittest/
 %{_includedir}/nntrainer/FgemmKernelCommon.h
 %{_includedir}/nntrainer/SgemmKernelCommon.h
 %{_includedir}/nntrainer/asmmacro.h
-# %{_includedir}/nntrainer/thread_utils.h
 %{_includedir}/nntrainer/onnxruntime_c_api.h
 %{_includedir}/nntrainer/onnxruntime_float16.h
 %{_includedir}/nntrainer/env_var_utils.h
@@ -636,9 +638,6 @@ cp -r result %{buildroot}%{_datadir}/nntrainer/unittest/
 %{_includedir}/nntrainer/macros.h
 %{_includedir}/nntrainer/severity.h
 %{_includedir}/nntrainer/sink_types.h
-%ifarch %{ix86} x86_64
-%{_includedir}/nntrainer/x86_compute_backend.h
-%{_includedir}/nntrainer/avx2_impl.h
 %{_includedir}/nntrainer/FgemmKernelAvxCommon.h
 %{_includedir}/nntrainer/sqnbitgemm_kernel_avx_common_fp32.h
 %{_includedir}/nntrainer/sqnbitgemm_kernel_avx_common_int8.h
