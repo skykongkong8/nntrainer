@@ -1,5 +1,5 @@
 sqnbitgemm_core_util_headers = [
-  'thread_utils.h',
+  # 'thread_utils.h',
 ]
 
 foreach h : sqnbitgemm_core_util_headers

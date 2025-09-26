@@ -327,9 +327,9 @@ Requires:	nnstreamer-nntrainer-trainer = %{version}-%{release}
 NNSteamer tensor trainer static package for nntrainer to support inference.
 %endif #nnstreamer_trainer
 
-%package -n ruy
-Summary: Ruy support in NNTrainer
-%description -n ruy
+# %package -n ruy
+# Summary: Ruy support in NNTrainer
+# %description -n ruy
 
 %if %{with gpu}
 %package -n clblast
@@ -424,7 +424,7 @@ ln -sf %{_libdir}/pkgconfig/capi-nnstreamer.pc %{_libdir}/pkgconfig/capi-ml-comm
 %endif
 
 # Setup Ruy
-tar -xf packaging/ruy.tar.gz -C subprojects
+# tar -xf packaging/ruy.tar.gz -C subprojects
 
 # Setup CLBlast
 %if %{with gpu}
@@ -599,7 +599,7 @@ cp -r result %{buildroot}%{_datadir}/nntrainer/unittest/
 %{_includedir}/nntrainer/FgemmKernelCommon.h
 %{_includedir}/nntrainer/SgemmKernelCommon.h
 %{_includedir}/nntrainer/asmmacro.h
-%{_includedir}/nntrainer/thread_utils.h
+# %{_includedir}/nntrainer/thread_utils.h
 %{_includedir}/nntrainer/onnxruntime_c_api.h
 %{_includedir}/nntrainer/onnxruntime_float16.h
 %{_includedir}/nntrainer/env_var_utils.h
@@ -823,19 +823,19 @@ cp -r result %{buildroot}%{_datadir}/nntrainer/unittest/
 %endif #nnstreamer_trainer
 
 # Ruy
-%files -n ruy
-%manifest nntrainer.manifest
-%defattr(-,root,root,-)
-%license LICENSE
-%{_libdir}/libruy*.a
-%{_libdir}/libclog.a
-%{_libdir}/libcpuinfo.a
-%{_bindir}/cache_info
-%{_bindir}/cpu_info
-%{_bindir}/isa_info
-%ifarch x86_64
-%{_bindir}/cpuid_dump
-%endif #x86_64
+# %files -n ruy
+# %manifest nntrainer.manifest
+# %defattr(-,root,root,-)
+# %license LICENSE
+# %{_libdir}/libruy*.a
+# %{_libdir}/libclog.a
+# %{_libdir}/libcpuinfo.a
+# %{_bindir}/cache_info
+# %{_bindir}/cpu_info
+# %{_bindir}/isa_info
+# %ifarch x86_64
+# %{_bindir}/cpuid_dump
+# %endif #x86_64
 
 # CLBlast
 %if %{with gpu}
