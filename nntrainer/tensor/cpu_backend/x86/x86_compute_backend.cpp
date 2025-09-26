@@ -20,6 +20,7 @@
 #include <fallback_internal.h>
 #include <ggml_interface.h>
 #include <nntrainer_error.h>
+#include <sqnbitgemm_interface.h>
 #include <x86_compute_backend.h>
 
 #define ROW_MAJOR 0
@@ -48,7 +49,7 @@ void copy_s16_fp32(const unsigned int N, const int16_t *X, float *Y) {
 }
 
 void copy_u16_fp32(const unsigned int N, const uint16_t *X, float *Y) {
-  nntrainer::avx2::copy_f16_f32(N, X, Y);
+  __fallback_copy_u16_fp32(N, X, Y);
 }
 
 void copy_fp32_u32(const unsigned int N, const float *X, uint32_t *Y) {
@@ -56,7 +57,7 @@ void copy_fp32_u32(const unsigned int N, const float *X, uint32_t *Y) {
 }
 
 void copy_fp32_u16(const unsigned int N, const float *X, uint16_t *Y) {
-  nntrainer::avx2::copy_f32_f16(N, X, Y);
+  __fallback_copy_fp32_u16(N, X, Y);
 }
 
 void copy_fp32_u8(const unsigned int N, const float *X, uint8_t *Y) {
@@ -469,5 +470,28 @@ void nntr_gemm_qai8dxp_qsi4cxp(size_t m, size_t n, size_t k,
   __fallback_nntr_gemm_qai8dxp_qsi4cxp(
     m, n, k, lhs_native_mtx_f32, rhs_native_mtx_qs4cx, rhs_scales_f32,
     dst_mtx_f32, transB, lower_bound, upper_bound);
+}
+
+void nntr_get_gqu4_rhs_nt_t_quant_size(size_t N, size_t K,
+                                       size_t &QuantBDataSizeInBytes,
+                                       size_t &QuantBScaleSize,
+                                       size_t &QuantBZeroPointSizeInBytes) {
+  nntr_sqn_get_gqu4_rhs_nt_t_quant_size<4, 64>(
+    N, K, QuantBDataSizeInBytes, QuantBScaleSize, QuantBZeroPointSizeInBytes);
+}
+
+void nntr_gqu4_rhs_nt_t_quant(const float *B, void *_QuantBData,
+                              float *_QuantBScale, void *_QuantBZeroPoint,
+                              size_t N, size_t K, bool Symmetric) {
+  nntr_sqn_gqu4_rhs_nt_t<4, 64>(B, _QuantBData, _QuantBScale, _QuantBZeroPoint,
+                                N, K, Symmetric);
+}
+
+void nntr_gqu4_gemm(size_t M, size_t N, size_t K, const float *A, size_t lda,
+                    const void *QuantBData, const float *QuantBScale,
+                    const void *QuantBZeroPoint, const float *Bias, float *C,
+                    size_t ldc) {
+  nntr_sqn_gqu4_gemm<4, 64>(M, N, K, A, lda, QuantBData, QuantBScale,
+                            QuantBZeroPoint, Bias, C, ldc);
 }
 } /* namespace nntrainer */
