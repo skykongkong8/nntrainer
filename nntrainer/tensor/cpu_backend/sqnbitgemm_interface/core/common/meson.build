@@ -7,12 +7,8 @@ sqnbitgemm_core_common_headers = [
   'cpuid_info.h',
   'cpuid_uarch.h',
   'denormal.h',
-  # 'eigen_common_wrapper.h',
   'exceptions.h',
-  # 'gpu_profiler_common.h',
   'hash_combine.h',
-  # 'inlined_containers_fwd.h',
-  # 'inlined_containers.h',
   'make_string.h',
   'optional.h',
   'parse_string.h',
@@ -26,7 +22,6 @@ sqnbitgemm_core_common_headers = [
 
 sqnbitgemm_core_common_sources = [
   'cpuid_info.cc',
-  # 'cpuid_uarch.h',
 ]
 
 subdir('logging')

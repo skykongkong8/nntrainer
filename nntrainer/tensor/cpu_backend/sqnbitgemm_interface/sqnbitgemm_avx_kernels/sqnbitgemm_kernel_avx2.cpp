@@ -15,9 +15,8 @@ Abstract:
 
 --*/
 
-#include <system_error>          // ← 반드시 가장 먼저  
+#include <system_error>          
 
-// 2️⃣ 매크로가 이미 정의돼 있을 경우 해제  
 #ifdef error_category  
 #undef error_category  
 #endif  
