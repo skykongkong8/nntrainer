@@ -15,15 +15,10 @@ message('compile flags are:' + ' '.join(flags))
 flags = extra_defines + flags
 
 and_conf.set('MESON_CFLAGS', ' '.join(flags))
-and_conf.set('MESON_CXXFLAGS', ' '.join(flags))
 and_conf.set('MESON_NNTRAINER_SRCS', ' '.join(nntrainer_sources))
 and_conf.set('MESON_NNTRAINER_INCS', ' '.join(nntrainer_inc_abs))
 and_conf.set('MESON_CCAPI_NNTRAINER_SRCS', ' '.join(ccapi_src))
 and_conf.set('MESON_CCAPI_NNTRAINER_INCS', ' '.join(ccapi_inc_abs))
-
-and_conf.set('VERSION_MAJOR', nntrainer_version_split[0])
-and_conf.set('VERSION_MINOR', nntrainer_version_split[1])
-and_conf.set('VERSION_MICRO', nntrainer_version_split[2])
 
 if get_option('enable-capi').enabled()
    and_conf.set('MESON_CAPI_NNTRAINER_SRCS', ' '.join(capi_src))
@@ -37,27 +32,6 @@ if iniparser_dep.found()
   and_conf.set('MESON_INIPARSER_ROOT', iniparser_root)
 endif
 
-if get_option('enable-ruy')
-  if ruy_dep.found()
-    and_conf.set('MESON_RUY_ROOT', ruy_root)
-  endif
-endif
-
-if get_option('enable-opencl')
-  # Set OpenCL block markers to include the OpenCL sections
-  and_conf.set('MESON_ENABLE_OPENCL', 1) 
-  if clblast_dep.found()
-    and_conf.set('MESON_CLBLAST_ROOT', clblast_root)
-    and_conf.set('MESON_CL_ROOT', opencl_root)
-  endif
-else
-  # Disable OpenCL
-  and_conf.set('MESON_ENABLE_OPENCL', 0)
-  # No OpenCL libraries needed
-  and_conf.set('MESON_CLBLAST_ROOT', '')
-  and_conf.set('MESON_CL_ROOT', '')
-endif
-
 if tflite_dep.found()
   and_conf.set('MESON_HAS_TFLITE', 1)
   and_conf.set('MESON_TFLITE_ROOT', tflite_root)
@@ -65,13 +39,18 @@ else
   and_conf.set('MESON_HAS_TFLITE', 0)
 endif
 
-# -DML_API_COMMON=[01]
-and_conf.set('ML_API_COMMON', ml_api_common_flag)
+# if blas_dep.found()
+#   and_conf.set('MESON_BLAS_ROOT', blas_root)
+# else
+#   error('blas is needed for the android build')
+# endif
 
-if blas_dep.found()
-  and_conf.set('MESON_BLAS_ROOT', blas_root)
+if get_option('enable-opencl')
+  and_conf.set('MESON_OPENCL_SHARED_LIBS', 'opencl')
+  and_conf.set('MESON_OPENCL_STATIC_LIBS', 'clblast')
 else
-  error('blas is needed for the android build')
+  and_conf.set('MESON_OPENCL_SHARED_LIBS', '')
+  and_conf.set('MESON_OPENCL_STATIC_LIBS', '')
 endif
 
 if ml_api_common_dep.found()
@@ -103,6 +82,7 @@ ndk_args = {
   'NDK_LIBS_OUT': meson.current_build_dir(),
 }
 num_threads = run_command(nproc_prog, check: true).stdout().strip()
+message('num processor are: ' + num_threads)
 
 thread_opt_flag = '-j' + num_threads
 

@@ -1225,6 +1225,16 @@ void nntr_gemm_qai8dxp_qsi4cxp(size_t m, size_t n, size_t k,
                                void *rhs_scales, T *dst_mtx, bool transB = true,
                                T lower_bound = std::numeric_limits<T>::lowest(),
                                T upper_bound = std::numeric_limits<T>::max());
+
+int nntr_hello_sme_function();
+
+void nntr_scopy_sve(float* y, const float* x, size_t n);
+
+void nntr_saxpy_sve(float a, const float* __restrict x, float* __restrict y, size_t n);
+
+float nntr_sdot_sve(const float* __restrict x, const float* __restrict y, size_t n);
+
+
 } /* namespace nntrainer */
 #endif /* __cplusplus */
 #endif /* __ARM_COMPUTE_BACKEND_H__ */

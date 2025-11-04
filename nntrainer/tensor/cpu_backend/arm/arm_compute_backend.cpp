@@ -20,6 +20,8 @@
 #include <neon_impl.h>
 #include <nntrainer_error.h>
 
+#include <sme_impl.h>
+
 namespace nntrainer {
 
 void init_backend() { __ggml_init(); }
@@ -450,4 +452,23 @@ void clamp(const float *input, float *output, size_t length, float lower_bound,
            float upper_bound) {
   neon::clamp(input, output, length, lower_bound, upper_bound);
 }
+
+int nntr_hello_sme_function(){
+  return hello_sme_function();
+}
+
+void nntr_scopy_sve(float* y, const float* x, size_t n){
+  scopy_sve(y, x, n);
+}
+
+void nntr_saxpy_sve(float a, const float* __restrict x, float* __restrict y, size_t n){
+  saxpy_sve(a, x, y, n);
+}
+
+float nntr_sdot_sve(const float* __restrict x, const float* __restrict y, size_t n){
+  return sdot_sve(x, y, n);
+}
+
+
+
 } /* namespace nntrainer */

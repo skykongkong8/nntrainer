@@ -1177,6 +1177,41 @@ TEST(nntrainer_cpu_backend_standalone, clamp_3072_0_1) {
   run_clamp_test(N, lower_bound, upper_bound, false);
 }
 
+TEST(nntrainer_cpu_backend_standalone, hello_sme){
+  nntrainer::nntr_hello_sme_function();
+}
+
+TEST(nntrainer_cpu_backend_standalone, scopy_sve_sme){
+  const unsigned int N = 1024 * 1024;
+  std::vector<float> A = generate_random_vector<float>(N);
+  std::vector<float> B_neon(N);
+  std::vector<float> B_sve(N);
+  std::vector<float> B_fail(N);
+        auto t1 = high_resolution_clock::now();
+  
+  nntrainer::scopy(N, A.data(), 1, B_neon.data(), 1);
+
+        auto t2 = high_resolution_clock::now();
+      auto dt = duration_cast<nanoseconds>(t2 - t1);
+
+      auto t3 = high_resolution_clock::now();
+  nntrainer::nntr_scopy_sve(B_sve.data(), A.data(), N);
+        auto t4 = high_resolution_clock::now();
+      auto dt2 = duration_cast<nanoseconds>(t4 - t3);
+
+std::cout << "scopy : " << dt.count() << " ns "
+              << dt.count() / 1'000 << " us " << dt.count() / 1'000'000
+              << " ms " << std::endl;
+std::cout << "nntr_scopy_sve : " << dt2.count() << " ns "
+              << dt2.count() / 1'000 << " us " << dt2.count() / 1'000'000
+              << " ms " << std::endl;
+
+
+  EXPECT_TRUE(A == B_neon);
+  EXPECT_TRUE(A == B_sve);
+  EXPECT_FALSE(B_sve == B_fail);
+}
+
 int main(int argc, char **argv) {
   int result = -1;
 

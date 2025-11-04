@@ -10,6 +10,15 @@ arm_compute_backend_sources = [
     'neon_impl.cpp',
 ]
 
+armv9_headers = [
+  'sme_impl.h',
+  'sme_hwcap.h',
+]
+
+armv9_sources = [
+  'sme_impl.cpp',
+]
+
 
 subdir('matrix_transpose_neon')
 nntrainer_inc += include_directories('matrix_transpose_neon')
@@ -35,6 +44,10 @@ arch = host_machine.cpu_family()
 if arch == 'arm'
   arm_compute_backend_headers += 'armv7_neon.h'
 endif
+
+# TODO : DO SOME ARMV9 CLASSIFICATION
+arm_compute_backend_headers += armv9_headers
+arm_compute_backend_sources += armv9_sources
 
 foreach s : arm_compute_backend_sources
   nntrainer_sources += meson.current_source_dir() / s
