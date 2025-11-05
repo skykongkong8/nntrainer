@@ -1,0 +1,48 @@
+name: pr-description
+on:
+  pull_request:
+    types: [opened, synchronize]
+permissions:
+  contents: read
+  pull-requests: write
+  models: read
+jobs:
+  describe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Build context
+        run: |
+          node .github/models/pr-desc/build_context.js \
+            --base "${{ github.event.pull_request.base.sha }}" \
+            --head "${{ github.event.pull_request.head.sha }}" > pr_context.json
+
+      - name: Generate PR description via GitHub Models
+        id: ai
+        uses: actions/ai-inference@v1
+        with:
+          model: gpt-4o-mini
+          system: |
+            You are a senior maintainer. Produce a Korean PR description with the exact sections and end with a TL;DR of 3 bullet lines. Output must be valid GitHub Markdown only.
+          prompt: |
+            {{file: .github/models/pr-desc/prompt.md}}
+            ---
+            {{file: pr_context.json}}
+
+      - name: Update PR body
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NUM="${{ github.event.pull_request.number }}"
+          BODY="$(gh pr view "$NUM" --json body -q .body)"
+          GEN="${{ steps.ai.outputs.response }}"
+          BEGIN="<!-- pr-desc:begin -->"
+          END="<!-- pr-desc:end -->"
+          if echo "$BODY" | grep -q "$BEGIN"; then
+            NEW="$(echo "$BODY" | perl -0777 -pe "s/$BEGIN.*?$END/$BEGIN\n$GEN\n$END/s")"
+          else
+            NEW="$BODY"$'\n\n'"$BEGIN"$'\n'"$GEN"$'\n'"$END"
+          fi
+          printf "%s" "$NEW" | gh pr edit "$NUM" --body-file -

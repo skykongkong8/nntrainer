@@ -1,0 +1,13 @@
+{
+  "modules": {
+    "core/**": "core",
+    "api/**": "api",
+    "cli/**": "cli",
+    "docs/**": "docs",
+    "tests/**": "tests"
+  },
+  "riskHints": {
+    "include": ["include/**", "public/**", "schema/**"],
+    "abiSensitive": ["include/**", "public/**"]
+  }
+}
