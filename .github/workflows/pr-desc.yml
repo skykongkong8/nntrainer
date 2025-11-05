@@ -18,6 +18,7 @@ jobs:
           node .github/models/pr-desc/build_context.js \
             --base "${{ github.event.pull_request.base.sha }}" \
             --head "${{ github.event.pull_request.head.sha }}" > pr_context.json
+          jq '. | {overview:.overview|length, modules:.modules|length, diff:.diff|length, commits:.commits|length}' pr_context.json || true
 
       - name: Generate PR description via GitHub Models
         id: ai
@@ -25,11 +26,37 @@ jobs:
         with:
           model: gpt-4o-mini
           system: |
-            You are a senior maintainer. Produce a Korean PR description with the exact sections and end with a TL;DR of 3 bullet lines. Output must be valid GitHub Markdown only.
+            You are a senior maintainer. Output must be valid GitHub Markdown.
+            Use EXACT sections defined in [OUTPUT FORMAT]. End with a TL;DR of exactly 3 bullet lines.
+            Do not omit any required section even if context is missing.
           prompt: |
             {{file: .github/models/pr-desc/prompt.md}}
             ---
             {{file: pr_context.json}}
+
+      - name: Validate required sections
+        id: validate
+        run: |
+          OUT="${{ steps.ai.outputs.response }}"
+          printf "%s" "$OUT" > pr_desc.md
+          need='# 개요
+# 변경 상세
+# 리스크 & 검증 포인트
+# 역호환성
+# 관련 이슈'
+          pass=1
+          while read -r h; do
+            grep -qF "$h" pr_desc.md || pass=0
+          done <<EOF
+$need
+EOF
+          # TL;DR 3줄 확인
+          tldr_count=$(awk '/^# TL;DR/{flag=1; next} /^# /{flag=0} flag && /^\-/{c++} END{print c+0}' pr_desc.md)
+          if [ "$tldr_count" -ne 3 ]; then pass=0; fi
+          echo "TLDR lines: $tldr_count"
+          if [ $pass -eq 0 ]; then
+            echo "::warning::Model output missing required sections or TL;DR count != 3. Proceeding to post anyway."
+          fi
 
       - name: Update PR body
         env:
@@ -37,12 +64,13 @@ jobs:
         run: |
           NUM="${{ github.event.pull_request.number }}"
           BODY="$(gh pr view "$NUM" --json body -q .body)"
-          GEN="${{ steps.ai.outputs.response }}"
+          GEN="$(cat pr_desc.md)"
           BEGIN="<!-- pr-desc:begin -->"
           END="<!-- pr-desc:end -->"
+          META="<!-- sources: .github/models/pr-desc/prompt.md, context=pr_context.json -->"
           if echo "$BODY" | grep -q "$BEGIN"; then
-            NEW="$(echo "$BODY" | perl -0777 -pe "s/$BEGIN.*?$END/$BEGIN\n$GEN\n$END/s")"
+            NEW="$(echo "$BODY" | perl -0777 -pe "s/$BEGIN.*?$END/$BEGIN\n$GEN\n\n$META\n$END/s")"
           else
-            NEW="$BODY"$'\n\n'"$BEGIN"$'\n'"$GEN"$'\n'"$END"
+            NEW="$BODY"$'\n\n'"$BEGIN"$'\n'"$GEN"$'\n\n'"$META"$'\n'"$END"
           fi
           printf "%s" "$NEW" | gh pr edit "$NUM" --body-file -
