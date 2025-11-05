@@ -1,23 +1,48 @@
 name: pr-description
+
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, labeled]
+
 permissions:
   contents: read
   pull-requests: write
   models: read
+
 jobs:
   describe:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Sanity check files
+        run: |
+          set -x
+          test -f .github/models/pr-desc/prompt.md
+          test -f .github/models/pr-desc/build_context.js
+          node -v
+          git --version
 
       - name: Build context
+        id: ctx
         run: |
           node .github/models/pr-desc/build_context.js \
             --base "${{ github.event.pull_request.base.sha }}" \
             --head "${{ github.event.pull_request.head.sha }}" > pr_context.json
+          echo "CONTEXT_BYTES=$(wc -c < pr_context.json)" >> $GITHUB_OUTPUT
+          echo "Base: ${{ github.event.pull_request.base.sha }}"
+          echo "Head: ${{ github.event.pull_request.head.sha }}"
+          head -c 400 pr_context.json || true
+          echo
+          echo "…(truncated)"
 
       - name: Generate PR description via GitHub Models
         id: ai
@@ -25,24 +50,76 @@ jobs:
         with:
           model: gpt-4o-mini
           system: |
-            You are a senior maintainer. Produce a Korean PR description with the exact sections and end with a TL;DR of 3 bullet lines. Output must be valid GitHub Markdown only.
+            You are a senior maintainer. Output must be valid GitHub Markdown.
+            Use EXACT sections defined in [OUTPUT FORMAT]. End with a TL;DR of exactly 3 bullet lines.
+            If any context is missing, still produce the section with a concise placeholder.
           prompt: |
-            {{file: .github/models/pr-desc/prompt.md}}
+            {{file:.github/models/pr-desc/prompt.md}}
             ---
-            {{file: pr_context.json}}
+            {{file:pr_context.json}}
 
-      - name: Update PR body
+      - name: Inspect model output
+        id: inspect
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESP="${{ steps.ai.outputs.response }}"
+          : > pr_desc_final.md
+          echo "This content is generated with AI" >> pr_desc_final.md
+          printf "\n%s\n" "$RESP" >> pr_desc_final.md
+
+          bytes=$(wc -c < pr_desc_final.md | tr -d ' ')
+          echo "MODEL_OUTPUT_BYTES=$bytes" >> $GITHUB_OUTPUT
+          echo "First 200 bytes:"
+          head -c 200 pr_desc_final.md || true
+          echo
+          if [ "$bytes" -lt 40 ]; then
+            echo "::warning::Model output seems empty or too short. Will post as a comment instead of editing PR body."
+            echo "EMPTY_OUTPUT=1" >> $GITHUB_OUTPUT
+          else
+            echo "EMPTY_OUTPUT=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate required sections (non-blocking)
+        run: |
+          set +e
+          OUT="pr_desc_final.md"
+          need_headers="# 개요|# 변경 상세|# 리스크 & 검증 포인트|# 역호환성|# 관련 이슈/티켓|# 릴리즈 노트 초안|# 리뷰 체크리스트|# 파일별 요약|# 모듈별 영향|# TL;DR"
+          IFS="|" read -ra hdrs <<< "$need_headers"
+          pass=1
+          for h in "${hdrs[@]}"; do
+            grep -qF "$h" "$OUT" || { echo "::warning::Missing header: $h"; pass=0; }
+          done
+          tldr_count=$(awk '/^# TL;DR/{flag=1;next} /^# /{flag=0} flag && /^-/{c++} END{print c+0}' "$OUT")
+          echo "TLDR lines: $tldr_count"
+          if [ $pass -eq 0 ] || [ "$tldr_count" -ne 3 ]; then
+            echo "::warning::Sections missing or TL;DR count != 3. Continuing."
+          fi
+          exit 0
+
+      - name: Update PR body (or comment fallback)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           NUM="${{ github.event.pull_request.number }}"
+          EMPTY="${{ steps.inspect.outputs.EMPTY_OUTPUT }}"
+          if [ "$EMPTY" = "1" ]; then
+            echo "::notice::Posting model output as a comment (empty body guard)."
+            gh pr comment "$NUM" --body-file pr_desc_final.md
+            exit 0
+          fi
+
           BODY="$(gh pr view "$NUM" --json body -q .body)"
-          GEN="${{ steps.ai.outputs.response }}"
+          GEN="$(cat pr_desc_final.md)"
           BEGIN="<!-- pr-desc:begin -->"
           END="<!-- pr-desc:end -->"
+          META="<!-- sources: .github/models/pr-desc/prompt.md ; context=pr_context.json -->"
+
           if echo "$BODY" | grep -q "$BEGIN"; then
-            NEW="$(echo "$BODY" | perl -0777 -pe "s/$BEGIN.*?$END/$BEGIN\n$GEN\n$END/s")"
+            NEW="$(echo "$BODY" | perl -0777 -pe "s/$BEGIN.*?$END/$BEGIN\n$GEN\n\n$META\n$END/s")"
           else
-            NEW="$BODY"$'\n\n'"$BEGIN"$'\n'"$GEN"$'\n'"$END"
+            NEW="$BODY"$'\n\n'"$BEGIN"$'\n'"$GEN"$'\n\n'"$META"$'\n'"$END"
           fi
+
           printf "%s" "$NEW" | gh pr edit "$NUM" --body-file -
