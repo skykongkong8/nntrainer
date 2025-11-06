@@ -1,6 +1,7 @@
 // .github/models/pr-desc/build_context.js
 const { execSync } = require('child_process');
 const { readFileSync, readdirSync, existsSync } = require('fs');
+const fs = require('fs');
 const { join } = require('path');
 
 function arg(name, def) {
@@ -48,17 +49,6 @@ if (existsSync(overviewPath)) {
 }
 overview = clip(overview, 8000);
 
-let modulesDoc = '';
-const modulesDir = join(ctxRoot, 'modules');
-if (existsSync(modulesDir)) {
-  const files = readdirSync(modulesDir).filter(f => f.endsWith('.md')).sort().slice(0, 12);
-  for (const f of files) {
-    const body = readFileSync(join(modulesDir, f), 'utf8');
-    modulesDoc += `\n\n## ${f}\n` + clip(body, 4000);
-  }
-}
-modulesDoc = clip(modulesDoc, 20000);
-
 // ---------- 2) Git diff/numstat ----------
 const nameStatusRaw = sh(`git diff --name-status -M -C ${base}...${head}`);
 const statRaw = sh(`git diff --stat ${base}...${head}`);
@@ -92,6 +82,41 @@ if (numstatRaw) {
     churnMap.set(path, { added, removed });
   }
 }
+
+// === A. build changedFiles FIRST ===
+// parse name-status/numstat/etc. (existing code that fills changedFiles)
+// ensure you have something like:
+// const changedFiles = []; // declare before pushing to it
+// ... push { path, status, additions, deletions, ... } into changedFiles
+
+// === B. relevance-driven module docs (SAFE: changedFiles is ready) ===
+const modulesDir = join(ctxRoot, 'modules');
+let modulesDoc = '';
+if (existsSync(modulesDir)) {
+ const touched = new Set();
+ for (const f of changedFiles) {
+ const cls = classifyModule(f.path);
+ if (cls && cls.module) touched.add(cls.module);
+ }
+ const allMd = readdirSync(modulesDir).filter(f => f.endsWith('.md'));
+ const pickDoc = (m) => {
+ const key = m.toLowerCase().replace(/\s+/g,'').replace(/_/g,'').replace(/-/g,'');
+ return allMd.find(f => f.toLowerCase().replace(/\W/g,'').includes(key));
+ };
+ const selected = [];
+ for (const m of touched) {
+ const f = pickDoc(m);
+ if (f) selected.push(f);
+ }
+ const mdList = selected.length ? selected : allMd.slice(0,3);
+ for (const f of mdList.slice(0, 8)) {
+ const body = readFileSync(join(modulesDir, f), 'utf8');
+ modulesDoc += `\n\n## ${f}\n` + clip(body, 6000);
+ }
+}
+modulesDoc = clip(modulesDoc, 24000);
+
+
 
 function statusWeight(status) {
   // Rxxx, Cxxx 등은 리네임/복사로 간주
@@ -163,11 +188,22 @@ for (const [name, agg] of modulesAgg.entries()) {
              rename: agg.hasRename, delete: agg.hasDelete }
   };
 }
+// extra reviewer signals (place AFTER changedFiles built)
+function headerOrConfig(p){
+ return /\.(h|hpp|hh|hxx|inc)$/.test(p) ||
+ /(^|\/)(CMakeLists\.txt|configure|.*\.cmake|.*\.bazel|build\.gradle|settings\.gradle|package\.json)$/.test(p);
+}
+const apiSurfaceChanges = changedFiles.filter(f => headerOrConfig(f.path)).map(f => f.path);
+const testFiles = changedFiles.filter(f => /(^|\/)(test|tests|testing|spec)\b|_test\.(cc|cpp|c|py|js|ts)$/.test(f.path)).map(f => f.path);
+const concurrencySensitive= changedFiles.filter(f => /(thread|mutex|atomic|lock|concurrent|parallel)/i.test(f.path)).map(f => f.path);
 
 // ---------- 4) Diff/Commits 텍스트 ----------
 const diff = clip(`### name-status\n${nameStatusRaw}\n\n### stat\n${statRaw}`, 8000);
 
 const subjects = sh(`git log --pretty=%s ${base}..${head}`).split('\n').filter(Boolean);
+const bodiesRaw = sh(`git log --pretty=%B ${base}..${head}`);
+const bodies = bodiesRaw.split('\n\n').map(s=>s.trim()).filter(Boolean).slice(0,10).map(s=>clip(s,800));
+
 const buckets = { feat:0, fix:0, refactor:0, test:0, docs:0, chore:0, other:0 };
 for (const s of subjects) {
   const t = s.toLowerCase();
@@ -180,9 +216,10 @@ for (const s of subjects) {
   else buckets.other++;
 }
 const commits =
-  `Total commits: ${subjects.length}\n` +
+ `Total commits: ${subjects.length}\n` +
   Object.entries(buckets).map(([k,v]) => `- ${k}: ${v}`).join('\n') +
-  (subjects.length ? `\n\nSamples:\n- ${subjects.slice(0,5).join('\n- ')}` : '');
+ (subjects.length ? `\n\nSamples:\n- ${subjects.slice(0,5).join('\n- ')}` : '') +
+ (bodies.length ? `\n\nCommit bodies (top, clipped):\n- ${bodies.join('\n- ')}` : '');
 
 // ---------- 5) 모듈 임팩트 요약 텍스트 (모델 힌트용) ----------
 let moduleImpactSummary = '';
@@ -204,7 +241,12 @@ const out = {
   commits,
   // 새 필드들
   moduleImpact, // 모듈별 상세(머신 가독)
-  moduleImpactSummary: moduleImpactSummary || '(no module impact detected)'
+ moduleImpactSummary: moduleImpactSummary || '(no module impact detected)',
+ reviewerSignals: {
+ apiSurfaceChanges,
+ testFiles,
+ concurrencySensitive
+ }
 };
 
 process.stdout.write(JSON.stringify(out, null, 2));
