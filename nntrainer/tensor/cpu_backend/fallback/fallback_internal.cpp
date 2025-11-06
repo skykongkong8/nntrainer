@@ -587,8 +587,64 @@ void __fallback_compute_rotary_emb_value(unsigned int width, unsigned int dim,
 void __fallback_rms_norm_wrt_width_fp32_intrinsic(const float *__restrict X,
                                                   float *__restrict Y, size_t H,
                                                   size_t W, float epsilon) {
-  throw std::runtime_error(
-    "NYI : __fallback_rms_norm_wrt_width_fp32_intrinsic");
+  for (std::size_t h = 0; h < H; ++h) {
+    const float *rowX = X + h * W;
+    float *rowY = Y + h * W;
+
+    // Accumulate sum of squares
+    std::size_t i = 0;
+    float sumsq = 0.0f;
+
+    // Process in chunks of 16 for better efficiency (similar to NEON version)
+    for (; i + 16 <= W; i += 16) {
+      float acc0 = 0.0f, acc1 = 0.0f, acc2 = 0.0f, acc3 = 0.0f;
+      for (int j = 0; j < 4; ++j) {
+        float x0 = rowX[i + j * 4 + 0];
+        float x1 = rowX[i + j * 4 + 1];
+        float x2 = rowX[i + j * 4 + 2];
+        float x3 = rowX[i + j * 4 + 3];
+        acc0 += x0 * x0;
+        acc1 += x1 * x1;
+        acc2 += x2 * x2;
+        acc3 += x3 * x3;
+      }
+      sumsq += acc0 + acc1 + acc2 + acc3;
+    }
+
+    // Process remaining chunks of 4 elements
+    for (; i + 4 <= W; i += 4) {
+      float acc = 0.0f;
+      for (int j = 0; j < 4; ++j) {
+        float x = rowX[i + j];
+        acc += x * x;
+      }
+      sumsq += acc;
+    }
+
+    // Handle any remaining elements
+    for (; i < W; ++i) {
+      float v = rowX[i];
+      sumsq += v * v;
+    }
+
+    // Calculate scale factor
+    float mean = sumsq / static_cast<float>(W);
+    float scale = 1.0f / std::sqrt(mean + epsilon);
+
+    // Apply normalization
+    i = 0;
+    // Process in chunks of 16 for better efficiency
+    for (; i + 16 <= W; i += 16) {
+      for (int j = 0; j < 16; ++j) {
+        rowY[i + j] = rowX[i + j] * scale;
+      }
+    }
+
+    // Process remaining elements
+    for (; i < W; ++i) {
+      rowY[i] = rowX[i] * scale;
+    }
+  }
 }
 
 template <>
