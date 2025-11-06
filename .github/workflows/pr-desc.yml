@@ -12,6 +12,9 @@ permissions:
 
 jobs:
   describe:
+    # ✅ 특정 라벨 있을 때만 실행
+    if: contains(join(github.event.pull_request.labels.*.name, ','), 'ai-describe')
+
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -32,112 +35,47 @@ jobs:
           node -v
           git --version
 
-      - name: Build context (limit sizes to avoid truncation)
-        id: ctx
+      - name: Build context
         run: |
           set -euo pipefail
           node .github/models/pr-desc/build_context.js \
             --base "${{ github.event.pull_request.base.sha }}" \
             --head "${{ github.event.pull_request.head.sha }}" > pr_context.json
-          echo "CONTEXT_BYTES=$(wc -c < pr_context.json)" >> $GITHUB_OUTPUT
-          head -c 400 pr_context.json || true; echo
+          echo "CONTEXT_BYTES=$(wc -c < pr_context.json)"
 
       - name: Compose prompt file (template + context)
         run: |
           : > combined_prompt.txt
           echo "[PROMPT TEMPLATE]" >> combined_prompt.txt
-          # (prompt.md는 영어 전용 안내가 포함되어 있어도 좋지만, 아래 system에서 강제함)
           cat .github/models/pr-desc/prompt.md >> combined_prompt.txt
           echo -e "\n---\n[CONTEXT JSON]\n" >> combined_prompt.txt
           cat pr_context.json >> combined_prompt.txt
           echo "COMBINED_PROMPT_BYTES=$(wc -c < combined_prompt.txt)"
-          head -c 200 combined_prompt.txt || true; echo
 
-      - name: Generate full description (EN, friendly tone)
+      - name: Generate PR description (EN, friendly tone, with title)
         id: ai_full
         uses: actions/ai-inference@v1
         with:
           model: gpt-4o-mini
           max-tokens: 1000
-          # 일부 런타임에서 지원됨(미지원이면 제거해도 동작함)
           temperature: 0.2
           top_p: 0.9
-          # 가능한 한 영어를 강제하고, 포맷 누락 시에도 섹션을 비워 넣도록 지시
           system: |
             You are a senior maintainer writing a Pull Request description for other engineers.
-            Respond in English only with a friendly, helpful tone.
-            Follow EXACTLY the sections in [OUTPUT FORMAT]. If context is missing for a section,
-            still include the section with a concise placeholder.
-            End with a TL;DR of exactly 3 bullet lines.
-          prompt-file: combined_prompt.txt
-
-      - name: Prepare full message & quick completeness check
-        id: assess
-        shell: bash
-        run: |
-          set -euo pipefail
-          : > pr_desc_full.md
-          echo "This content is generated with AI" >> pr_desc_full.md
-          printf "\n%s\n" '${{ steps.ai_full.outputs.response }}' >> pr_desc_full.md
-
-          # 헤더 존재성+TLDR 줄수로 완성도 점검
-          need="# Overview|# Changes|# Risks & Validation|# Backward Compatibility|# Related Issues/Tickets|# Release Notes (Draft)|# Review Checklist|# File-wise Summary|# Module Impact|# TL;DR"
-          IFS="|" read -ra hdrs <<< "$need"
-          missing=0
-          for h in "${hdrs[@]}"; do
-            grep -qF "$h" pr_desc_full.md || { echo "::warning::Missing header: $h"; missing=$((missing+1)); }
-          done
-          tldr_count=$(awk '/^# TL;DR/{flag=1;next} /^# /{flag=0} flag && /^-/{c++} END{print c+0}' pr_desc_full.md)
-          echo "TLDR lines: $tldr_count"
-
-          # 잘림/불완전 판단 기준: 누락 헤더 3개 이상 또는 TL;DR이 3줄이 아님, 또는 본문이 비정상적으로 짧음
-          bytes=$(wc -c < pr_desc_full.md | tr -d ' ')
-          need_tldr_only=0
-          if [ $missing -ge 3 ] || [ "$tldr_count" -ne 3 ] || [ "$bytes" -lt 120 ]; then
-            need_tldr_only=1
-            echo "::warning::Full description seems truncated or incomplete (missing=$missing, bytes=$bytes). Will fall back to TL;DR-only."
-          fi
-
-          # 라벨로 강제 TL;DR 모드 지원
-          labels="${{ join(github.event.pull_request.labels.*.name, ',') }}"
-          if echo "$labels" | grep -qi "ai-tldr-only"; then
-            need_tldr_only=1
-            echo "::notice::ai-tldr-only label detected -> forcing TL;DR-only."
-          fi
-
-          echo "NEED_TLDR_ONLY=$need_tldr_only" >> $GITHUB_OUTPUT
-
-      - name: Generate TL;DR-only (fallback or label)
-        id: ai_tldr
-        if: steps.assess.outputs.NEED_TLDR_ONLY == '1'
-        uses: actions/ai-inference@v1
-        with:
-          model: gpt-4o-mini
-          max-tokens: 500
-          temperature: 0.2
-          top_p: 0.9
-          system: |
-            You are a senior maintainer. Respond in **English only**.
-            Produce ONLY the TL;DR section: exactly 3 concise bullet lines summarizing key changes,
-            risks/validation, and compatibility impact. No other text.
+            Respond in **English only**, using a friendly and helpful tone.
+            Start with a one-line H1 title summarizing this PR in ~6–12 words.
+            Then follow EXACTLY the sections in [OUTPUT FORMAT]:
+            "### 🎯 What & Why"
+            "### 💡 Key Changes"
+            "### 🔎 Pointers for Reviewer"
+            Do not add other sections or TL;DRs.
           prompt-file: combined_prompt.txt
 
       - name: Compose final comment body
-        id: final
-        shell: bash
         run: |
-          set -euo pipefail
           : > pr_comment.md
-          echo "This content is generated with AI" >> pr_comment.md
-          echo >> pr_comment.md
-          if [ "${{ steps.assess.outputs.NEED_TLDR_ONLY }}" = "1" ]; then
-            echo "# TL;DR" >> pr_comment.md
-            printf "%s\n" '${{ steps.ai_tldr.outputs.response }}' >> pr_comment.md
-          else
-            cat pr_desc_full.md >> pr_comment.md
-          fi
-
-          echo "COMMENT_BYTES=$(wc -c < pr_comment.md)" >> $GITHUB_OUTPUT
+          printf "%s\n" '${{ steps.ai_full.outputs.response }}' >> pr_comment.md
+          echo "COMMENT_BYTES=$(wc -c < pr_comment.md)"
           head -c 200 pr_comment.md || true; echo
 
       - name: Post as PR comment (never edit PR body)
