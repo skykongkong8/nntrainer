@@ -68,7 +68,8 @@ jobs:
             "### 🎯 What & Why"
             "### 💡 Key Changes"
             "### 🔎 Pointers for Reviewer"
-            Do not add other sections or TL;DRs.
+            Use the 'moduleImpact' and 'moduleImpactSummary' from the context to highlight high-impact modules and tell reviewers where to focus.
+            Do not add other sections.
           prompt-file: combined_prompt.txt
 
       - name: Compose final comment body
