@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   describe:
-    # ✅ 특정 라벨 있을 때만 실행
     if: contains(join(github.event.pull_request.labels.*.name, ','), 'ai-describe')
 
     runs-on: ubuntu-latest
@@ -68,7 +67,6 @@ jobs:
             "### 🎯 What & Why"
             "### 💡 Key Changes"
             "### 🔎 Pointers for Reviewer"
-            Use the 'moduleImpact' and 'moduleImpactSummary' from the context to highlight high-impact modules and tell reviewers where to focus.
             Do not add other sections.
           prompt-file: combined_prompt.txt
 
