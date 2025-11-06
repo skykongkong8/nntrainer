@@ -13,5 +13,5 @@
 [OUTPUT FORMAT]
 ### 🎯 What & Why
 ### 💡 Key Changes
-### ✅ How to Verify
+### 🔎 Pointers for Reviewer
 
