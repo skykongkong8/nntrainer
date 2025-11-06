@@ -1,0 +1,56 @@
+messages:
+  - role: user
+    content: |-
+      You are preparing a Pull Request Description for {{repo}} (PR #{{pr_number}}) titled: {{pr_title}}.
+
+      ## Project Overview
+      {{overview}}
+
+      ## Module Docs (key parts only)
+      {{modules}}
+
+      ## Diff summary (base {{base_sha}} → head {{head_sha}})
+      {{diff}}
+
+      ## Commit summaries
+      {{commits}}
+
+      ### TASK
+      1) Synthesize the above into a comprehensive PR description that explains changes for newcomers to the module.
+      2) Keep it actionable for reviewers; call out risks, test points, and backward compatibility.
+      3) At the end, add **TL;DR** with exactly 3 bullet points.
+
+      ### OUTPUT FORMAT (Korean)
+      # 개요
+      - 변경 목적, 배경(이슈/요구사항), 범위를 3~5문장으로 정리.
+
+      # 변경 상세
+      - 핵심 변경점(알고리즘/인터페이스/성능/빌드/문서)을 불릿으로.
+      - 디렉터리/파일/함수 단위로 요약.
+
+      # 리스크 & 검증 포인트
+      - 잠재 리그레션, 엣지케이스, 성능 영향, 실패 시그널(로그/메트릭)과 테스트 방법.
+
+      # 역호환성
+      - API/ABI, 설정 파일, 모델/데이터 호환성 영향과 마이그레이션 노트.
+
+      # 관련 이슈/티켓
+      - 키워드/번호가 있으면 나열(없으면 '없음').
+
+      # 릴리즈 노트 초안
+      - 사용자 관점 한 단락(최대 4문장).
+
+      # 리뷰 체크리스트
+      - [ ] 빌드/CI 통과 여부
+      - [ ] 유닛/통합 테스트 추가 여부
+      - [ ] 문서/예제 업데이트
+      - [ ] 성능/메모리 영향 평가
+
+      # 파일별 요약
+      - 변경 파일별 의도/주요 수정 포인트를 한줄씩.
+
+      # 모듈별 영향
+      - 주요 모듈에 미치는 영향(입출력, 성능, 의존성).
+
+      # TL;DR
+      - 세 줄 요약(정확히 3개 불릿).
