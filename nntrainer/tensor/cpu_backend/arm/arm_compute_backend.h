@@ -1234,6 +1234,7 @@ void nntr_saxpy_sve(float a, const float* __restrict x, float* __restrict y, siz
 
 float nntr_sdot_sve(const float* __restrict x, const float* __restrict y, size_t n);
 
+float nntr_sdot_sme(const float* __restrict x, const float* __restrict y, size_t n);
 
 } /* namespace nntrainer */
 #endif /* __cplusplus */

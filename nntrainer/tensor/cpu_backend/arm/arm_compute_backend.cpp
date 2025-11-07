@@ -469,6 +469,8 @@ float nntr_sdot_sve(const float* __restrict x, const float* __restrict y, size_t
   return sdot_sve(x, y, n);
 }
 
-
+float nntr_sdot_sme(const float* __restrict x, const float* __restrict y, size_t n){
+  return sdot_sme(x, y, n);
+}
 
 } /* namespace nntrainer */

@@ -156,18 +156,18 @@ static float sdot_sme2_kernel(const float* __restrict x,
 }
 
 
-float sdot_sme(const float* __restrict x, const float* __restrict y, size_t n)__arm_inout("za"){
+__arm_new("za") float sdot_sme(const float* __restrict x, const float* __restrict y, size_t n){
     if (0){
     // if (!has_sme()){
         return sdot_sve_kernel(x, y, n);
     } else{
-        asm volatile("smstart sm");
+        // asm volatile("smstart sm");
         asm volatile("smstart za");
         asm volatile("zero {za}");
 
         float ret = sdot_sme2_kernel(x, y, n);
 
-        asm volatile("smstop sm");
+        // asm volatile("smstop sm");
         asm volatile("smstop za");
 
         return ret;
