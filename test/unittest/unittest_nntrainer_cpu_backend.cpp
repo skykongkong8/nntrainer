@@ -1177,39 +1177,120 @@ TEST(nntrainer_cpu_backend_standalone, clamp_3072_0_1) {
   run_clamp_test(N, lower_bound, upper_bound, false);
 }
 
-TEST(nntrainer_cpu_backend_standalone, hello_sme){
+TEST(nntrainer_cpu_backend_standalone, hello_sme) {
   nntrainer::nntr_hello_sme_function();
 }
 
-TEST(nntrainer_cpu_backend_standalone, scopy_sve_sme){
+TEST(nntrainer_cpu_backend_standalone, scopy_sve_sme) {
   const unsigned int N = 1024 * 1024;
   std::vector<float> A = generate_random_vector<float>(N);
   std::vector<float> B_neon(N);
   std::vector<float> B_sve(N);
   std::vector<float> B_fail(N);
-        auto t1 = high_resolution_clock::now();
-  
+  auto t1 = high_resolution_clock::now();
+
   nntrainer::scopy(N, A.data(), 1, B_neon.data(), 1);
 
-        auto t2 = high_resolution_clock::now();
-      auto dt = duration_cast<nanoseconds>(t2 - t1);
+  auto t2 = high_resolution_clock::now();
+  auto dt = duration_cast<nanoseconds>(t2 - t1);
 
-      auto t3 = high_resolution_clock::now();
+  auto t3 = high_resolution_clock::now();
   nntrainer::nntr_scopy_sve(B_sve.data(), A.data(), N);
-        auto t4 = high_resolution_clock::now();
-      auto dt2 = duration_cast<nanoseconds>(t4 - t3);
+  auto t4 = high_resolution_clock::now();
+  auto dt2 = duration_cast<nanoseconds>(t4 - t3);
 
-std::cout << "scopy : " << dt.count() << " ns "
-              << dt.count() / 1'000 << " us " << dt.count() / 1'000'000
-              << " ms " << std::endl;
-std::cout << "nntr_scopy_sve : " << dt2.count() << " ns "
-              << dt2.count() / 1'000 << " us " << dt2.count() / 1'000'000
-              << " ms " << std::endl;
-
+  std::cout << "scopy : " << dt.count() << " ns " << dt.count() / 1'000
+            << " us " << dt.count() / 1'000'000 << " ms " << std::endl;
+  std::cout << "nntr_scopy_sve : " << dt2.count() << " ns "
+            << dt2.count() / 1'000 << " us " << dt2.count() / 1'000'000
+            << " ms " << std::endl;
 
   EXPECT_TRUE(A == B_neon);
   EXPECT_TRUE(A == B_sve);
   EXPECT_FALSE(B_sve == B_fail);
+}
+
+TEST(nntrainer_cpu_backend_standalone, sdot_sve_sme) {
+  const unsigned int N = 1024 * 1024;
+  std::vector<float> A = generate_random_vector<float>(N, 0, 0.5);
+  std::vector<float> B = generate_random_vector<float>(N, 0, 0.5);
+
+  auto t1 = high_resolution_clock::now();
+
+  float ret_neon = nntrainer::sdot(N, A.data(), 1, B.data(), 1);
+
+  auto t2 = high_resolution_clock::now();
+  auto dt = duration_cast<nanoseconds>(t2 - t1);
+
+  auto t5 = high_resolution_clock::now();
+  float ret_sve = nntrainer::nntr_sdot_sve(A.data(), B.data(), N);
+  auto t6 = high_resolution_clock::now();
+  auto dt3 = duration_cast<nanoseconds>(t6 - t5);
+
+  std::cout << "ret_sve : " << dt3.count() << " ns " << dt3.count() / 1'000
+            << " us " << dt3.count() / 1'000'000 << " ms  : " << ret_sve
+            << std::endl;
+
+  std::cout << "ret_neon : " << dt.count() << " ns " << dt.count() / 1'000
+            << " us " << dt.count() / 1'000'000 << " ms  : " << ret_neon
+            << std::endl;
+
+  //                     auto t3 = high_resolution_clock::now();
+  //   float ret_sme = nntrainer::nntr_sdot_sme(B.data(), A.data(), N);
+  //         auto t4 = high_resolution_clock::now();
+  //       auto dt2 = duration_cast<nanoseconds>(t4 - t3);
+  // std::cout << "nntr_scopy_sme : " << dt2.count() << " ns "
+  //               << dt2.count() / 1'000 << " us " << dt2.count() / 1'000'000
+  //               << " ms " << std::endl;
+}
+
+TEST(nntrainer_cpu_backend_standalone, sgemv_sve_sme) {
+  const unsigned int M = 1024;
+  const unsigned int K = 1024;
+  const unsigned int N = 1;
+  std::vector<float> A = generate_random_vector<float>(M * K);
+  std::vector<float> X = generate_random_vector<float>(N * K);
+  std::vector<float> Y_sme(N * K);
+  std::vector<float> Y_neon(N * K);
+
+  auto t1 = high_resolution_clock::now();
+  nntrainer::sgemm(0, false, false, M, N, K, 1, A.data(), K, X.data(), N, 0,
+                   Y_neon.data(), N);
+  auto t2 = high_resolution_clock::now();
+  auto dt = duration_cast<nanoseconds>(t2 - t1);
+
+  auto t3 = high_resolution_clock::now();
+  nntrainer::nntr_sgemv_sme(M, K, 1, A.data(), K, X.data(), 1, 0, Y_sme.data(),
+                            1);
+  auto t4 = high_resolution_clock::now();
+  auto dt2 = duration_cast<nanoseconds>(t4 - t3);
+
+  std::cout << "sgemv : " << dt.count() << " ns " << dt.count() / 1'000
+            << " us " << dt.count() / 1'000'000 << " ms " << std::endl;
+  std::cout << "nntr_sgemv_sme : " << dt2.count() << " ns "
+            << dt2.count() / 1'000 << " us " << dt2.count() / 1'000'000
+            << " ms " << std::endl;
+
+  auto mean_squared_error =
+    mse<float, float>(Y_neon.data(), Y_sme.data(), N * K);
+  auto cos_sim = cosine_similarity(Y_neon.data(), Y_sme.data(), N * K);
+  auto max_differ = find_max_diff(Y_neon.data(), Y_sme.data(), N, K);
+
+  const float eps = 1e-4;
+  ///@todo Find proper metric and standard to assess
+  EXPECT_NEAR(mean_squared_error, 0., eps);
+  EXPECT_NEAR(cos_sim, 1, eps);
+  EXPECT_NEAR(max_differ, 0., eps);
+  if (false) {
+    for (int i = 0; i < 10; ++i) {
+      std::cout << *(Y_neon.data() + i) << "\t" << std::endl;
+    }
+    std::cout << std::endl;
+    for (int i = 0; i < 10; ++i) {
+      std::cout << *(Y_sme.data() + i) << "\t" << std::endl;
+    }
+    std::cout << std::endl;
+  }
 }
 
 int main(int argc, char **argv) {
