@@ -30,8 +30,7 @@ static inline bool has_sme() {
 }
 
 // 스트리밍 전용 함수(여기서는 ZA는 호출자에서 여닫음)
-__attribute__((__arm_streaming__))
-static void sme_hello_body() {
+static void sme_hello_body()__arm_streaming {
     // ZA가 켜져 있어야만 유효
     asm volatile("zero {za}");
 }
@@ -60,8 +59,7 @@ int hello_sme_function() {
     return 0;
 }
 
-__attribute__((__arm_streaming__))
-static void scopy_kernel_sve(const float* __restrict x, float* __restrict y, size_t n){
+static void scopy_kernel_sve(const float* __restrict x, float* __restrict y, size_t n)__arm_streaming{
     size_t i = 0;
     for (; i < n;){
         svbool_t pg = svwhilelt_b32((uint32_t)i, (uint32_t)n);
@@ -77,8 +75,7 @@ void scopy_sve(float* y, const float* x, size_t n){
     asm volatile("smstop sm");
 }
 
-__attribute__((__arm__streaming__))
-static void saxpy_sve_kernel(float a, const float* __restrict x, float* __restrict y, size_t n){
+static void saxpy_sve_kernel(float a, const float* __restrict x, float* __restrict y, size_t n) __arm_streaming{
     size_t i = 0;
     const svfloat32_t va = svdup_f32(a);
     while (i < n){
@@ -97,8 +94,7 @@ void saxpy_sve(float a, const float* __restrict x, float* __restrict y, size_t n
     asm volatile("smstop sm");
 }
 
-__attribute__ ((arm_streaming))
-static float sdot_sve_kernel(const float* __restrict x, const float* __restrict y, size_t n){
+static float sdot_sve_kernel(const float* __restrict x, const float* __restrict y, size_t n) __arm_streaming {
     size_t i = 0;
     svfloat32_t vacc = svdup_f32(0.0F);
     while (i < n){
@@ -119,10 +115,9 @@ float sdot_sve(const float* __restrict x, const float* __restrict y, size_t n){
 }
 
 __attribute__((target("+sme2,+sme,+sve2")))
-__attribute__((__arm_shared_za, __arm_streaming))
 static float sdot_sme2_kernel(const float* __restrict x,
                                   const float* __restrict y,
-                                  size_t n) __arm_streaming
+                                  size_t n) __arm_streaming __arm_inout("za")
 {
     const uint32_t step = svcntw();
     svbool_t pg = svptrue_b32();
@@ -161,7 +156,7 @@ static float sdot_sme2_kernel(const float* __restrict x,
 }
 
 
-float sdot_sme(const float* __restrict x, const float* __restrict y, size_t n){
+float sdot_sme(const float* __restrict x, const float* __restrict y, size_t n)__arm_inout("za"){
     if (0){
     // if (!has_sme()){
         return sdot_sve_kernel(x, y, n);
