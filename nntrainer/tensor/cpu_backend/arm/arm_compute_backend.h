@@ -1236,6 +1236,13 @@ float nntr_sdot_sve(const float* __restrict x, const float* __restrict y, size_t
 
 float nntr_sdot_sme(const float* __restrict x, const float* __restrict y, size_t n);
 
+void nntr_sgemv_sme(
+    int M, int N,
+    float alpha,
+    const float* __restrict A, int lda,
+    const float* __restrict x, int incx,
+    float beta,
+    float* __restrict y, int incy);
 } /* namespace nntrainer */
 #endif /* __cplusplus */
 #endif /* __ARM_COMPUTE_BACKEND_H__ */

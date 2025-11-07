@@ -473,4 +473,14 @@ float nntr_sdot_sme(const float* __restrict x, const float* __restrict y, size_t
   return sdot_sme(x, y, n);
 }
 
+void nntr_sgemv_sme(
+    int M, int N,
+    float alpha,
+    const float* __restrict A, int lda,
+    const float* __restrict x, int incx,
+    float beta,
+    float* __restrict y, int incy){
+      sgemv_sme(M,N,alpha, A, lda, x, incx, beta, y, incy);
+    }
+
 } /* namespace nntrainer */
