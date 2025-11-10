@@ -1290,6 +1290,14 @@ TEST(nntrainer_cpu_backend_standalone, sgemv_sve_sme) {
       std::cout << *(Y_sme.data() + i) << "\t" << std::endl;
     }
     std::cout << std::endl;
+        for (int i = 0; i < 10; ++i) {
+      std::cout << *(Y_neon.data() + (N*K - 1) - i) << "\t" << std::endl;
+    }
+    std::cout << std::endl;
+    for (int i = 0; i < 10; ++i) {
+      std::cout << *(Y_sme.data() + (N*K - 1) - i) << "\t" << std::endl;
+    }
+    std::cout << std::endl;
   }
 }
 
