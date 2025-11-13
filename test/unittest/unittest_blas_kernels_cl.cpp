@@ -277,8 +277,8 @@ static void debug_print_beg_end(const T *const data, const unsigned int size,
 static void run_dequantization_test_(const uint32_t K, const uint32_t N) {
   const float epsilon = 0.01f;
 
-  auto *blas_cc = static_cast<nntrainer::ClContext *>(
-    nntrainer::Engine::Global().getRegisteredContext("gpu"));
+  // auto *blas_cc = static_cast<nntrainer::ClContext *>(
+  //   nntrainer::Engine::Global().getRegisteredContext("gpu"));
   std::vector<float> weight_fp32 =
     generate_random_vector<float>(N * K, -2.0f, 2.0f);
 
@@ -1056,7 +1056,16 @@ static void run_int4_gemm_test_(const uint32_t M, const uint32_t K,
   }
 
     /*
-        VERIFICATION OF TARGET IMPL
+        MISSION : VERIFICATION OF TARGET IMPL
+
+        By using Int4Utils::quantizeAndRepack() function, you can obtain osv32_isv2-quantized data from fp32 matrix.
+        On the other hand, by using nntrainer::quantize_q4_0 function, you can obtain block_q4_0-quantized data from fp32 matrix. And you should call nntrainer::repack_q4_0() function to get block_q4_0x8-quantized format data by reordering block_q4_0 data.
+        Both of the quantization format share similarities like : quantization bit (4bit quantization), and the same number of scale factors, but they are different in data storage order.
+        In osv32_isv2, they store 4bit data in their defined way, and store 16bit scale factor explicitly.
+        In block_q4_0x8 format, they store 4bit data in re-ordered direction, and store scale factors in 16bit in packed way in specifically defined struct. 
+        Keeping in these differences between two algorithms in mind,analyze the given code carefully, fully understand what it does, and explain it to me in detail.
+
+        Current mission is to implement transform_q4_0x8_osv32_isv2 function, which transforms the quantized data in osv32_isv2 format into q4_0x8 format by reordering.
     */
 
   if (K % Q4_0 == 0 && N % 8 == 0) {
@@ -1114,7 +1123,7 @@ static void run_int4_gemm_test_(const uint32_t M, const uint32_t K,
          (3) Pack q4_0 to q4_0x8
 
     */
-    nntrainer::transform_q4_0x8_osv32_isv2(N, K, quantized_weights.data(), quantized_scales.data(), scale_group_size /*32*/, q4_0x8_weight_transformed_from_osv32_isv2.data());
+    Q4_0Utils::transform_q4_0x8_osv32_isv2(N, K, quantized_weights.data(), quantized_scales.data(), scale_group_size /*32*/, q4_0x8_weight_transformed_from_osv32_isv2.data());
 
   /*
     2. Run GEMM with transformed q4_0x8 weight for verification

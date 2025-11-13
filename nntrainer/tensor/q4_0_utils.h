@@ -54,6 +54,12 @@ public:
    */
   static void dequantizeQ4_0x8(const void *q4_weight_repacked, int N, int K,
                                float *dequantized_weights);
+
+  static void transform_q4_0x8_osv32_isv2(size_t N, size_t K,
+                                          const uint8_t *osv32_weights,
+                                          const uint16_t *osv32_scales,
+                                          size_t scale_group_size,
+                                          void *dst_q4_0x8);
 };
 
 } // namespace nntrainer
