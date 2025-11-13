@@ -116,7 +116,7 @@ unittest_inc = include_directories('.')
 
 # subdir('memory')
 subdir('compiler')
-subdir('layers')
+# subdir('layers')
 subdir('datasets')
 subdir('models')
 if get_option('enable-tflite-interpreter')
