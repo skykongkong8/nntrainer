@@ -83,99 +83,103 @@ void Q4_0Utils::transform_q4_0x8_osv32_isv2(
     const uint8_t *osv32_weights,
     const uint16_t *osv32_scales,
     size_t scale_group_size,
-    void *dst_q4_0x8) {
+    void *dst_q4_0x8)
+{
+  assert(osv32_weights);
+  assert(osv32_scales);
+  assert(dst_q4_0x8);
 
-  // Basic sanity checks: match constraints used elsewhere in the code.
-  assert(osv32_weights != nullptr);
-  assert(osv32_scales != nullptr);
-  assert(dst_q4_0x8 != nullptr);
+  // q4_0 + q4_0x8 structural constraints
+  assert(K % Q4_0 == 0); // 32-wide q4_0 blocks along K
+  assert(N % 8 == 0); // rows multiple of 8 for q4_0x8
 
-  // Blocked kernels assume these divisibility constraints.
-  assert(K % Q4_0 == 0); // 32-wide q4_0 blocks
-  assert(N % 8 == 0); // 8 rows per q4_0x8 pack
-
-  // Supported group sizes: 32 / 64 / 128. All are multiples of 32.
   assert(scale_group_size == 32 ||
          scale_group_size == 64 ||
          scale_group_size == 128);
   assert(scale_group_size % Q4_0 == 0);
 
-  constexpr size_t ROW_BLOCK_SIZE = 32;
-  constexpr size_t COLUMN_BLOCK_SIZE = 2;
+  constexpr size_t ROW_BLOCK_SIZE = 32; // osv32 row tile
+  constexpr size_t COLUMN_BLOCK_SIZE = 2; // 2 columns per byte
 
-  // These must match the definitions used in Int4Utils::quantizeAndRepack()
+  // osv32 padding (must mirror Int4Utils::quantizeAndRepack)
+  const size_t row_blocks_count =
+      (N + ROW_BLOCK_SIZE - 1) / ROW_BLOCK_SIZE;
   const size_t rows_count_pad =
-      ((N + ROW_BLOCK_SIZE - 1) / ROW_BLOCK_SIZE) * ROW_BLOCK_SIZE;
+      row_blocks_count * ROW_BLOCK_SIZE;
 
   const size_t columns_count_pad =
       ((K + scale_group_size - 1) / scale_group_size) * scale_group_size;
+  const size_t column_blocks_count =
+      columns_count_pad / COLUMN_BLOCK_SIZE;
 
-  const size_t column_blocks_count = columns_count_pad / COLUMN_BLOCK_SIZE;
   const size_t nblocks = K / Q4_0; // q4_0 blocks per row
 
-  // Temporary buffer of q4_0 blocks in the layout expected by
-  // nntr_repack_q4_0_to_q4_0_8_bl (row-major, nblocks per row).
-  std::vector<block_q4_0> tmp_q4;
-  tmp_q4.resize(N * nblocks);
+  // Temporary q4_0 buffer laid out as [row, block_index]
+  std::vector<block_q4_0> q4_blocks(N * nblocks);
 
   for (size_t r = 0; r < N; ++r) {
-    const size_t rb = r / ROW_BLOCK_SIZE;
-    const size_t ri = r % ROW_BLOCK_SIZE;
+    const size_t rb = r / ROW_BLOCK_SIZE; // osv32 row-block index
+    const size_t ri = r % ROW_BLOCK_SIZE; // row inside 32-row block
+
+    // Base byte index in osv32 for this row and column_block=0
+    const size_t row_block_base =
+        (rb * column_blocks_count) * ROW_BLOCK_SIZE + ri;
 
     for (size_t j = 0; j < nblocks; ++j) {
-      block_q4_0 &blk = tmp_q4[r * nblocks + j];
+      block_q4_0 &blk = q4_blocks[r * nblocks + j];
 
-      // Initialize block quants to zero (for safety, even if fully filled).
+      // Clear q4_0 bytes to allow nibble RMW
       std::memset(blk.qs, 0, sizeof(blk.qs));
 
-      // Compute and assign the scale (delta) for this 32-wide block.
-      const size_t c0 = j * Q4_0;
+      const size_t c0 = j * Q4_0; // first column of this block
       const size_t group_id = c0 / scale_group_size;
       const size_t scale_index = r + group_id * rows_count_pad;
 
+      // Use osv32-provided scale for this row & column group
       blk.d = osv32_scales[scale_index];
 
-      // Fill 32 int4 values from osv32 layout.
+      // Fill 32 values in this q4_0 block
       for (size_t p = 0; p < Q4_0; ++p) {
-        const size_t c = c0 + p; // absolute column index, guaranteed < K
+        const size_t c = c0 + p; // absolute column index
 
-        // Map (r,c) into osv32 byte.
-        const size_t cb = c / COLUMN_BLOCK_SIZE;
+        const size_t cb = c / COLUMN_BLOCK_SIZE; // osv32 column-block index
         const size_t idx_byte =
-            (rb * column_blocks_count + cb) * ROW_BLOCK_SIZE + ri;
+            row_block_base + cb * ROW_BLOCK_SIZE; // byte index in osv32
 
         const uint8_t packed = osv32_weights[idx_byte];
-        const uint8_t q = (c & 1)
-                            ? (uint8_t)((packed >> 4) & 0xF)
-                            : (uint8_t)(packed & 0xF);
 
-        // Store into q4_0 block nibble array.
-        const size_t q_byte = p / 2;
+        // Extract the nibble for (r, c) as-is
+        uint8_t nib;
+        if (c & 1) {
+          nib = (uint8_t)((packed >> 4) & 0xF);
+        } else {
+          nib = (uint8_t)(packed & 0xF);
+        }
+
+        // Place nib into q4_0's (byte_idx, low/high) position
+        const size_t byte_idx = p / 2;
         const bool hi = (p & 1) != 0;
 
         if (!hi) {
-          blk.qs[q_byte] =
-              (uint8_t)((blk.qs[q_byte] & 0xF0) | q);
+          blk.qs[byte_idx] =
+              (uint8_t)((blk.qs[byte_idx] & 0xF0u) | nib);
         } else {
-          blk.qs[q_byte] =
-              (uint8_t)((blk.qs[q_byte] & 0x0F) | (uint8_t(q) << 4));
+          blk.qs[byte_idx] =
+              (uint8_t)((blk.qs[byte_idx] & 0x0Fu) | (uint8_t(nib) << 4));
         }
       } // p
     } // j
   } // r
 
-  // Repack 8×q4_0 blocks into block_q4_0x8 layout.
-  const size_t data_size = tmp_q4.size() * sizeof(block_q4_0);
+  const size_t data_size = q4_blocks.size() * sizeof(block_q4_0);
 
+  // Canonical repack into q4_0x8
   nntrainer::repack_q4_0(
       dst_q4_0x8,
-      tmp_q4.data(),
+      q4_blocks.data(),
       data_size,
       /*nrow=*/N,
       /*k=*/K);
-
-  // If this fails, constraints (N%8, K%32) are likely violated.
-  // assert(ret == 0);
 }
 
 } // namespace nntrainer

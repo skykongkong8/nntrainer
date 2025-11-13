@@ -240,7 +240,7 @@ void AppContext::initialize() noexcept {
     setMemAllocator(std::make_shared<MemAllocator>());
 
     add_default_object();
-    add_extension_object();
+    // add_extension_object();
   } catch (std::exception &e) {
     ml_loge("registering layers failed!!, reason: %s", e.what());
   } catch (...) {

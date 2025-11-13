@@ -990,7 +990,6 @@ static void run_int4_gemm_test_(const uint32_t M, const uint32_t K,
                    weight_fp32.data(), K, 0.F, ref_dst.data(), N);
 
   // Reference Q4_0 GEMV
-  if (K % Q4_0 == 0 && N % 8 == 0) {
     size_t q4_data_size = K * N / Q4_0 * sizeof(block_q4_0);
     std::vector<float> q4_output_fp32(M * N);
     std::vector<uint8_t> q4_weight(q4_data_size);
@@ -1003,7 +1002,6 @@ static void run_int4_gemm_test_(const uint32_t M, const uint32_t K,
                          q4_output_fp32.data(), N);
     float mse_q4 = mse<float>(ref_dst.data(), q4_output_fp32.data(), M * N);
     std::cout << "MSE Q4_0: " << std::setprecision(10) << mse_q4 << std::endl;
-  }
 
   // Int4 GEMM - THE MAIN TEST
   uint16_t *input_ptr = (uint16_t *)allocateSVM(input_size * sizeof(uint16_t));
@@ -1068,7 +1066,40 @@ static void run_int4_gemm_test_(const uint32_t M, const uint32_t K,
         Current mission is to implement transform_q4_0x8_osv32_isv2 function, which transforms the quantized data in osv32_isv2 format into q4_0x8 format by reordering.
     */
 
-  if (K % Q4_0 == 0 && N % 8 == 0) {
+    /*
+      DEEPER 
+      Full format name os osv32_isv2 is : os_is_yx_osv32_isv2 (with y = 1 and x = 1)
+
+      refer to : https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/docs/gpu_memory_formats.md
+      [IMPORTANT] Consider b = o, and f = i !
+      For example, format named like: b_fs_yx_fsv16
+      is defined like:
+      bfyx -> [b: 2; f: 2; y: 2; x: 2]
+
+      i = 0  => [b=0; f=0; y=0; x=0];
+      i = 1  => [b=0; f=0; y=0; x=1];
+
+      i = 2  => [b=0; f=0; y=1; x=0];
+      i = 3  => [b=0; f=0; y=1; x=1];
+
+      i = 4  => [b=0; f=1; y=0; x=0];
+      i = 5  => [b=0; f=1; y=0; x=1];
+
+      Thus, in case of os_is_yx_osv32_isv2 will be defined like:
+      i = 0   => [o=0; i=0;  y=0; x=0] == [o=0; is=0; y=0; x=0; osv=0, isv=0];
+      i = 1   => [o=1; i=0;  y=0; x=0] == [o=0; is=0; y=0; x=0; osv=1, isv=0];
+      i = 2   => [o=2; i=0;  y=0; x=0] == [o=0; is=0; y=0; x=0; osv=2, isv=0];
+      ...
+      i = 31  => [o=31; i=0; y=0; x=0] == [o=0; is=0; y=0; x=0; osv=31, isv=0]
+
+      i = 32  => [o=0; i=1;  y=0; x=0] == [o=0; is=0; y=0; x=0; osv=0, isv=1];
+      i = 33  => [o=1; i=1;  y=0; x=0] == [o=0; is=0; y=0; x=0; osv=1, isv=1];
+      i = 34  => [o=2; i=1;  y=0; x=0] == [o=0; is=0; y=0; x=0; osv=2, isv=1];
+      ...
+      i = 63  => [o=31; i=1;  y=0; x=0] == [o=0; is=0; y=0; x=0; osv=31, isv=1];
+
+    */
+
 
   /*
     1. transform osv32_isv2 to q4_0x8 format
@@ -1085,7 +1116,7 @@ static void run_int4_gemm_test_(const uint32_t M, const uint32_t K,
     } block_q4_0;
 
   */
-    size_t q4_data_size = K * N / Q4_0 * sizeof(block_q4_0);
+    q4_data_size = K * N / Q4_0 * sizeof(block_q4_0);
     std::vector<float> q4_output_fp32_v2(M * N);
     std::vector<uint8_t> q4_0x8_weight_transformed_from_osv32_isv2(q4_data_size);
     /*
@@ -1130,10 +1161,9 @@ static void run_int4_gemm_test_(const uint32_t M, const uint32_t K,
   */
     nntrainer::gemm_q4_0(M, N, K, input.data(), K, q4_0x8_weight_transformed_from_osv32_isv2.data(), N,
                         q4_output_fp32_v2.data(), N);
-    float mse_q4 = mse<float>(ref_dst.data(), q4_output_fp32_v2.data(), M * N);
-    std::cout << "MSE Q4_0: " << std::setprecision(10) << mse_q4 << std::endl;
+    float mse_q4_b2 = mse<float>(ref_dst.data(), q4_output_fp32_v2.data(), M * N);
+    std::cout << "MSE Q4_0 packed: " << std::setprecision(10) << mse_q4_b2 << std::endl;
 
-  }
 
 
   uint32_t first_zero_index = UINT32_MAX;
