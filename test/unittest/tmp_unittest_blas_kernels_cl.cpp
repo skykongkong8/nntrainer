@@ -410,21 +410,14 @@ uint8_t Int4Utils::quantizeToInt4(const float weight, const float scale) {
         TARGET IMPLEMENTATION FUNCTION : transform_q4_0x8_osv32_isv2
 
         Useful codes / functions to take a look:
-        - nntr_ggml_impl_common.h
             - struct block_q4_0
             - using block_q4_0x8 = block<4, 8>;
-        - nntr_ggml_impl.cpp
             - nntr_repack_q4_0_to_q4_0_8_bl()
-        - nntr_ggml_impl_quant.cpp
             - nntr_quantize_q4_0()
-        - int4_utils.h
-        - int4_utils.cpp
             - quantizeAndRepack
             - pack
             - computeScales
             - quantizeToInt4
-        - unittest_blas_kernels_cl.cpp
-            - run_int4_gemm_test_
 
         Algorithm Overview (Most desired)
         [ Method A ]
