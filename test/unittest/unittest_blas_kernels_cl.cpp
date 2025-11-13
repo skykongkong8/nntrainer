@@ -1055,6 +1055,78 @@ static void run_int4_gemm_test_(const uint32_t M, const uint32_t K,
     output_fp32[i] = compute_fp16_to_fp32(output_ptr[i]);
   }
 
+    /*
+        VERIFICATION OF TARGET IMPL
+    */
+
+  if (K % Q4_0 == 0 && N % 8 == 0) {
+
+  /*
+    1. transform osv32_isv2 to q4_0x8 format
+
+    template <int K, int N> struct block {
+        nntr_half d[N];                     // deltas for N qK_0 blocks
+        int8_t qs[(QK_0<K>() * N * K) / 8]; // quants for N qK_0 blocks
+    };
+    using block_q4_0x8 = block<4, 8>;
+
+    typedef struct {
+        nntr_half d;           // delta
+        uint8_t qs[QK4_0 / 2]; // nibbles / quants
+    } block_q4_0;
+
+  */
+    size_t q4_data_size = K * N / Q4_0 * sizeof(block_q4_0);
+    std::vector<float> q4_output_fp32_v2(M * N);
+    std::vector<uint8_t> q4_0x8_weight_transformed_from_osv32_isv2(q4_data_size);
+    /*
+        TARGET IMPLEMENTATION FUNCTION : transform_q4_0x8_osv32_isv2
+
+        Useful codes / functions to take a look:
+        - nntr_ggml_impl_common.h
+            - struct block_q4_0
+            - using block_q4_0x8 = block<4, 8>;
+        - nntr_ggml_impl.cpp
+            - nntr_repack_q4_0_to_q4_0_8_bl()
+        - nntr_ggml_impl_quant.cpp
+            - nntr_quantize_q4_0()
+        - int4_utils.h
+        - int4_utils.cpp
+            - quantizeAndRepack
+            - pack
+            - computeScales
+            - quantizeToInt4
+        - unittest_blas_kernels_cl.cpp
+            - run_int4_gemm_test_
+
+        Algorithm Overview (Most desired)
+        [ Method A ]
+         (1) From osv32_isv2 quantized_weights.data() and quantized_scales.data(), reorder quantized data into block_q4_0x8 format
+         (2) Be careful about the order of quantization parameter in the packed block, by referring  nntr_repack_q4_0_to_q4_0_8_bl and nntr_quantize_q4_0 in nntr_ggml_impl.cpp and nntr_ggml_impl_quant.cpp
+
+        [ Method B ] (Least desired)
+         (1) From osv32_isv2 quantized_weights.data() and quantized_scales.data(), reorder quantized data into block_q4_0
+         (2) Pack q4_0 to q4_0x8 with SIMD, by referring nntr_repack_q4_0_to_q4_0_8_bl in nntr_ggml_impl.cpp
+
+        [ Method C ] (Not preferred, but easiest)
+         (1) Dequantize osv32_isv2 to fp32
+         (2) Quantize fp32 to q4_0
+         (3) Pack q4_0 to q4_0x8
+
+    */
+    nntrainer::transform_q4_0x8_osv32_isv2(N, K, quantized_weights.data(), quantized_scales.data(), scale_group_size /*32*/, q4_0x8_weight_transformed_from_osv32_isv2.data());
+
+  /*
+    2. Run GEMM with transformed q4_0x8 weight for verification
+  */
+    nntrainer::gemm_q4_0(M, N, K, input.data(), K, q4_0x8_weight_transformed_from_osv32_isv2.data(), N,
+                        q4_output_fp32_v2.data(), N);
+    float mse_q4 = mse<float>(ref_dst.data(), q4_output_fp32_v2.data(), M * N);
+    std::cout << "MSE Q4_0: " << std::setprecision(10) << mse_q4 << std::endl;
+
+  }
+
+
   uint32_t first_zero_index = UINT32_MAX;
   uint32_t first_nonzero_index = UINT32_MAX;
   int zeros = 0;
