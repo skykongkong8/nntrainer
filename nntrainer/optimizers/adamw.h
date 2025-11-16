@@ -15,14 +15,21 @@
 #define __ADAMW_H__
 #ifdef __cplusplus
 
-#include <tuple>
-
 #include <adam.h>
-
 #include <base_properties.h>
 #include <optimizer_devel.h>
+#include <tuple>
 
 namespace nntrainer {
+
+/**
+ * @brief weight decay property for AdamW
+ */
+class PropsWeightDecayW : public Property<double> {
+public:
+  static constexpr const char *key = "weight_decay";
+  using prop_tag = double_prop_tag;
+};
 
 /**
  * @class   AdamW Optimizer class
@@ -78,7 +85,8 @@ public:
   void setProperty(const std::vector<std::string> &values) override;
 
 private:
-  std::tuple<PropsB1, PropsB2, PropsEpsilon, TorchRef> adam_props;
+  std::tuple<PropsB1, PropsB2, PropsEpsilon, TorchRef, PropsWeightDecayW>
+    adam_props;
 };
 } /* namespace nntrainer */
 
