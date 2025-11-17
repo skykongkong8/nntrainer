@@ -2,7 +2,9 @@
 const { execSync } = require('child_process');
 const { readFileSync, readdirSync, existsSync } = require('fs');
 const fs = require('fs');
-const { join } = require('path');
+const { join, resolve, relative } = require('path');
+
+const workspaceRoot = process.cwd();
 
 function arg(name, def) {
   const i = process.argv.indexOf(name);
@@ -21,17 +23,114 @@ function clip(s, max) {
 }
 
 // ---------- 0) 규칙 로딩 ----------
-const rulesPath = '.github/models/pr-desc/rules.json';
+const prDescRoot = '.github/models/pr-desc';
+const ctxRoot = join(prDescRoot, 'context');
+const modulesDir = join(ctxRoot, 'modules');
+const rulesPath = join(prDescRoot, 'rules.json');
 let rules = { modules: [], fallbackModule: 'Misc' };
 if (existsSync(rulesPath)) {
   try { rules = JSON.parse(readFileSync(rulesPath, 'utf8')); }
   catch { /* ignore parse error; keep defaults */ }
+}
+const moduleRuleMap = new Map();
+for (const m of rules.modules || []) {
+  moduleRuleMap.set(m.name, m);
 }
 const compiledPatterns = rules.modules.map(m => ({
   name: m.name,
   weight: Number(m.weight || 1),
   regs: (m.patterns || []).map(p => new RegExp(p))
 }));
+
+const globCache = new Map();
+function globToRegExp(glob) {
+  if (!globCache.has(glob)) {
+    const escaped = glob.replace(/[-[\]{}()+?.,\\^$|#\s]/g, '\\$&');
+    const regex = '^' + escaped
+      .replace(/\\\*\\\*/g, '.*')
+      .replace(/\\\*/g, '[^/]*')
+      .replace(/\\\?/g, '.') + '$';
+    globCache.set(glob, new RegExp(regex));
+  }
+  return globCache.get(glob);
+}
+function matchesGlob(glob, target) {
+  if (!glob) return false;
+  try { return globToRegExp(glob).test(target); }
+  catch { return false; }
+}
+
+function locateDocFile(docPath) {
+  if (!docPath) return null;
+  const candidates = [];
+  if (docPath.startsWith('/')) candidates.push(docPath);
+  candidates.push(resolve(prDescRoot, docPath));
+  candidates.push(resolve(workspaceRoot, docPath));
+  for (const abs of candidates) {
+    if (existsSync(abs)) {
+      return { abs, rel: relative(workspaceRoot, abs) };
+    }
+  }
+  return null;
+}
+
+function fallbackDocForModule(moduleName) {
+  if (!existsSync(modulesDir)) return [];
+  const key = moduleName.toLowerCase().replace(/\W/g, '');
+  const candidates = readdirSync(modulesDir).filter(f => f.endsWith('.md'));
+  const matched = candidates.find(f => f.toLowerCase().replace(/\W/g, '').includes(key));
+  if (!matched) return [];
+  const abs = join(modulesDir, matched);
+  return [{ abs, rel: relative(workspaceRoot, abs) }];
+}
+
+function docCandidatesForModule(moduleName) {
+  const rule = moduleRuleMap.get(moduleName);
+  const configured = (rule && Array.isArray(rule.docs)) ? rule.docs : [];
+  const located = configured.map(locateDocFile).filter(Boolean);
+  if (located.length) return located;
+  return fallbackDocForModule(moduleName);
+}
+
+function buildRiskAlerts(files) {
+  const hints = rules.riskHints || {};
+  const alerts = {};
+  for (const [hint, patterns] of Object.entries(hints)) {
+    const hits = new Set();
+    for (const pattern of patterns || []) {
+      for (const file of files) {
+        if (matchesGlob(pattern, file.path)) {
+          hits.add(file.path);
+        }
+      }
+    }
+    if (hits.size) alerts[hint] = Array.from(hits);
+  }
+  return alerts;
+}
+
+function diffExcerptForFile(pathname) {
+  const safePath = pathname.replace(/"/g, '\\"');
+  return clip(sh(`git diff -U3 ${base}...${head} -- "${safePath}"`), 2000);
+}
+
+function buildFileHighlights(files) {
+  const limit = 12;
+  return files
+    .map(f => {
+      const churn = churnMap.get(f.path) || { added: 0, removed: 0 };
+      return { ...f, added: churn.added, removed: churn.removed, churn: churn.added + churn.removed };
+    })
+    .sort((a, b) => b.churn - a.churn)
+    .slice(0, limit)
+    .map(f => ({
+      path: f.path,
+      status: f.status,
+      added: f.added,
+      removed: f.removed,
+      diffExcerpt: diffExcerptForFile(f.path)
+    }));
+}
 
 function classifyModule(filepath) {
   for (const m of compiledPatterns) {
@@ -41,7 +140,6 @@ function classifyModule(filepath) {
 }
 
 // ---------- 1) Overview / Modules 원문 문서 ----------
-const ctxRoot = '.github/models/pr-desc/context';
 let overview = '';
 const overviewPath = join(ctxRoot, 'overview.md');
 if (existsSync(overviewPath)) {
@@ -90,34 +188,6 @@ if (numstatRaw) {
 // ... push { path, status, additions, deletions, ... } into changedFiles
 
 // === B. relevance-driven module docs (SAFE: changedFiles is ready) ===
-const modulesDir = join(ctxRoot, 'modules');
-let modulesDoc = '';
-if (existsSync(modulesDir)) {
- const touched = new Set();
- for (const f of changedFiles) {
- const cls = classifyModule(f.path);
- if (cls && cls.module) touched.add(cls.module);
- }
- const allMd = readdirSync(modulesDir).filter(f => f.endsWith('.md'));
- const pickDoc = (m) => {
- const key = m.toLowerCase().replace(/\s+/g,'').replace(/_/g,'').replace(/-/g,'');
- return allMd.find(f => f.toLowerCase().replace(/\W/g,'').includes(key));
- };
- const selected = [];
- for (const m of touched) {
- const f = pickDoc(m);
- if (f) selected.push(f);
- }
- const mdList = selected.length ? selected : allMd.slice(0,3);
- for (const f of mdList.slice(0, 8)) {
- const body = readFileSync(join(modulesDir, f), 'utf8');
- modulesDoc += `\n\n## ${f}\n` + clip(body, 6000);
- }
-}
-modulesDoc = clip(modulesDoc, 24000);
-
-
-
 function statusWeight(status) {
   // Rxxx, Cxxx 등은 리네임/복사로 간주
   if (status.startsWith('R') || status.startsWith('C')) return 2.0;
@@ -188,6 +258,38 @@ for (const [name, agg] of modulesAgg.entries()) {
              rename: agg.hasRename, delete: agg.hasDelete }
   };
 }
+
+const sortedModuleEntries = Object.entries(moduleImpact)
+  .sort((a, b) => b[1].score - a[1].score);
+const docSnippets = [];
+let modulesDoc = '';
+if (sortedModuleEntries.length) {
+  const docBudget = 24000;
+  const totalScore = sortedModuleEntries.reduce((sum, [, data]) => sum + Math.max(1, data.score), 0) || 1;
+  let usedBudget = 0;
+  for (const [moduleName, data] of sortedModuleEntries) {
+    if (usedBudget >= docBudget) break;
+    const candidates = docCandidatesForModule(moduleName);
+    if (!candidates.length) continue;
+    const moduleBudget = Math.max(2000, Math.round((Math.max(1, data.score) / totalScore) * docBudget));
+    let moduleUsed = 0;
+    for (const candidate of candidates) {
+      if (usedBudget >= docBudget || moduleUsed >= moduleBudget) break;
+      const raw = readFileSync(candidate.abs, 'utf8');
+      const available = Math.max(0, Math.min(6000, moduleBudget - moduleUsed));
+      if (!available) break;
+      const excerpt = clip(raw, available);
+      if (!excerpt) continue;
+      docSnippets.push({ module: moduleName, path: candidate.rel, excerpt });
+      modulesDoc += `\n\n## ${moduleName}: ${candidate.rel}\n${excerpt}`;
+      const increment = excerpt.length;
+      usedBudget += increment;
+      moduleUsed += increment;
+    }
+  }
+}
+modulesDoc = clip(modulesDoc.trim(), 24000);
+
 // extra reviewer signals (place AFTER changedFiles built)
 function headerOrConfig(p){
  return /\.(h|hpp|hh|hxx|inc)$/.test(p) ||
@@ -196,6 +298,8 @@ function headerOrConfig(p){
 const apiSurfaceChanges = changedFiles.filter(f => headerOrConfig(f.path)).map(f => f.path);
 const testFiles = changedFiles.filter(f => /(^|\/)(test|tests|testing|spec)\b|_test\.(cc|cpp|c|py|js|ts)$/.test(f.path)).map(f => f.path);
 const concurrencySensitive= changedFiles.filter(f => /(thread|mutex|atomic|lock|concurrent|parallel)/i.test(f.path)).map(f => f.path);
+const riskAlerts = buildRiskAlerts(changedFiles);
+const fileHighlights = buildFileHighlights(changedFiles);
 
 // ---------- 4) Diff/Commits 텍스트 ----------
 const diff = clip(`### name-status\n${nameStatusRaw}\n\n### stat\n${statRaw}`, 8000);
@@ -223,11 +327,8 @@ const commits =
 
 // ---------- 5) 모듈 임팩트 요약 텍스트 (모델 힌트용) ----------
 let moduleImpactSummary = '';
-if (Object.keys(moduleImpact).length) {
-  // 영향도 높은 순으로 상위 5개
-  const top = Object.entries(moduleImpact)
-    .sort((a,b) => b[1].score - a[1].score)
-    .slice(0,5);
+if (sortedModuleEntries.length) {
+  const top = sortedModuleEntries.slice(0,5);
   moduleImpactSummary = top.map(([name, m]) =>
     `- ${name}: impact=${m.impact} (score=${m.score}, files=${m.stats.files}, +${m.stats.added}/-${m.stats.removed}${m.stats.rename?', rename':''}${m.stats.delete?', delete':''})`
   ).join('\n');
@@ -237,16 +338,19 @@ if (Object.keys(moduleImpact).length) {
 const out = {
   overview: clip(overview, 8000),
   modules: modulesDoc,
+  docSnippets,
   diff,
   commits,
   // 새 필드들
   moduleImpact, // 모듈별 상세(머신 가독)
- moduleImpactSummary: moduleImpactSummary || '(no module impact detected)',
- reviewerSignals: {
- apiSurfaceChanges,
- testFiles,
- concurrencySensitive
- }
+  moduleImpactSummary: moduleImpactSummary || '(no module impact detected)',
+  reviewerSignals: {
+    apiSurfaceChanges,
+    testFiles,
+    concurrencySensitive,
+    riskAlerts
+  },
+  fileHighlights
 };
 
 process.stdout.write(JSON.stringify(out, null, 2));

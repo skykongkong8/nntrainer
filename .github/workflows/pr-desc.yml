@@ -31,6 +31,7 @@ jobs:
           set -euxo pipefail
           test -f .github/models/pr-desc/prompt.md
           test -f .github/models/pr-desc/build_context.js
+          test -f .github/models/pr-desc/validate_response.js
           node -v
           git --version
 
@@ -70,14 +71,26 @@ jobs:
             Do not add other sections.
           prompt-file: combined_prompt.txt
 
-      - name: Compose final comment body
+      - name: Persist raw AI response
         shell: bash
         run: |
           set -euo pipefail
-          : > pr_comment.md
-          # 모델 응답을 안전하게 파일에 기록 (이중 인용부호 사용)
-          printf "%s\n" "${{ steps.ai_full.outputs.response }}" >> pr_comment.md
+          : > ai_response.md
+          printf "%s\n" "${{ steps.ai_full.outputs.response }}" >> ai_response.md
 
+      - name: Validate AI response and build final comment
+        run: |
+          set -euo pipefail
+          node .github/models/pr-desc/validate_response.js \
+            --response ai_response.md \
+            --context pr_context.json \
+            --output pr_comment.md
+
+      - name: Preview final comment body
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f pr_comment.md
           echo "COMMENT_BYTES=$(wc -c < pr_comment.md)"
           head -c 200 pr_comment.md || true; echo
 
