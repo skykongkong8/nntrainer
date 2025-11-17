@@ -193,18 +193,28 @@ function headerOrConfig(p){
  return /\.(h|hpp|hh|hxx|inc)$/.test(p) ||
  /(^|\/)(CMakeLists\.txt|configure|.*\.cmake|.*\.bazel|build\.gradle|settings\.gradle|package\.json)$/.test(p);
 }
-const apiSurfaceChanges = changedFiles
-  .filter(f => headerOrConfig(f.path))
-  .map(f => f.path)
-  .filter(Boolean);
-const testFiles = changedFiles
-  .filter(f => /(^|\/)(test|tests|testing|spec)\b|_test\.(cc|cpp|c|py|js|ts)$/.test(f.path))
-  .map(f => f.path)
-  .filter(Boolean);
-const concurrencySensitive = changedFiles
-  .filter(f => /(thread|mutex|atomic|lock|concurrent|parallel)/i.test(f.path))
-  .map(f => f.path)
-  .filter(Boolean);
+function cleanPaths(list) {
+  const sanitized = list
+    .map(p => typeof p === 'string' ? p.trim() : '')
+    .filter(p => p && /[A-Za-z0-9]/.test(p));
+  return Array.from(new Set(sanitized));
+}
+
+const apiSurfaceChanges = cleanPaths(
+  changedFiles
+    .filter(f => headerOrConfig(f.path))
+    .map(f => f.path)
+);
+const testFiles = cleanPaths(
+  changedFiles
+    .filter(f => /(^|\/)(test|tests|testing|spec)\b|_test\.(cc|cpp|c|py|js|ts)$/.test(f.path))
+    .map(f => f.path)
+);
+const concurrencySensitive = cleanPaths(
+  changedFiles
+    .filter(f => /(thread|mutex|atomic|lock|concurrent|parallel)/i.test(f.path))
+    .map(f => f.path)
+);
 
 // ---------- 4) Diff/Commits 텍스트 ----------
 const diff = clip(`### name-status\n${nameStatusRaw}\n\n### stat\n${statRaw}`, 8000);
