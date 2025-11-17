@@ -79,13 +79,6 @@ jobs:
           # 모델 응답을 안전하게 파일에 기록 (이중 인용부호 사용)
           printf "%s\n" "${{ steps.ai_full.outputs.response }}" >> pr_comment.md
 
-      - name: Sanitize inline code spans
-        shell: bash
-        run: |
-          set -euo pipefail
-          perl -0pe 's/`([^`]+)`/<code>\1<\/code>/g' pr_comment.md > pr_comment_sanitized.md
-          mv pr_comment_sanitized.md pr_comment.md
-
           echo "COMMENT_BYTES=$(wc -c < pr_comment.md)"
           head -c 200 pr_comment.md || true; echo
 
