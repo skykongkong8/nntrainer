@@ -1,15 +1,53 @@
-# tensor
+# Tensor Module (`nntrainer/tensor`)
 
 ## Responsibility
-Tensor abstraction, memory planning, caching, quantized tensor types, and device operations.
 
-## Major Components
-- **Tensor core types**: `float_tensor.*`, `char_tensor.*`, `short_tensor.*`
-- **Quantized formats**: `q4_0_tensor.*`, `q4_k_tensor.*`, `q6_k_tensor.*`, `bcq_tensor.*`, `quantizer.*`
-- **Tensor Pool & Memory Planner**: `cache_pool.*`, `cache_loader.*`, `cache_elem.*`, `basic_planner.*`, `optimized_v{1,2,3}_planner.*`
-- **CL operations**: `cl_operations/*` attention/blas kernels and interfaces
-- **Backend bridge**: `cpu_backend/*` (separate doc)
+Provides the tensor abstraction and core tensor operations:
 
-## Execution
-- Layers request tensors in `finalize()`; planner assigns offsets in shared arenas
-- Lazy tensors and cache loader reduce peak memory; execution order decides reuse
+- Tensor shapes, strides, and memory layout.
+- Tensor storage, pooling, and lifetime management.
+- Device-specific operations (CPU and OpenCL).
+
+## Key components
+
+Representative files:
+
+- Core tensor types:
+  - `tensor.*`, `tensor_dim.*`, `var_grad.*`, etc.
+- Tensor pools and planners:
+  - `basic_planner.*`, `tensor_pool.*`, cache-related classes (`cache_*.*`).
+- Data type and view helpers:
+  - `char_tensor.*`, `manager.*`, etc.
+- Device-specific operations:
+  - `cl_operations/*` with OpenCL kernels in `cl_operations/cl_kernels/*.cl`.
+  - `cpu_backend/*` for CPU math backends (see `Tensor_cpu_backend.md`).
+
+## Dependencies and interactions
+
+- Used directly by almost all other modules (`layers/`, `models/`, `graph/`, `dataset/`).
+- Coordinates with `opencl/` and root-level OpenCL helpers for GPU execution.
+- Uses `utils/` for properties, logging, and threading helpers.
+
+## Typical changes
+
+- Extending tensor APIs (new ops, views, or metadata).
+- Improving memory reuse and planning.
+- Integrating new device backends or kernels.
+
+## Review focus
+
+For changes in `nntrainer/tensor/`:
+
+- **ABI and API stability**:
+  - Tensor is a foundational type; interface changes have wide impact.
+- **Correctness of broadcasting and indexing**:
+  - Check all shape/stride calculations and boundary conditions.
+- **Performance**:
+  - In-place vs out-of-place operations.
+  - Interaction with tensor pools and planners.
+
+## Common pitfalls
+
+- Hidden copies when constructing or slicing tensors.
+- Concurrency issues when tensors are shared across threads.
+- Divergent behaviour between CPU and OpenCL implementations of the same op.

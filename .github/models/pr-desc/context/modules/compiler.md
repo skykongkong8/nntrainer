@@ -1,17 +1,54 @@
-# compiler
+# Compiler Module (`nntrainer/compiler`)
 
 ## Responsibility
-Graph finalization and lowering. Realizers transform/insert layers; interpreters parse model formats; compilation computes execution order before tensor allocation.
 
-## Key Subpackages / Files
-- `activation_realizer.*`, `bn_realizer.*`, `flatten_realizer.*`, `input_realizer.*`, `multiout_realizer.*`, `previous_input_realizer.*`: structure edits
-- `ini_interpreter.*`, `onnx_interpreter.*`, `flatbuffer_opnode.*`, `interpreter.h`: model format parsing
-- `compiler.h`, `compiler_fwd.h`: compile entrypoints and context
+Transforms high-level model descriptions (INI, ONNX, TFLite) into an executable computation graph. Handles:
 
-## Inputs/Outputs
-- **In:** Graph constructed from `models`/`graph`
-- **Out:** Optimized graph with concrete layer wiring; metadata for tensor planning
+- Parsing different configuration formats.
+- Realization/rewriting passes that insert or rewrite layers and operations.
+- Export of compiled graphs back to formats (e.g. TFLite).
 
-## Architectural Notes
-- Separation of *interpretation* (syntax → IR) and *realization* (IR → executable graph)
-- Compile-time only; no runtime state beyond derived graph order
+## Key components
+
+Typical files:
+
+- `compiler.h`, `compiler_fwd.h` — main compiler interfaces and entry points.
+- `interpreter.h` and concrete interpreters:
+  - `ini_interpreter.*`
+  - `onnx_interpreter.*`
+- Realizer components:
+  - `*_realizer.*` (e.g. `activation_realizer`, `bn_realizer`, `flatten_realizer`, `input_realizer`).
+- `flatbuffer_opnode.*` — representation of operations for flatbuffer export.
+
+## Dependencies and interactions
+
+- Consumes model definitions from `models/` and configuration files.
+- Produces graph structures that are consumed by `graph/` and `layers/`.
+- Uses `schema/` for serialization formats and `utils/` for property handling/logging.
+- Strongly tied to the semantics of `layers/` and `tensor/` (shapes, data formats).
+
+## Typical changes
+
+- Adding support for a new layer or operation to interpreters and realizers.
+- Extending INI/ONNX parsing to support new attributes.
+- Adjusting passes that insert auxiliary layers (e.g. activation, batch norm).
+
+## Review focus
+
+When files under `nntrainer/compiler/` change, focus on:
+
+- **Semantic correctness**:
+  - Are the inferred tensor shapes and data formats consistent with `layers/` and `tensor/`?
+  - Are default properties and initializers aligned with existing behaviour?
+- **Backward compatibility**:
+  - INI or ONNX field changes should not silently break existing configs.
+  - Versioned schema changes should be handled explicitly.
+- **Graph transformations**:
+  - Realizer passes must preserve numerical semantics and training behaviour.
+  - Check that helper layers are inserted in the correct order and with correct connections.
+
+## Common pitfalls
+
+- Incomplete handling of corner cases (e.g. scalar/broadcast shapes, dynamic dimensions).
+- Forgetting to register new operations in all relevant interpreters and tests.
+- Introducing subtle changes in execution order that affect model numerics.
