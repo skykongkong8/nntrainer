@@ -1,4 +1,8 @@
 // .github/models/pr-desc/build_context.js
+// This script assembles the context that is fed to the PR summarization model.
+// Every section below adds a different type of hint (diff, commit messages,
+// module docs, etc.) so the model can understand which parts of the repo the
+// PR is touching.
 const { execSync } = require('child_process');
 const { readFileSync, readdirSync, existsSync } = require('fs');
 const fs = require('fs');
@@ -40,6 +44,19 @@ function classifyModule(filepath) {
   return { module: rules.fallbackModule || 'Misc', weight: 1 };
 }
 
+// Utility helpers for normalising and scoring keywords that describe
+// "interesting" parts of the change. These are later used to selectively load
+// module documentation.
+function normalizeToken(token) {
+  return token ? token.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+}
+const interestTokens = new Map();
+function bumpToken(token, weight = 1) {
+  const norm = normalizeToken(token);
+  if (!norm) return;
+  interestTokens.set(norm, (interestTokens.get(norm) || 0) + weight);
+}
+
 // ---------- 1) Overview / Modules 원문 문서 ----------
 const ctxRoot = '.github/models/pr-desc/context';
 let overview = '';
@@ -53,6 +70,9 @@ overview = clip(overview, 8000);
 const nameStatusRaw = sh(`git diff --name-status -M -C ${base}...${head}`);
 const statRaw = sh(`git diff --stat ${base}...${head}`);
 const numstatRaw = sh(`git diff --numstat -M -C ${base}...${head}`);
+const commitSubjects = sh(`git log --pretty=%s ${base}..${head}`).split('\n').filter(Boolean);
+const commitBodiesRaw = sh(`git log --pretty=%B ${base}..${head}`);
+const commitBodies = commitBodiesRaw.split('\n\n').map(s => s.trim()).filter(Boolean).slice(0, 10).map(s => clip(s, 800));
 
 // name-status 파싱 (status, path[, path2])
 // M A D R100 old -> new 형태는 탭으로 분리
@@ -65,6 +85,14 @@ if (nameStatusRaw) {
     const from = parts[1];
     const to = parts[2] || parts[1];
     changedFiles.push({ status, from, to, path: to });
+    // Directory / filename tokens tell us which doc hints are relevant.
+    const segments = to.split('/').slice(0, 3); // favour the upper path for module hints
+    segments.forEach((seg, idx) => bumpToken(seg, Math.max(1, 3 - idx)));
+    const baseName = to.split('/').pop();
+    if (baseName) {
+      const [stem] = baseName.split('.');
+      bumpToken(stem, 1);
+    }
   }
 }
 
@@ -93,26 +121,42 @@ if (numstatRaw) {
 const modulesDir = join(ctxRoot, 'modules');
 let modulesDoc = '';
 if (existsSync(modulesDir)) {
- const touched = new Set();
- for (const f of changedFiles) {
- const cls = classifyModule(f.path);
- if (cls && cls.module) touched.add(cls.module);
- }
- const allMd = readdirSync(modulesDir).filter(f => f.endsWith('.md'));
- const pickDoc = (m) => {
- const key = m.toLowerCase().replace(/\s+/g,'').replace(/_/g,'').replace(/-/g,'');
- return allMd.find(f => f.toLowerCase().replace(/\W/g,'').includes(key));
- };
- const selected = [];
- for (const m of touched) {
- const f = pickDoc(m);
- if (f) selected.push(f);
- }
- const mdList = selected.length ? selected : allMd.slice(0,3);
- for (const f of mdList.slice(0, 8)) {
- const body = readFileSync(join(modulesDir, f), 'utf8');
- modulesDoc += `\n\n## ${f}\n` + clip(body, 6000);
- }
+  // Step 1: module classifier votes. We bump interest tokens with the module
+  // names so docs such as compiler.md or layers.md get a high score if a file
+  // belonging to that module changed.
+  for (const f of changedFiles) {
+    const cls = classifyModule(f.path);
+    if (cls && cls.module) {
+      bumpToken(cls.module, 4 * (cls.weight || 1));
+    }
+  }
+
+  // Step 2: commit messages occasionally mention the component (“dataset”,
+  // “optimizers”). We extract keywords to guide doc selection when diff paths
+  // alone are not conclusive.
+  for (const subj of commitSubjects) {
+    const words = subj.toLowerCase().match(/[a-z0-9]{4,}/g) || [];
+    for (const w of words) bumpToken(w, 0.5);
+  }
+
+  const allMd = readdirSync(modulesDir).filter(f => f.endsWith('.md'));
+  const docScores = allMd.map(file => {
+    const slug = normalizeToken(file.replace(/\.md$/, ''));
+    let score = 0;
+    if (interestTokens.has(slug)) score += interestTokens.get(slug) * 2;
+    for (const [token, val] of interestTokens.entries()) {
+      if (token && slug.includes(token) && token !== slug) score += val;
+    }
+    return { file, score };
+  }).sort((a, b) => b.score - a.score);
+
+  const pickedDocs = docScores.filter(d => d.score > 0).map(d => d.file).slice(0, 8);
+  const fallbackDocs = pickedDocs.length ? pickedDocs : docScores.slice(0, 3).map(d => d.file);
+
+  for (const f of fallbackDocs) {
+    const body = readFileSync(join(modulesDir, f), 'utf8');
+    modulesDoc += `\n\n## ${f}\n` + clip(body, 6000);
+  }
 }
 modulesDoc = clip(modulesDoc, 24000);
 
@@ -200,12 +244,8 @@ const concurrencySensitive= changedFiles.filter(f => /(thread|mutex|atomic|lock|
 // ---------- 4) Diff/Commits 텍스트 ----------
 const diff = clip(`### name-status\n${nameStatusRaw}\n\n### stat\n${statRaw}`, 8000);
 
-const subjects = sh(`git log --pretty=%s ${base}..${head}`).split('\n').filter(Boolean);
-const bodiesRaw = sh(`git log --pretty=%B ${base}..${head}`);
-const bodies = bodiesRaw.split('\n\n').map(s=>s.trim()).filter(Boolean).slice(0,10).map(s=>clip(s,800));
-
 const buckets = { feat:0, fix:0, refactor:0, test:0, docs:0, chore:0, other:0 };
-for (const s of subjects) {
+for (const s of commitSubjects) {
   const t = s.toLowerCase();
   if (t.startsWith('feat')) buckets.feat++;
   else if (t.startsWith('fix')) buckets.fix++;
@@ -216,10 +256,10 @@ for (const s of subjects) {
   else buckets.other++;
 }
 const commits =
- `Total commits: ${subjects.length}\n` +
+ `Total commits: ${commitSubjects.length}\n` +
   Object.entries(buckets).map(([k,v]) => `- ${k}: ${v}`).join('\n') +
- (subjects.length ? `\n\nSamples:\n- ${subjects.slice(0,5).join('\n- ')}` : '') +
- (bodies.length ? `\n\nCommit bodies (top, clipped):\n- ${bodies.join('\n- ')}` : '');
+ (commitSubjects.length ? `\n\nSamples:\n- ${commitSubjects.slice(0,5).join('\n- ')}` : '') +
+ (commitBodies.length ? `\n\nCommit bodies (top, clipped):\n- ${commitBodies.join('\n- ')}` : '');
 
 // ---------- 5) 모듈 임팩트 요약 텍스트 (모델 힌트용) ----------
 let moduleImpactSummary = '';
