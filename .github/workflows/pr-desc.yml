@@ -74,9 +74,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          : > pr_comment.md
-          # 모델 응답을 안전하게 파일에 기록 (이중 인용부호 사용)
-          printf "%s\n" "${{ steps.ai_full.outputs.response }}" >> pr_comment.md
+          # GitHub expressions are rendered before the shell executes, so use a
+          # single-quoted heredoc to prevent bash from interpreting characters
+          # like backticks as command substitutions.
+          cat <<'EOF' > pr_comment.md
+${{ steps.ai_full.outputs.response }}
+EOF
 
           echo "COMMENT_BYTES=$(wc -c < pr_comment.md)"
           head -c 200 pr_comment.md || true; echo
