@@ -193,9 +193,18 @@ function headerOrConfig(p){
  return /\.(h|hpp|hh|hxx|inc)$/.test(p) ||
  /(^|\/)(CMakeLists\.txt|configure|.*\.cmake|.*\.bazel|build\.gradle|settings\.gradle|package\.json)$/.test(p);
 }
-const apiSurfaceChanges = changedFiles.filter(f => headerOrConfig(f.path)).map(f => f.path);
-const testFiles = changedFiles.filter(f => /(^|\/)(test|tests|testing|spec)\b|_test\.(cc|cpp|c|py|js|ts)$/.test(f.path)).map(f => f.path);
-const concurrencySensitive= changedFiles.filter(f => /(thread|mutex|atomic|lock|concurrent|parallel)/i.test(f.path)).map(f => f.path);
+const apiSurfaceChanges = changedFiles
+  .filter(f => headerOrConfig(f.path))
+  .map(f => f.path)
+  .filter(Boolean);
+const testFiles = changedFiles
+  .filter(f => /(^|\/)(test|tests|testing|spec)\b|_test\.(cc|cpp|c|py|js|ts)$/.test(f.path))
+  .map(f => f.path)
+  .filter(Boolean);
+const concurrencySensitive = changedFiles
+  .filter(f => /(thread|mutex|atomic|lock|concurrent|parallel)/i.test(f.path))
+  .map(f => f.path)
+  .filter(Boolean);
 
 // ---------- 4) Diff/Commits 텍스트 ----------
 const diff = clip(`### name-status\n${nameStatusRaw}\n\n### stat\n${statRaw}`, 8000);
@@ -234,6 +243,11 @@ if (Object.keys(moduleImpact).length) {
 }
 
 // ---------- 6) 출력 ----------
+const reviewerSignals = {};
+if (apiSurfaceChanges.length) reviewerSignals.apiSurfaceChanges = apiSurfaceChanges;
+if (testFiles.length) reviewerSignals.testFiles = testFiles;
+if (concurrencySensitive.length) reviewerSignals.concurrencySensitive = concurrencySensitive;
+
 const out = {
   overview: clip(overview, 8000),
   modules: modulesDoc,
@@ -242,11 +256,7 @@ const out = {
   // 새 필드들
   moduleImpact, // 모듈별 상세(머신 가독)
  moduleImpactSummary: moduleImpactSummary || '(no module impact detected)',
- reviewerSignals: {
- apiSurfaceChanges,
- testFiles,
- concurrencySensitive
- }
+ reviewerSignals
 };
 
 process.stdout.write(JSON.stringify(out, null, 2));
