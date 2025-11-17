@@ -75,9 +75,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat <<'EOF' > pr_comment.md
-${{ steps.ai_full.outputs.response }}
-EOF
+          : > pr_comment.md
+          # 모델 응답을 안전하게 파일에 기록 (이중 인용부호 사용)
+          printf "%s\n" "${{ steps.ai_full.outputs.response }}" >> pr_comment.md
 
       - name: Sanitize inline code spans
         shell: bash
@@ -88,6 +88,16 @@ EOF
 
           echo "COMMENT_BYTES=$(wc -c < pr_comment.md)"
           head -c 200 pr_comment.md || true; echo
+
+      - name: Replace backticks with apostrophes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+from pathlib import Path
+path = Path('pr_comment.md')
+path.write_text(path.read_text().replace('`', "'"))
+PY
 
       - name: Post as PR comment (never edit PR body)
         env:
