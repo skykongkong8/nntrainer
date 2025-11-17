@@ -88,3 +88,30 @@ jobs:
           set -euo pipefail
           NUM="${{ github.event.pull_request.number }}"
           gh pr comment "$NUM" --body-file pr_comment.md
+
+      # GitHub has historically rewritten comment bodies in rare cases
+      # (encoding, escaping, sanitization, etc.).  Capture the posted
+      # comment and compare it against the generated file so we can fail
+      # fast with a useful error when that happens.
+      - name: Capture posted comment body
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          NUM="${{ github.event.pull_request.number }}"
+          gh api "repos/${{ github.repository }}/issues/$NUM/comments" \
+            --jq '.[-1].body' > posted_comment.md
+
+      - name: Verify posted comment matches generated body
+        run: |
+          set -euo pipefail
+          if ! diff -u pr_comment.md posted_comment.md; then
+            echo "----- pr_comment.md (expected) -----"
+            cat pr_comment.md
+            echo
+            echo "----- posted_comment.md (actual) -----"
+            cat posted_comment.md
+            echo
+            echo "::error::PR comment posted by gh CLI differs from generated body"
+            exit 1
+          fi
