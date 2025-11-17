@@ -324,6 +324,7 @@ const commits =
   Object.entries(buckets).map(([k,v]) => `- ${k}: ${v}`).join('\n') +
  (subjects.length ? `\n\nSamples:\n- ${subjects.slice(0,5).join('\n- ')}` : '') +
  (bodies.length ? `\n\nCommit bodies (top, clipped):\n- ${bodies.join('\n- ')}` : '');
+const commitSamples = subjects.slice(0, 5);
 
 // ---------- 5) 모듈 임팩트 요약 텍스트 (모델 힌트용) ----------
 let moduleImpactSummary = '';
@@ -350,7 +351,8 @@ const out = {
     concurrencySensitive,
     riskAlerts
   },
-  fileHighlights
+  fileHighlights,
+  commitSamples
 };
 
 process.stdout.write(JSON.stringify(out, null, 2));
