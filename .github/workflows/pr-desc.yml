@@ -72,15 +72,20 @@ jobs:
           prompt-file: combined_prompt.txt
 
       - name: Compose final comment body
-        shell: bash
+        env:
+          AI_RESPONSE: ${{ steps.ai_full.outputs.response }}
         run: |
           set -euo pipefail
-          : > pr_comment.md
-          # 모델 응답을 안전하게 파일에 기록 (이중 인용부호 사용)
-          printf "%s\n" "${{ steps.ai_full.outputs.response }}" >> pr_comment.md
+          python - <<'PY'
+import os
+from pathlib import Path
 
-          echo "COMMENT_BYTES=$(wc -c < pr_comment.md)"
-          head -c 200 pr_comment.md || true; echo
+output = Path('pr_comment.md')
+output.write_text(os.environ['AI_RESPONSE'], encoding='utf-8')
+
+print(f"COMMENT_BYTES={output.stat().st_size}")
+print(output.read_text()[:200])
+PY
 
       - name: Post as PR comment (never edit PR body)
         env:
