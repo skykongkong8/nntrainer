@@ -71,20 +71,20 @@ jobs:
             Do not add other sections.
           prompt-file: combined_prompt.txt
 
-      - name: Save raw AI response as JSON
+      - name: Save raw AI response to file
         shell: bash
         run: |
           set -euo pipefail
-          # 모델 응답을 JSON 형식으로 저장
-          echo "{\"response\": $(jq -n --arg response "${{ steps.ai_full.outputs.response }}" '$response')}" > ai_response.json
+          # 모델 응답을 직접 파일에 저장
+          cat > ai_response.txt << 'EOF'
+          ${{ steps.ai_full.outputs.response }}
+          EOF
 
       - name: Convert backticks to single quotes
         shell: python
         run: |
-          import json
           from pathlib import Path
-          data = json.loads(Path('ai_response.json').read_text())
-          text = data['response']
+          text = Path('ai_response.txt').read_text()
           Path('pr_comment.md').write_text(text.replace('`', "'"))
 
           echo "COMMENT_BYTES=$(wc -c < pr_comment.md)"
