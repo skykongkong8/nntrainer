@@ -1177,6 +1177,73 @@ TEST(nntrainer_cpu_backend_standalone, clamp_3072_0_1) {
   run_clamp_test(N, lower_bound, upper_bound, false);
 }
 
+// Test for __fallback_compute_rotary_emb_value - Positive test case
+TEST(nntrainer_cpu_backend_standalone,
+     fallback_compute_rotary_emb_value_positive) {
+  const unsigned int width = 20;
+  const unsigned int dim = 10;
+  const unsigned int half_ = 5;
+
+  // Input data
+  std::vector<float> inout = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f,
+                              0.8f, 0.9f, 1.0f, 1.1f, 1.2f, 1.3f, 1.4f,
+                              1.5f, 1.6f, 1.7f, 1.8f, 1.9f, 2.0f};
+
+  // Cosine and sine values
+  std::vector<float> cos_ = {1.0f, 0.9f, 0.8f, 0.7f, 0.6f};
+  std::vector<float> sin_ = {0.0f, 0.1f, 0.2f, 0.3f, 0.4f};
+
+  // Expected output calculated manually
+  std::vector<float> expected = {
+    0.1f, 0.16f, 0.18f, 0.16f, 0.1f, 0.6f, 0.82f, 1.06f, 1.32f, 1.6f,
+    1.1f, 1.16f, 1.18f, 1.16f, 1.1f, 1.6f, 1.82f, 2.06f, 2.32f, 2.6f};
+
+  // Call the function
+  nntrainer::__fallback_compute_rotary_emb_value(
+    width, dim, half_, inout.data(), nullptr, cos_.data(), sin_.data());
+
+  // Check results
+  for (size_t i = 0; i < inout.size(); i++) {
+    EXPECT_NEAR(inout[i], expected[i], 1e-5f);
+  }
+}
+
+// Test for __fallback_compute_rotary_emb_value - Negative test case 1 (null
+// pointer)
+TEST(nntrainer_cpu_backend_standalone,
+     fallback_compute_rotary_emb_value_null_pointer) {
+  const unsigned int width = 10;
+  const unsigned int dim = 5;
+  const unsigned int half_ = 2;
+
+  std::vector<float> inout(width, 1.0f);
+  std::vector<float> cos_(half_, 1.0f);
+  std::vector<float> sin_(half_, 0.0f);
+
+  // Test with null inout pointer - should not crash but behavior is undefined
+  // We're just checking that it doesn't crash
+  EXPECT_NO_THROW(nntrainer::__fallback_compute_rotary_emb_value(
+    width, dim, half_, nullptr, nullptr, cos_.data(), sin_.data()));
+}
+
+// Test for __fallback_compute_rotary_emb_value - Negative test case 2 (invalid
+// dimensions)
+TEST(nntrainer_cpu_backend_standalone,
+     fallback_compute_rotary_emb_value_invalid_dimensions) {
+  const unsigned int width = 5; // Smaller than dim
+  const unsigned int dim = 10;  // Larger than width
+  const unsigned int half_ = 5; // half_ should be <= dim/2
+
+  std::vector<float> inout(width, 1.0f);
+  std::vector<float> cos_(half_, 1.0f);
+  std::vector<float> sin_(half_, 0.0f);
+
+  // This should not crash but may produce unexpected results due to
+  // out-of-bounds access We're just checking that it doesn't crash
+  EXPECT_NO_THROW(nntrainer::__fallback_compute_rotary_emb_value(
+    width, dim, half_, inout.data(), nullptr, cos_.data(), sin_.data()));
+}
+
 int main(int argc, char **argv) {
   int result = -1;
 

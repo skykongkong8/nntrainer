@@ -578,16 +578,141 @@ void __fallback_compute_kcaches(const float *in, const uint16_t *kcache,
 void __fallback_compute_rotary_emb_value(unsigned int width, unsigned int dim,
                                          unsigned int half_, float *inout,
                                          void *output, const float *cos_,
-                                         const float *sin_,
-                                         bool only_convert_to_fp16) {
-  throw std::runtime_error("NYI : __fallback_compute_rotary_emb_value");
+                                         const float *sin_) {
+  for (unsigned int w = 0; w < width; w += dim) {
+    unsigned int k = 0;
+
+    // Process in chunks of 4 for better efficiency (similar to NEON version)
+    for (; k + 3 < half_; k += 4) {
+      unsigned int i0 = w + k;
+      unsigned int i1 = w + k + half_;
+
+      // Load 4 values at a time
+      float a0 = inout[i0 + 0];
+      float a1 = inout[i0 + 1];
+      float a2 = inout[i0 + 2];
+      float a3 = inout[i0 + 3];
+
+      float b0 = inout[i1 + 0];
+      float b1 = inout[i1 + 1];
+      float b2 = inout[i1 + 2];
+      float b3 = inout[i1 + 3];
+
+      // Load cos and sin values
+      float c0 = cos_[k + 0];
+      float c1 = cos_[k + 1];
+      float c2 = cos_[k + 2];
+      float c3 = cos_[k + 3];
+
+      float s0 = sin_[k + 0];
+      float s1 = sin_[k + 1];
+      float s2 = sin_[k + 2];
+      float s3 = sin_[k + 3];
+
+      // Compute rotary embedding
+      float out0_0 = a0 * c0 - b0 * s0;
+      float out0_1 = a1 * c1 - b1 * s1;
+      float out0_2 = a2 * c2 - b2 * s2;
+      float out0_3 = a3 * c3 - b3 * s3;
+
+      float out1_0 = a0 * s0 + b0 * c0;
+      float out1_1 = a1 * s1 + b1 * c1;
+      float out1_2 = a2 * s2 + b2 * c2;
+      float out1_3 = a3 * s3 + b3 * c3;
+
+      // Store back to inout (FP32)
+      inout[i0 + 0] = out0_0;
+      inout[i0 + 1] = out0_1;
+      inout[i0 + 2] = out0_2;
+      inout[i0 + 3] = out0_3;
+
+      inout[i1 + 0] = out1_0;
+      inout[i1 + 1] = out1_1;
+      inout[i1 + 2] = out1_2;
+      inout[i1 + 3] = out1_3;
+    }
+
+    // Handle remaining elements
+    for (; k < half_; ++k) {
+      unsigned int i0 = w + k;
+      unsigned int i1 = w + k + half_;
+
+      float a = inout[i0];
+      float b = inout[i1];
+
+      float c = cos_[k];
+      float s = sin_[k];
+
+      float out0 = a * c - b * s;
+      float out1 = a * s + b * c;
+
+      inout[i0] = out0;
+      inout[i1] = out1;
+    }
+  }
 }
 
 void __fallback_rms_norm_wrt_width_fp32_intrinsic(const float *__restrict X,
                                                   float *__restrict Y, size_t H,
                                                   size_t W, float epsilon) {
-  throw std::runtime_error(
-    "NYI : __fallback_rms_norm_wrt_width_fp32_intrinsic");
+  for (std::size_t h = 0; h < H; ++h) {
+    const float *rowX = X + h * W;
+    float *rowY = Y + h * W;
+
+    // Accumulate sum of squares
+    std::size_t i = 0;
+    float sumsq = 0.0f;
+
+    // Process in chunks of 16 for better efficiency (similar to NEON version)
+    for (; i + 16 <= W; i += 16) {
+      float acc0 = 0.0f, acc1 = 0.0f, acc2 = 0.0f, acc3 = 0.0f;
+      for (int j = 0; j < 4; ++j) {
+        float x0 = rowX[i + j * 4 + 0];
+        float x1 = rowX[i + j * 4 + 1];
+        float x2 = rowX[i + j * 4 + 2];
+        float x3 = rowX[i + j * 4 + 3];
+        acc0 += x0 * x0;
+        acc1 += x1 * x1;
+        acc2 += x2 * x2;
+        acc3 += x3 * x3;
+      }
+      sumsq += acc0 + acc1 + acc2 + acc3;
+    }
+
+    // Process remaining chunks of 4 elements
+    for (; i + 4 <= W; i += 4) {
+      float acc = 0.0f;
+      for (int j = 0; j < 4; ++j) {
+        float x = rowX[i + j];
+        acc += x * x;
+      }
+      sumsq += acc;
+    }
+
+    // Handle any remaining elements
+    for (; i < W; ++i) {
+      float v = rowX[i];
+      sumsq += v * v;
+    }
+
+    // Calculate scale factor
+    float mean = sumsq / static_cast<float>(W);
+    float scale = 1.0f / std::sqrt(mean + epsilon);
+
+    // Apply normalization
+    i = 0;
+    // Process in chunks of 16 for better efficiency
+    for (; i + 16 <= W; i += 16) {
+      for (int j = 0; j < 16; ++j) {
+        rowY[i + j] = rowX[i + j] * scale;
+      }
+    }
+
+    // Process remaining elements
+    for (; i < W; ++i) {
+      rowY[i] = rowX[i] * scale;
+    }
+  }
 }
 
 template <>
