@@ -10,6 +10,7 @@
 
 #include "nntrainer_test_util.h"
 #include <cpu_backend.h>
+#include <ggml_interface.h>
 #include <fallback_internal.h>
 #include <fp16.h>
 #include <gtest/gtest.h>
@@ -322,6 +323,50 @@ float test_gemm_q4_0(const uint32_t M, const uint32_t K, const uint32_t N,
   auto dt = duration_cast<nanoseconds>(t2 - t1);
   if (print) {
     std::cout << "[INFO] gemm_q4_0: " << dt.count() << " ns "
+              << dt.count() / 1'000 << " us " << dt.count() / 1'000'000
+              << " ms " << std::endl;
+  }
+
+  // Step4. Compute quantization error
+  auto mean_squared_error = compute_mse(M, N, ref_dst, dst, print);
+  return mean_squared_error;
+}
+
+float test_gemm_q4_0_16x8(const uint32_t M, const uint32_t K, const uint32_t N,
+                     const float *weights, const float *activations,
+                     std::vector<float> &ref_dst, bool print = false) {
+  // needed to initialize f16 tables
+
+  // Step0. Allocate a temporary buffer for quantized weight
+  int64_t q4_0_type_size = sizeof(block_q4_0_testonly);
+  int64_t q4_0_block_size = 32;
+  int64_t q4_0_num_blocks = (K * N) / q4_0_block_size;
+  size_t q4_0_data_size = q4_0_type_size * N / q4_0_block_size;
+  q4_0_data_size *= K;
+  std::vector<char> q4_0_offline_qWeight = std::vector<char>(q4_0_data_size);
+
+  // Step1. Supposed to be an offline Weight quantization from float to q4_K
+  // (Zero latency overhead for the model runtime)
+  char *q4_0_offline_qWeight_ptr = (char *)q4_0_offline_qWeight.data();
+  nntrainer::quantize_q4_0(weights, (void *)q4_0_offline_qWeight_ptr, N, K,
+                           nullptr);
+
+  // Step2. Repack Weight to q4_0_16x8 layout
+  std::vector<char> q4_0_repacked_qWeight = std::vector<char>(q4_0_data_size);
+  nntrainer::__ggml_repack_q4_0_to_q4_0_16(q4_0_offline_qWeight_ptr, q4_0_repacked_qWeight.data(),
+                         q4_0_data_size, N, K);
+
+  // Step3. Run GEMM!
+  std::vector<float> dst(M * N);
+  auto t1 = high_resolution_clock::now();
+  // #### MAIN TESTED METHOD ####
+  nntrainer::__ggml_q4_0_16x8_q8_0_GEMM(M, N, K, activations, K,
+                       (void *)q4_0_repacked_qWeight.data(), N, dst.data(), N);
+  // #### MAIN TESTED METHOD ####
+  auto t2 = high_resolution_clock::now();
+  auto dt = duration_cast<nanoseconds>(t2 - t1);
+  if (print) {
+    std::cout << "[INFO] gemm_q4_0_16x8: " << dt.count() << " ns "
               << dt.count() / 1'000 << " us " << dt.count() / 1'000'000
               << " ms " << std::endl;
   }
@@ -1175,6 +1220,30 @@ TEST(nntrainer_cpu_backend_standalone, clamp_3072_0_1) {
   float lower_bound = 0.F;
   float upper_bound = 1.F;
   run_clamp_test(N, lower_bound, upper_bound, false);
+}
+
+TEST(nntrainer_cpu_backend_standalone, quant_GEMM_16x8_512x512x512) {
+  nntrainer::init_backend();
+  const unsigned int M = 512;
+  const unsigned int K = 512;
+  const unsigned int N = 512;
+
+  std::vector<float> activation = generate_random_vector<float>(M * K);
+  std::vector<float> weight = generate_random_vector<float>(N * K);
+  std::vector<float> ref_dst(M * N);
+
+  // Reference SGEMM
+  nntrainer::sgemm(0, false, true, M, N, K, 1.F, activation.data(), K,
+                   weight.data(), K, 0.F, ref_dst.data(), N);
+
+  // 8x8 q4_0
+  float q4_0_mse = test_gemm_q4_0(M, K, N, weight.data(), activation.data(), ref_dst, false);
+
+  // 16x8 q4_0
+  float q4_0_16x8_mse = test_gemm_q4_0_16x8(M, K, N, weight.data(), activation.data(), ref_dst, false);
+
+  constexpr float eps = 1.0f;
+  EXPECT_NEAR(q4_0_mse, q4_0_16x8_mse, eps);
 }
 
 int main(int argc, char **argv) {

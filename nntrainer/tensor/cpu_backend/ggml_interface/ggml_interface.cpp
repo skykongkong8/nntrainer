@@ -116,6 +116,11 @@ void __ggml_repack_q4_0_to_q4_0_8(void *W, void *repacked_W, size_t data_size,
   nntr_repack_q4_0_to_q4_0_8_bl(W, 8, repacked_W, data_size, M, N);
 }
 
+void __ggml_repack_q4_0_to_q4_0_16(void *W, void *repacked_W, size_t data_size,
+                                  size_t M, size_t N) {
+  nntr_repack_q4_0_to_q4_0_16_bl(W, 8, repacked_W, data_size, M, N);
+}
+
 void __ggml_repack_q4_K_to_q4_K_8(void *W, void *repacked_W, size_t data_size,
                                   const unsigned int M, const unsigned int N) {
   nntr_repack_q4_K_to_q4_K_8_bl(W, 8, repacked_W, data_size, M, N);

@@ -8215,6 +8215,60 @@ int nntr_repack_q4_0_to_q4_0_8_bl(void *__restrict dst, int interleave_block,
   return 0;
 }
 
+static block_q4_0x16 nntr_make_block_q4_0x16(block_q4_0 *in,
+                                           unsigned int blck_size_interleave) {
+  block_q4_0x16 out;
+
+  for (int i = 0; i < 16; i++) {
+    out.d[i] = in[i].d;
+  }
+
+  const int end = QK_0<4>() * 8 / blck_size_interleave;
+  const uint64_t xor_mask = 0x8888888888888888ULL;
+
+  for (int i = 0; i < end; ++i) {
+    int src_id = i % 16;
+    int src_offset = (i / 16) * blck_size_interleave;
+    int dst_offset = i * blck_size_interleave;
+
+    uint64_t elems;
+    memcpy(&elems, &in[src_id].qs[src_offset], sizeof(uint64_t));
+    elems ^= xor_mask;
+    memcpy(&out.qs[dst_offset], &elems, sizeof(uint64_t));
+  }
+
+  return out;
+}
+
+int nntr_repack_q4_0_to_q4_0_16_bl(void *__restrict dst, int interleave_block,
+                                  const void *__restrict data, size_t data_size,
+                                  size_t nrow, size_t k) {
+  assert(interleave_block == 8);
+  constexpr size_t nrows_interleaved = 16;
+
+  block_q4_0x16 *dst_ = (block_q4_0x16 *)dst;
+  const block_q4_0 *src = (const block_q4_0 *)data;
+  block_q4_0 dst_tmp[16];
+  int nblocks = k / QK_0<4>();
+
+  assert(data_size == nrow * nblocks * sizeof(block_q4_0));
+
+  if (nrow % nrows_interleaved != 0 || k % 8 != 0) {
+    return -1;
+  }
+
+  for (size_t b = 0; b < nrow; b += nrows_interleaved) {
+    for (int64_t x = 0; x < nblocks; x++) {
+      for (size_t i = 0; i < nrows_interleaved; i++) {
+        dst_tmp[i] = src[x + i * nblocks];
+      }
+      *dst_++ = nntr_make_block_q4_0x16(dst_tmp, interleave_block);
+    }
+    src += nrows_interleaved * nblocks;
+  }
+  return 0;
+}
+
 int nntr_repack_q4_K_to_q4_K_8_bl(void *__restrict dst, int interleave_block,
                                   const void *__restrict data, size_t data_size,
                                   size_t nrow, size_t k) {
@@ -9882,4 +9936,370 @@ void nntr_gemv_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs,
         s[x * ncols_interleaved + j] = sumf[j];
     }
   }
+}
+
+void nntr_gemv_q4_0_16x8_q8_0(int n, float *__restrict s, size_t bs,
+                             const void *__restrict vx,
+                             const void *__restrict vy, int nr, int nc) {
+  const int qk = QK8_0;
+  const int nb = n / qk;
+  const int ncols_interleaved = 16;
+
+  assert(n % qk == 0);
+  assert(nc % ncols_interleaved == 0);
+
+#if defined(__ARM_FEATURE_SVE)
+  if (ggml_cpu_has_sve() && ggml_cpu_get_sve_cnt() == QK8_0) {
+    const void *b_ptr_base = vx;
+    const void *a_ptr_base = vy;
+    float *res_ptr = s;
+
+    // Use predicate for 32 lanes (bytes) to ensure 256-bit compatibility on 512-bit hardware
+    svbool_t p0 = svwhilelt_b8(0, 32);
+
+    for (int y = 0; y < nr; y++) {
+      const uint8_t *a_ptr = (const uint8_t *)a_ptr_base + y * nb * sizeof(block_q8_0);
+      const uint8_t *b_ptr = (const uint8_t *)b_ptr_base;
+      
+      const uint8_t *b_ptr_col = b_ptr;
+      float *res_ptr_row = res_ptr;
+
+      for (int x = 0; x < nc; x += 16) {
+        svfloat32_t final_acc0 = svdup_f32(0.0f); // Cols 0-3
+        svfloat32_t final_acc1 = svdup_f32(0.0f); // Cols 4-7
+        svfloat32_t final_acc2 = svdup_f32(0.0f); // Cols 8-11
+        svfloat32_t final_acc3 = svdup_f32(0.0f); // Cols 12-15
+        
+        const uint8_t *b_p = b_ptr_col + 32; // Offset to qs (16 * 2 bytes = 32)
+        const uint8_t *a_p = a_ptr + 2;      // Offset to qs
+
+        const uint8_t *b_d_p = b_ptr_col;    // Offset to d
+        const uint8_t *a_d_p = a_ptr;        // Offset to d
+
+        for (int b = 0; b < nb; b++) {
+          svint32_t acc0 = svdup_s32(0);
+          svint32_t acc1 = svdup_s32(0);
+          svint32_t acc2 = svdup_s32(0);
+          svint32_t acc3 = svdup_s32(0);
+
+          // Load A (32 bytes total)
+          int64_t a0_val = *(const int64_t *)a_p;
+          int64_t a1_val = *(const int64_t *)(a_p + 8);
+          int64_t a2_val = *(const int64_t *)(a_p + 16);
+          int64_t a3_val = *(const int64_t *)(a_p + 24);
+
+          svint8_t a0 = svreinterpret_s8_s64(svdup_s64(a0_val));
+          svint8_t a1 = svreinterpret_s8_s64(svdup_s64(a1_val));
+          svint8_t a2 = svreinterpret_s8_s64(svdup_s64(a2_val));
+          svint8_t a3 = svreinterpret_s8_s64(svdup_s64(a3_val));
+
+          // Load B (256 bytes total)
+          // Chunk 0: B0..B3 (0-7)
+          svint8_t b_c0 = svld1_s8(p0, (const int8_t *)b_p);
+          // Chunk 1: B4..B7 (0-7)
+          svint8_t b_c1 = svld1_s8(p0, (const int8_t *)b_p + 32);
+          // Chunk 2: B8..B11 (0-7)
+          svint8_t b_c2 = svld1_s8(p0, (const int8_t *)b_p + 64);
+          // Chunk 3: B12..B15 (0-7)
+          svint8_t b_c3 = svld1_s8(p0, (const int8_t *)b_p + 96);
+
+          // Process first half (0-7)
+          svint8_t b_low, b_high;
+          
+          // B0..B3 (0-7)
+          b_low = svlsl_n_s8_z(p0, b_c0, 4); b_high = svand_n_s8_z(p0, b_c0, 0xf0);
+          acc0 = svdot_s32(acc0, b_low, a0); acc0 = svdot_s32(acc0, b_high, a2);
+
+          // B4..B7 (0-7)
+          b_low = svlsl_n_s8_z(p0, b_c1, 4); b_high = svand_n_s8_z(p0, b_c1, 0xf0);
+          acc1 = svdot_s32(acc1, b_low, a0); acc1 = svdot_s32(acc1, b_high, a2);
+
+          // B8..B11 (0-7)
+          b_low = svlsl_n_s8_z(p0, b_c2, 4); b_high = svand_n_s8_z(p0, b_c2, 0xf0);
+          acc2 = svdot_s32(acc2, b_low, a0); acc2 = svdot_s32(acc2, b_high, a2);
+
+          // B12..B15 (0-7)
+          b_low = svlsl_n_s8_z(p0, b_c3, 4); b_high = svand_n_s8_z(p0, b_c3, 0xf0);
+          acc3 = svdot_s32(acc3, b_low, a0); acc3 = svdot_s32(acc3, b_high, a2);
+
+          // Load B second half (128-255)
+          // Chunk 4: B0..B3 (8-15)
+          b_c0 = svld1_s8(p0, (const int8_t *)b_p + 128);
+          // Chunk 5: B4..B7 (8-15)
+          b_c1 = svld1_s8(p0, (const int8_t *)b_p + 160);
+          // Chunk 6: B8..B11 (8-15)
+          b_c2 = svld1_s8(p0, (const int8_t *)b_p + 192);
+          // Chunk 7: B12..B15 (8-15)
+          b_c3 = svld1_s8(p0, (const int8_t *)b_p + 224);
+
+          // Process second half (8-15)
+          // B0..B3 (8-15)
+          b_low = svlsl_n_s8_z(p0, b_c0, 4); b_high = svand_n_s8_z(p0, b_c0, 0xf0);
+          acc0 = svdot_s32(acc0, b_low, a1); acc0 = svdot_s32(acc0, b_high, a3);
+
+          // B4..B7 (8-15)
+          b_low = svlsl_n_s8_z(p0, b_c1, 4); b_high = svand_n_s8_z(p0, b_c1, 0xf0);
+          acc1 = svdot_s32(acc1, b_low, a1); acc1 = svdot_s32(acc1, b_high, a3);
+
+          // B8..B11 (8-15)
+          b_low = svlsl_n_s8_z(p0, b_c2, 4); b_high = svand_n_s8_z(p0, b_c2, 0xf0);
+          acc2 = svdot_s32(acc2, b_low, a1); acc2 = svdot_s32(acc2, b_high, a3);
+
+          // B12..B15 (8-15)
+          b_low = svlsl_n_s8_z(p0, b_c3, 4); b_high = svand_n_s8_z(p0, b_c3, 0xf0);
+          acc3 = svdot_s32(acc3, b_low, a1); acc3 = svdot_s32(acc3, b_high, a3);
+
+          // Combine accumulators
+          svint32_t sum0 = svadd_s32_z(p0, svuzp1_s32(acc0, acc0), svuzp2_s32(acc0, acc0));
+          svint32_t sum1 = svadd_s32_z(p0, svuzp1_s32(acc1, acc1), svuzp2_s32(acc1, acc1));
+          svint32_t sum2 = svadd_s32_z(p0, svuzp1_s32(acc2, acc2), svuzp2_s32(acc2, acc2));
+          svint32_t sum3 = svadd_s32_z(p0, svuzp1_s32(acc3, acc3), svuzp2_s32(acc3, acc3));
+
+          // Scaling
+          sum0 = svasr_n_s32_z(p0, sum0, 4);
+          sum1 = svasr_n_s32_z(p0, sum1, 4);
+          sum2 = svasr_n_s32_z(p0, sum2, 4);
+          sum3 = svasr_n_s32_z(p0, sum3, 4);
+
+          svfloat32_t f0 = svcvt_f32_s32_z(p0, sum0);
+          svfloat32_t f1 = svcvt_f32_s32_z(p0, sum1);
+          svfloat32_t f2 = svcvt_f32_s32_z(p0, sum2);
+          svfloat32_t f3 = svcvt_f32_s32_z(p0, sum3);
+
+          // Load scales
+          svfloat16_t b_scales_f16_0 = svld1_f16(p0, (const __fp16 *)b_d_p);
+          svfloat16_t b_scales_f16_1 = svld1_f16(p0, (const __fp16 *)b_d_p + 8);
+          
+          svfloat32_t b_scales0 = svcvt_f32_f16_z(p0, b_scales_f16_0);
+          svfloat32_t b_scales1 = svcvt_f32_f16_z(p0, b_scales_f16_1);
+
+          float a_scale_val = (float)(*(const __fp16 *)a_d_p);
+          svfloat32_t a_scales = svdup_f32(a_scale_val);
+
+          svfloat32_t s0 = svmul_f32_z(p0, b_scales0, a_scales);
+          svfloat32_t s1 = svmul_f32_z(p0, b_scales1, a_scales);
+          
+          svfloat32_t s0_hi = svext_f32(s0, s0, 4);
+          svfloat32_t s1_hi = svext_f32(s1, s1, 4);
+          
+          final_acc0 = svmla_f32_z(p0, final_acc0, f0, s0); 
+          final_acc1 = svmla_f32_z(p0, final_acc1, f1, s0_hi); 
+          final_acc2 = svmla_f32_z(p0, final_acc2, f2, s1); 
+          final_acc3 = svmla_f32_z(p0, final_acc3, f3, s1_hi); 
+
+          b_p += 256;
+          a_p += 34;
+          b_d_p += 256;
+          a_d_p += 34;
+        }
+        
+        svbool_t p_store = svwhilelt_b32(0, 4);
+        
+        svst1_f32(p_store, res_ptr_row, final_acc0);
+        svst1_f32(p_store, res_ptr_row + 4, final_acc1);
+        svst1_f32(p_store, res_ptr_row + 8, final_acc2);
+        svst1_f32(p_store, res_ptr_row + 12, final_acc3);
+        
+        b_ptr_col += 256 * nb;
+        res_ptr_row += 16;
+      }
+      res_ptr = (float*)((char*)res_ptr + bs);
+    }
+    return;
+  }
+#endif
+}
+
+void nntr_gemm_q4_0_16x8_q8_0(int n, float *__restrict s, size_t bs,
+                             const void *__restrict vx,
+                             const void *__restrict vy, int nr, int nc) {
+  const int qk = QK8_0;
+  const int nb = n / qk;
+  const int ncols_interleaved = 16;
+
+  assert(n % qk == 0);
+  assert(nc % ncols_interleaved == 0);
+  assert(nr % 4 == 0); // Processing 4 rows at a time
+
+#if defined(__ARM_FEATURE_SVE)
+  if (ggml_cpu_has_sve() && ggml_cpu_get_sve_cnt() == QK8_0) {
+    const void *b_ptr_base = vx;
+    const void *a_ptr_base = vy;
+    float *res_ptr = s;
+
+    // Use predicate for 32 lanes (bytes)
+    svbool_t p0 = svwhilelt_b8(0, 32);
+
+    for (int y = 0; y < nr; y += 4) {
+      const uint8_t *b_ptr = (const uint8_t *)b_ptr_base;
+      float *res_ptr_row = res_ptr + y * (bs / sizeof(float)); // Assuming bs is stride in bytes
+
+      for (int x = 0; x < nc; x += 16) {
+        // Accumulators for 4 rows x 16 columns
+        // Rows 0-3. Cols 0-3, 4-7, 8-11, 12-15.
+        svint32_t acc00 = svdup_s32(0); svint32_t acc01 = svdup_s32(0); svint32_t acc02 = svdup_s32(0); svint32_t acc03 = svdup_s32(0);
+        svint32_t acc10 = svdup_s32(0); svint32_t acc11 = svdup_s32(0); svint32_t acc12 = svdup_s32(0); svint32_t acc13 = svdup_s32(0);
+        svint32_t acc20 = svdup_s32(0); svint32_t acc21 = svdup_s32(0); svint32_t acc22 = svdup_s32(0); svint32_t acc23 = svdup_s32(0);
+        svint32_t acc30 = svdup_s32(0); svint32_t acc31 = svdup_s32(0); svint32_t acc32 = svdup_s32(0); svint32_t acc33 = svdup_s32(0);
+
+        const uint8_t *b_p = b_ptr + 32;
+        const uint8_t *a_p = (const uint8_t *)a_ptr_base + y * nb * sizeof(block_q8_0) + 2;
+        const uint8_t *b_d_p = b_ptr;
+        const uint8_t *a_d_p = (const uint8_t *)a_ptr_base + y * nb * sizeof(block_q8_0);
+
+        for (int b = 0; b < nb; b++) {
+          // Load B (256 bytes) - 4 chunks of 32 bytes for first half (0-7)
+          svint8_t b0 = svld1_s8(p0, (const int8_t *)b_p);
+          svint8_t b1 = svld1_s8(p0, (const int8_t *)b_p + 32);
+          svint8_t b2 = svld1_s8(p0, (const int8_t *)b_p + 64);
+          svint8_t b3 = svld1_s8(p0, (const int8_t *)b_p + 96);
+
+          // Load A (4 rows, 32 bytes each)
+          const uint8_t *a_p0 = a_p;
+          const uint8_t *a_p1 = a_p + nb * sizeof(block_q8_0);
+          const uint8_t *a_p2 = a_p + 2 * nb * sizeof(block_q8_0);
+          const uint8_t *a_p3 = a_p + 3 * nb * sizeof(block_q8_0);
+
+          int64_t a0_val = *(const int64_t *)a_p0;
+          int64_t a1_val = *(const int64_t *)a_p1;
+          int64_t a2_val = *(const int64_t *)a_p2;
+          int64_t a3_val = *(const int64_t *)a_p3;
+
+          svint8_t a0 = svreinterpret_s8_s64(svdup_s64(a0_val));
+          svint8_t a1 = svreinterpret_s8_s64(svdup_s64(a1_val));
+          svint8_t a2 = svreinterpret_s8_s64(svdup_s64(a2_val));
+          svint8_t a3 = svreinterpret_s8_s64(svdup_s64(a3_val));
+
+          // First half (0-7)
+          acc00 = svmmla_s32(acc00, b0, a0);
+          acc10 = svmmla_s32(acc10, b0, a1);
+          acc20 = svmmla_s32(acc20, b0, a2);
+          acc30 = svmmla_s32(acc30, b0, a3);
+
+          acc01 = svmmla_s32(acc01, b1, a0);
+          acc11 = svmmla_s32(acc11, b1, a1);
+          acc21 = svmmla_s32(acc21, b1, a2);
+          acc31 = svmmla_s32(acc31, b1, a3);
+
+          acc02 = svmmla_s32(acc02, b2, a0);
+          acc12 = svmmla_s32(acc12, b2, a1);
+          acc22 = svmmla_s32(acc22, b2, a2);
+          acc32 = svmmla_s32(acc32, b2, a3);
+
+          acc03 = svmmla_s32(acc03, b3, a0);
+          acc13 = svmmla_s32(acc13, b3, a1);
+          acc23 = svmmla_s32(acc23, b3, a2);
+          acc33 = svmmla_s32(acc33, b3, a3);
+
+          // Second half (8-15)
+          b0 = svld1_s8(p0, (const int8_t *)b_p + 128);
+          b1 = svld1_s8(p0, (const int8_t *)b_p + 160);
+          b2 = svld1_s8(p0, (const int8_t *)b_p + 192);
+          b3 = svld1_s8(p0, (const int8_t *)b_p + 224);
+
+          a0_val = *(const int64_t *)(a_p0 + 8);
+          a1_val = *(const int64_t *)(a_p1 + 8);
+          a2_val = *(const int64_t *)(a_p2 + 8);
+          a3_val = *(const int64_t *)(a_p3 + 8);
+
+          a0 = svreinterpret_s8_s64(svdup_s64(a0_val));
+          a1 = svreinterpret_s8_s64(svdup_s64(a1_val));
+          a2 = svreinterpret_s8_s64(svdup_s64(a2_val));
+          a3 = svreinterpret_s8_s64(svdup_s64(a3_val));
+
+          acc00 = svmmla_s32(acc00, b0, a0);
+          acc10 = svmmla_s32(acc10, b0, a1);
+          acc20 = svmmla_s32(acc20, b0, a2);
+          acc30 = svmmla_s32(acc30, b0, a3);
+
+          acc01 = svmmla_s32(acc01, b1, a0);
+          acc11 = svmmla_s32(acc11, b1, a1);
+          acc21 = svmmla_s32(acc21, b1, a2);
+          acc31 = svmmla_s32(acc31, b1, a3);
+
+          acc02 = svmmla_s32(acc02, b2, a0);
+          acc12 = svmmla_s32(acc12, b2, a1);
+          acc22 = svmmla_s32(acc22, b2, a2);
+          acc32 = svmmla_s32(acc32, b2, a3);
+
+          acc03 = svmmla_s32(acc03, b3, a0);
+          acc13 = svmmla_s32(acc13, b3, a1);
+          acc23 = svmmla_s32(acc23, b3, a2);
+          acc33 = svmmla_s32(acc33, b3, a3);
+
+          b_p += 256;
+          a_p += 34; 
+        }
+
+        // Load B scales
+        svfloat16_t bs0_f16 = svld1_f16(p0, (const __fp16 *)b_d_p);
+        svfloat16_t bs1_f16 = svld1_f16(p0, (const __fp16 *)b_d_p + 8);
+        svfloat32_t bs0 = svcvt_f32_f16_z(p0, bs0_f16); 
+        svfloat32_t bs1 = svcvt_f32_f16_z(p0, bs1_f16); 
+
+        // Load A scales
+        float as0_val = (float)(*(const __fp16 *)a_d_p);
+        float as1_val = (float)(*(const __fp16 *)(a_d_p + nb * sizeof(block_q8_0)));
+        float as2_val = (float)(*(const __fp16 *)(a_d_p + 2 * nb * sizeof(block_q8_0)));
+        float as3_val = (float)(*(const __fp16 *)(a_d_p + 3 * nb * sizeof(block_q8_0)));
+
+        svfloat32_t as0 = svdup_f32(as0_val);
+        svfloat32_t as1 = svdup_f32(as1_val);
+        svfloat32_t as2 = svdup_f32(as2_val);
+        svfloat32_t as3 = svdup_f32(as3_val);
+
+        auto process_row = [&](svint32_t acc0, svint32_t acc1, svint32_t acc2, svint32_t acc3, svfloat32_t as) {
+          svfloat32_t sum0 = svcvt_f32_s32_z(p0, svadd_s32_z(p0, svuzp1_s32(acc0, acc0), svuzp2_s32(acc0, acc0)));
+          svfloat32_t sum1 = svcvt_f32_s32_z(p0, svadd_s32_z(p0, svuzp1_s32(acc1, acc1), svuzp2_s32(acc1, acc1)));
+          svfloat32_t sum2 = svcvt_f32_s32_z(p0, svadd_s32_z(p0, svuzp1_s32(acc2, acc2), svuzp2_s32(acc2, acc2)));
+          svfloat32_t sum3 = svcvt_f32_s32_z(p0, svadd_s32_z(p0, svuzp1_s32(acc3, acc3), svuzp2_s32(acc3, acc3)));
+
+          svfloat32_t bs0_hi = svext_f32(bs0, bs0, 4);
+          svfloat32_t bs1_hi = svext_f32(bs1, bs1, 4);
+          
+          svfloat32_t r0 = svmul_f32_z(p0, sum0, svmul_f32_z(p0, bs0, as));
+          svfloat32_t r1 = svmul_f32_z(p0, sum1, svmul_f32_z(p0, bs0_hi, as));
+          svfloat32_t r2 = svmul_f32_z(p0, sum2, svmul_f32_z(p0, bs1, as));
+          svfloat32_t r3 = svmul_f32_z(p0, sum3, svmul_f32_z(p0, bs1_hi, as));
+          
+          return std::make_tuple(r0, r1, r2, r3);
+        };
+
+        auto [r00, r01, r02, r03] = process_row(acc00, acc01, acc02, acc03, as0);
+        auto [r10, r11, r12, r13] = process_row(acc10, acc11, acc12, acc13, as1);
+        auto [r20, r21, r22, r23] = process_row(acc20, acc21, acc22, acc23, as2);
+        auto [r30, r31, r32, r33] = process_row(acc30, acc31, acc32, acc33, as3);
+
+        svbool_t p_store = svwhilelt_b32(0, 4);
+        
+        svst1_f32(p_store, res_ptr_row, r00);
+        svst1_f32(p_store, res_ptr_row + 4, r01);
+        svst1_f32(p_store, res_ptr_row + 8, r02);
+        svst1_f32(p_store, res_ptr_row + 12, r03);
+        
+        float *r1_ptr = res_ptr_row + (bs / sizeof(float));
+        svst1_f32(p_store, r1_ptr, r10);
+        svst1_f32(p_store, r1_ptr + 4, r11);
+        svst1_f32(p_store, r1_ptr + 8, r12);
+        svst1_f32(p_store, r1_ptr + 12, r13);
+
+        float *r2_ptr = r1_ptr + (bs / sizeof(float));
+        svst1_f32(p_store, r2_ptr, r20);
+        svst1_f32(p_store, r2_ptr + 4, r21);
+        svst1_f32(p_store, r2_ptr + 8, r22);
+        svst1_f32(p_store, r2_ptr + 12, r23);
+
+        float *r3_ptr = r2_ptr + (bs / sizeof(float));
+        svst1_f32(p_store, r3_ptr, r30);
+        svst1_f32(p_store, r3_ptr + 4, r31);
+        svst1_f32(p_store, r3_ptr + 8, r32);
+        svst1_f32(p_store, r3_ptr + 12, r33);
+
+        b_ptr += 256 * nb;
+        res_ptr_row += 16;
+      }
+    }
+    return;
+  }
+#endif
 }
