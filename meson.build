@@ -40,11 +40,6 @@ cc = meson.get_compiler('c')
 cxx = meson.get_compiler('cpp')
 cxx_compiler_id = cxx.get_id()
 
-subprojects_dir_relative = 'subprojects'
-subprojects_dir_absolute = meson.current_source_dir() / subprojects_dir_relative
-windows_resource_dir_relative = 'nntrainer-windows-resource'
-windows_resource_dir_absolute = meson.current_source_dir() / windows_resource_dir_relative
-
 powershell_prog = find_program('powershell', required: (build_machine.system() == 'windows'))
 
 # Obtains number of cores
@@ -114,6 +109,19 @@ arch = host_machine.cpu_family()
 target = target_machine.cpu_family()
 
 
+subprojects_dir_relative = 'subprojects'
+subprojects_dir_absolute = meson.current_source_dir() / subprojects_dir_relative
+
+if get_option('platform') == 'windows'
+  if arch == 'arm' or arch == 'aarch64'
+  windows_resource_dir_relative = 'nntrainer-windows-resource' / 'arm64'
+  windows_resource_dir_absolute = meson.current_source_dir() / windows_resource_dir_relative
+  else
+  windows_resource_dir_relative = 'nntrainer-windows-resource' / 'x64'
+  windows_resource_dir_absolute = meson.current_source_dir() / windows_resource_dir_relative
+  endif
+endif
+
 if arch == 'arm' or arch == 'aarch64' or get_option('platform') == 'android'
   message('Build for ARM architecture')
   if arch == 'arm'
@@ -123,7 +131,7 @@ elif arch == 'x86' or arch == 'x86_64'
   message('Build for X86 architecture')
   if cxx_compiler_id == 'msvc'
     add_project_arguments(['/arch:AVX2'], language: ['c','cpp'])
-   add_project_arguments(['cpp_args=/MT'], language: ['c','cpp'] )
+    # Note: C runtime library (/MT or /MD) is controlled by b_vscrt option
   else
     add_project_arguments(['-march=native'], language: ['c','cpp'])
     add_project_arguments(['-mavx2', '-mfma'], language: ['c','cpp'])
@@ -447,7 +455,8 @@ extra_defines += '-DNNTR_NUM_THREADS=@0@'.format(get_option('nntr-num-threads'))
 message('set nntrainer num threads=@0@'.format(get_option('nntr-num-threads')))
 openmp_dep = dummy_dep
 if get_option('enable-openmp')
- if cxx_compiler_id == 'msvc'
+ # For Windows on x64, use OpenMP 5.0 instead of the OpenMP 2.0 standard
+ if cxx_compiler_id == 'msvc' and (arch == 'x86' or arch == 'x86_64')
     libiomp_root_opt = get_option('libiomp_root')
     libiomp_root = join_paths(meson.project_source_root(), libiomp_root_opt)
     omp_libdir = libiomp_root
